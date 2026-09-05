@@ -1,0 +1,99 @@
+name = "Détroit — approche non coopérative"
+brief = """Transit à vitesse réduite dans un rail resserré, trafic marchand dense
+et coopératif. Deux embarcations rapides non identifiées quittent la côte et
+convergent sur le porteur. L'enjeu n'est pas le tir : c'est l'identification
+dans un environnement où l'erreur se paie."""
+attendu = """Interrogation IFF, corrélation AIS, classement en neutre du trafic
+marchand. La vedette qui persiste après manœuvre d'évitement et qui illumine en
+conduite de tir bascule hostile : la solution proposée est l'ARTILLERIE 76 mm,
+pas le SAM — cible de surface, courte distance, effet gradué."""
+seed = 7314
+duration = 600
+
+[ownship]
+course = 68
+speed_kt = 12
+mast_m = 30
+
+[[contact]]
+id = "MV-ATHOS"
+name = "MV ATHOS"
+kind = "surf"
+brg = 42
+rng_nm = 9.5
+course = 248
+speed_kt = 13
+rcs = 9000
+ais = true
+emitters = ["nav"]
+
+[[contact]]
+id = "MV-KEPLER"
+name = "MV KEPLER"
+kind = "surf"
+brg = 138
+rng_nm = 14.2
+course = 300
+speed_kt = 11
+rcs = 12000
+ais = true
+emitters = ["nav"]
+
+[[contact]]
+id = "PATROL-9"
+name = "Patrouilleur allié"
+kind = "surf"
+brg = 300
+rng_nm = 11.0
+course = 68
+speed_kt = 14
+rcs = 3000
+iff = true
+ais = true
+
+[[contact]]
+id = "FAC-1"
+name = "Embarcation rapide"
+kind = "surf"
+brg = 15
+rng_nm = 12.5
+course = 200
+speed_kt = 34
+rcs = 40
+intent = "hostile"
+
+[[contact]]
+id = "FAC-2"
+name = "Embarcation rapide"
+kind = "surf"
+brg = 25
+rng_nm = 13.8
+course = 205
+speed_kt = 32
+rcs = 35
+
+[[contact]]
+id = "AIRLINER"
+name = "Trafic commercial"
+kind = "air"
+brg = 250
+rng_nm = 48
+course = 75
+speed_kt = 430
+alt_ft = 33000
+rcs = 90
+iff = true
+
+# Manœuvre d'évitement : on écarte la route pour lever le doute.
+[[event]]
+at = 210
+type = "order"
+course = 110
+
+# L'embarcation qui persiste met en œuvre une conduite de tir : ce n'est plus
+# une ambiguïté, c'est une intention.
+[[event]]
+at = 300
+type = "emitter"
+from = "FAC-1"
+emitters = ["fc"]

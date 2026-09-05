@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Console Tactique MFCL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+</head>
+<body>
+<!-- BEGIN CONSOLE -->
+<style>
+:root{
+  --ink:#050b16; --bezel:#0a1526; --panel:#0b1c33; --panel-2:#0e2444;
+  --line:#1c3f6b; --line-soft:#153152;
+  --grid:#2f6db5; --phos:#8fdcff;
+  --text:#cfe2f5; --dim:#7593b6; --dimmest:#405d80;
+  --friend:#5fb8ff; --hostile:#ff5566; --neutral:#43d98a; --unknown:#ffd24d;
+  --warn:#ff9a3c; --crit:#ff4d5f; --ok:#43d98a;
+  --f-disp:"Saira Condensed","Arial Narrow",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --f-sans:"IBM Plex Sans",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-font-smoothing:antialiased}
+.console{height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:1px;background:var(--line-soft);overflow:hidden}
+
+/* ---- bandeau ---- */
+.topbar{background:var(--bezel);display:flex;align-items:stretch;gap:1px;font-family:var(--f-disp)}
+.brand{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--panel-2)}
+.brand .mark{width:20px;height:20px;border:1.5px solid var(--phos);border-radius:50%;position:relative;flex:none}
+.brand .mark::after{content:"";position:absolute;inset:50% 50% 3px 50%;border-left:1.5px solid var(--phos);transform-origin:bottom;transform:rotate(38deg)}
+.brand b{font-size:15px;letter-spacing:.16em;color:#eaf5ff;display:block;line-height:1.1}
+.brand span{font-size:11px;letter-spacing:.2em;color:var(--dim)}
+.tag{align-self:center;margin-left:8px;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;padding:3px 7px;border-radius:2px;border:1px solid}
+.tag.live{color:var(--ok);border-color:#1c5b3c;background:#082418}
+.tag.rejeu{color:#ffd24d;border-color:#6b5410;background:#241d05}
+.statestrip{flex:1;display:flex;align-items:center;gap:22px;padding:0 16px;overflow-x:auto;scrollbar-width:none}
+.statestrip::-webkit-scrollbar{display:none}
+.stat{display:flex;flex-direction:column;line-height:1.15;white-space:nowrap}
+.stat i{font-style:normal;font-size:9.5px;letter-spacing:.15em;color:var(--dimmest);font-family:var(--f-disp)}
+.stat b{font-family:var(--f-mono);font-size:14px;font-weight:500;color:#e8f4ff;font-variant-numeric:tabular-nums}
+.stat b small{font-size:9.5px;color:var(--dim);margin-left:1px}
+.posture{display:flex;align-items:center;padding:0 14px;gap:9px;background:var(--panel-2)}
+.posture .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px currentColor}
+.posture span{font-family:var(--f-disp);font-size:13px;letter-spacing:.18em}
+
+/* ---- corps ---- */
+.main{display:grid;grid-template-columns:344px minmax(0,1fr) 340px;gap:1px;min-height:0;background:var(--line-soft)}
+.rail{display:flex;flex-direction:column;gap:1px;background:var(--line-soft);min-height:0;overflow:hidden}
+.pane{background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.pane.grow{flex:1}
+.pane > header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:6px 11px 5px;border-bottom:1px solid var(--line-soft);font-family:var(--f-disp);font-size:11.5px;letter-spacing:.19em;color:var(--dim);text-transform:uppercase;flex:none}
+.pane > header em{font-style:normal;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.08em;color:var(--dimmest)}
+.body{overflow:auto;min-height:0}
+
+/* ---- scope ---- */
+.scopewrap{position:relative;background:#04101f;min-height:0;min-width:0}
+#scope{display:block;width:100%;height:100%;cursor:crosshair}
+.ov{position:absolute;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.07em;color:var(--dim);pointer-events:none;line-height:1.7}
+.ov.tl{top:10px;left:12px}
+.ov.tl u{display:block;text-decoration:none;color:var(--phos)}
+.ov.tr{top:10px;right:12px;text-align:right}
+.ov.bl{bottom:10px;left:12px}
+.rangepad{position:absolute;bottom:10px;right:12px;display:flex;gap:1px;background:var(--line);padding:1px;border-radius:3px}
+.rangepad button{font-family:var(--f-mono);font-size:10.5px;background:var(--panel);color:var(--dim);border:0;padding:5px 10px;cursor:pointer}
+.rangepad button[aria-pressed="true"]{background:var(--phos);color:#03101f;font-weight:600}
+.rangepad button:hover{color:#e8f4ff}
+.rangepad button[aria-pressed="true"]:hover{color:#03101f}
+.brief{position:absolute;left:12px;bottom:44px;max-width:min(46ch,52%);font-family:var(--f-sans);font-size:11.5px;line-height:1.45;color:var(--dim);background:rgba(5,16,32,.72);border-left:2px solid var(--line);padding:7px 10px;border-radius:0 3px 3px 0}
+.brief b{display:block;font-family:var(--f-disp);letter-spacing:.14em;font-size:11px;color:var(--phos);margin-bottom:3px}
+
+/* ---- menaces ---- */
+.threat{display:grid;grid-template-columns:auto 1fr auto;gap:3px 9px;padding:7px 11px;border-bottom:1px solid #0d1f38;cursor:pointer}
+.threat:hover{background:#12294a}
+.threat[aria-selected="true"]{background:#17416f}
+.threat[aria-selected="true"] .tid{box-shadow:-3px 0 0 var(--phos)}
+.tid{font-family:var(--f-mono);font-size:13px;font-weight:500;padding-left:5px}
+.tmeta{font-family:var(--f-mono);font-size:10.5px;color:var(--dim);text-align:right;font-variant-numeric:tabular-nums}
+.sbar{grid-column:1/-1;height:4px;background:#0a2038;border-radius:1px;overflow:hidden;display:flex}
+.sbar i{display:block;height:100%}
+.tfact{grid-column:1/-1;font-family:var(--f-mono);font-size:9.5px;color:var(--dimmest);letter-spacing:.02em}
+
+/* ---- solutions ---- */
+.sol{padding:9px 11px;border-bottom:1px solid #0d1f38;display:grid;gap:7px}
+.sol-h{display:flex;align-items:baseline;gap:8px}
+.sol-h b{font-family:var(--f-mono);font-size:13px;color:#eaf5ff}
+.sol-h span{font-family:var(--f-disp);font-size:12px;letter-spacing:.1em;color:var(--text)}
+.sol-h .role{margin-left:auto;font-family:var(--f-mono);font-size:9px;letter-spacing:.12em;padding:2px 6px;border-radius:2px;border:1px solid}
+.role.defense{color:var(--phos);border-color:#20527f}
+.role.attaque{color:var(--warn);border-color:#6b4416}
+.sol-g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sol-g div i{display:block;font-style:normal;font-family:var(--f-disp);font-size:9.5px;letter-spacing:.12em;color:var(--dimmest)}
+.sol-g div b{font-family:var(--f-mono);font-size:13px;color:#e8f4ff;font-variant-numeric:tabular-nums}
+.sol-a{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chipst{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.08em;padding:2px 7px;border-radius:2px;border:1px solid;white-space:nowrap}
+.st-recommande{color:var(--ok);border-color:#1c5b3c;background:#082418}
+.st-autre{color:var(--dim);border-color:var(--line)}
+.st-butee{color:var(--crit);border-color:#6b1f28;background:#260a0f}
+.butee{margin-left:auto;font-family:var(--f-mono);font-size:13.5px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--warn)}
+.butee.hot{color:var(--crit)}
+button.act{font-family:var(--f-disp);font-size:11.5px;letter-spacing:.14em;background:#123a63;border:1px solid #2a6099;color:#dff0ff;padding:5px 11px;border-radius:2px;cursor:pointer}
+button.act:hover:not(:disabled){background:#1a5590;border-color:var(--phos)}
+button.act:disabled{opacity:.35;cursor:default}
+button.act.danger{background:#3d1119;border-color:#7d2531;color:#ffc9cf}
+button.act.danger:hover:not(:disabled){background:#5a1a25}
+
+/* ---- piste ---- */
+.hook{padding:10px 11px 12px}
+.hook-id{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.hook-id b{font-family:var(--f-mono);font-size:18px;color:#eaf5ff}
+.hook-id .aff{font-family:var(--f-disp);font-size:11px;letter-spacing:.16em;padding:2px 7px;border:1px solid currentColor;border-radius:2px}
+.hook-id .src{margin-left:auto;font-family:var(--f-mono);font-size:9px;color:var(--dimmest)}
+.readouts{display:grid;grid-template-columns:repeat(4,1fr);gap:9px 7px}
+.ro i{display:block;font-style:normal;font-family:var(--f-disp);font-size:9.5px;letter-spacing:.13em;color:var(--dimmest)}
+.ro b{font-family:var(--f-mono);font-size:15px;color:#e8f4ff;font-variant-numeric:tabular-nums}
+.ro b small{font-size:9.5px;color:var(--dim);margin-left:1px}
+.ro.alert b{color:var(--crit)}
+.idrow{display:flex;gap:5px;margin-top:11px}
+.idrow button{flex:1;font-family:var(--f-disp);font-size:11px;letter-spacing:.1em;padding:5px 0;border-radius:2px;background:transparent;border:1px solid var(--line);color:var(--dim);cursor:pointer}
+.idrow button:hover{border-color:currentColor}
+.idrow button.f:hover{color:var(--friend)} .idrow button.h:hover{color:var(--hostile)}
+.idrow button.n:hover{color:var(--neutral)} .idrow button.u:hover{color:var(--unknown)}
+.empty{padding:22px 11px;text-align:center;color:var(--dimmest);font-family:var(--f-mono);font-size:10.5px;line-height:1.6}
+
+/* ---- ipms ---- */
+.sensors{padding:8px 11px 10px;display:grid;gap:6px}
+.srow{display:grid;grid-template-columns:88px 1fr 58px;align-items:center;gap:8px}
+.srow i{font-style:normal;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.09em;color:var(--dim)}
+.bar{height:5px;background:#0a2038;border-radius:1px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--phos);transition:width .4s linear}
+.bar.warn span{background:var(--warn)} .bar.crit span{background:var(--crit)}
+.sval{font-family:var(--f-mono);font-size:11px;text-align:right;font-variant-numeric:tabular-nums;color:#dceafa}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
+.chip{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.06em;padding:2px 6px;border-radius:2px;border:1px solid}
+.chip.ok{color:var(--ok);border-color:#1c5b3c;background:#082418}
+.chip.ko{color:var(--crit);border-color:#6b1f28;background:#260a0f}
+
+/* ---- journal ---- */
+.ev{display:grid;grid-template-columns:5px auto 1fr;align-items:baseline;gap:8px;padding:4px 11px 4px 0;border-bottom:1px solid #0d1f38}
+.ev .sev{align-self:stretch;min-height:14px}
+.ev time{font-family:var(--f-mono);font-size:10px;color:var(--dimmest);font-variant-numeric:tabular-nums}
+.ev p{margin:0;font-size:11.5px;line-height:1.35}
+.ev.crit p{color:#fff}
+
+/* ---- pied ---- */
+.softkeys{background:var(--bezel);display:flex;align-items:stretch;gap:1px;flex-wrap:wrap}
+.sk{background:var(--panel);border:0;border-top:1px solid var(--line-soft);padding:7px 13px 8px;cursor:pointer;color:var(--dim);display:flex;flex-direction:column;gap:1px;align-items:center;min-width:92px;flex:1}
+.sk u{text-decoration:none;font-family:var(--f-mono);font-size:8.5px;color:var(--dimmest);letter-spacing:.09em}
+.sk span{font-family:var(--f-disp);font-size:12px;letter-spacing:.13em}
+.sk:hover:not(:disabled){background:var(--panel-2);color:#e8f4ff}
+.sk:disabled{opacity:.35;cursor:default}
+.sk[aria-pressed="true"]{background:#14406e;color:#dff0ff}
+.sk.sim{color:var(--warn)} .sk.sim:hover{background:#2a1a06}
+.sk:focus-visible,.threat:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--phos);outline-offset:-2px}
+.foot-sel{display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--panel-2);border-top:1px solid var(--line-soft)}
+.foot-sel select{font-family:var(--f-mono);font-size:11px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:2px;padding:4px 6px}
+.foot-sel label{font-family:var(--f-disp);font-size:10px;letter-spacing:.13em;color:var(--dimmest)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:1180px){
+  .console{height:auto;overflow:visible}
+  .main{grid-template-columns:1fr}
+  .scopewrap{height:min(88vw,620px);order:-1}
+  .rail{overflow:visible}
+}
+</style>
+
+<div class="console">
+  <div class="topbar">
+    <div class="brand">
+      <div class="mark"></div>
+      <div><b>MFCL</b><span>CONSOLE TACTIQUE</span></div>
+      <span class="tag rejeu" id="srctag">CONNEXION…</span>
+    </div>
+    <div class="statestrip">
+      <div class="stat"><i>TEMPS SIM</i><b id="clk">000:00</b></div>
+      <div class="stat"><i>PORTEUR — ROUTE</i><b id="own-crs">---<small>°</small></b></div>
+      <div class="stat"><i>VITESSE</i><b id="own-spd">--<small>kt</small></b></div>
+      <div class="stat"><i>PISTES</i><b id="n-trk">0</b></div>
+      <div class="stat"><i>SAM</i><b id="n-sam">--</b></div>
+      <div class="stat"><i>LEURRES</i><b id="n-dec">--</b></div>
+      <div class="stat"><i>IPMS</i><b id="ipms-src">—</b></div>
+      <div class="stat"><i>PUISS. RADAR</i><b id="radpwr">---<small>%</small></b></div>
+    </div>
+    <div class="posture"><span class="dot" id="pdot"></span><span id="posture">VEILLE</span></div>
+  </div>
+
+  <div class="main">
+    <div class="rail">
+      <section class="pane grow">
+        <header>Menaces <em id="thr-count">—</em></header>
+        <div class="body" id="threats"></div>
+      </section>
+      <section class="pane grow">
+        <header>Solutions d'engagement <em id="sol-count">—</em></header>
+        <div class="body" id="solutions"></div>
+      </section>
+    </div>
+
+    <div class="scopewrap">
+      <canvas id="scope"></canvas>
+      <div class="ov tl">VEILLE AIR/SURFACE<br><u id="sweep-lbl">ROTATION 15 tr/min</u>MOUVEMENT RELATIF</div>
+      <div class="ov tr" id="cursor-ro">GIS —— · DIST ——</div>
+      <div class="ov bl">NORD HAUT<br><span id="ring-lbl">ANNEAUX 6.25 NM</span></div>
+      <div class="brief" id="brief"></div>
+      <div class="rangepad" role="group" aria-label="Échelle de portée">
+        <button data-r="5">5</button><button data-r="10">10</button>
+        <button data-r="25" aria-pressed="true">25</button><button data-r="50">50</button>
+      </div>
+    </div>
+
+    <div class="rail">
+      <section class="pane">
+        <header>Piste accrochée <em id="hook-q">—</em></header>
+        <div id="hook-body" class="empty">AUCUNE PISTE ACCROCHÉE<br>CLIQUER UN PLOT OU UNE MENACE</div>
+      </section>
+      <section class="pane">
+        <header>IPMS — plateforme <em id="ipms-em">—</em></header>
+        <div class="sensors" id="sensors"></div>
+      </section>
+      <section class="pane grow">
+        <header>Journal <em id="ev-count">—</em></header>
+        <div class="body" id="events"></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="softkeys">
+    <button class="sk" id="sk-hook" disabled><u>F1</u><span>DÉCROCHER</span></button>
+    <button class="sk" id="sk-ebl"><u>F5</u><span>EBL / VRM</span></button>
+    <button class="sk" id="sk-trails" aria-pressed="true"><u>F6</u><span>TRACES</span></button>
+    <button class="sk" id="sk-ell" aria-pressed="true"><u>F7</u><span>INCERTITUDE</span></button>
+    <button class="sk" id="sk-decoy"><u>F8</u><span>LEURRES</span></button>
+    <button class="sk" id="sk-autosam"><u>F9</u><span>SAM AUTO</span></button>
+    <button class="sk sim" id="sk-pump"><u>F10</u><span>ARRÊT POMPE</span></button>
+    <div class="foot-sel">
+      <label for="sel-sc">SCÉNARIO</label>
+      <select id="sel-sc"></select>
+      <button class="act" id="sk-restart">REJOUER</button>
+      <label for="sel-rate">VITESSE</label>
+      <select id="sel-rate">
+        <option value="0">pause</option><option value="1" selected>x1</option>
+        <option value="4">x4</option><option value="10">x10</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const AFF = {friend:{c:"#5fb8ff",l:"AMI"}, hostile:{c:"#ff5566",l:"HOSTILE"},
+             neutral:{c:"#43d98a",l:"NEUTRE"}, unknown:{c:"#ffd24d",l:"INCONNU"}};
+const $ = id => document.getElementById(id);
+const pad = (n,w,d) => Number(n).toFixed(d).padStart(w,"0");
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+/* ------------------------------------------------------------------ *
+ * Sources de données. La console ne sait pas d'où viennent les trames :
+ * flux temps réel du simulateur, ou enregistrement rejoué. Même format,
+ * donc le front est développable et démontrable sans backend.
+ * ------------------------------------------------------------------ */
+class LiveSource {
+  constructor(){ this.kind = "LIVE"; this.cb = null; }
+  start(cb){
+    this.cb = cb;
+    const es = new EventSource("/stream");
+    es.onmessage = e => cb(JSON.parse(e.data));
+    es.onerror = () => { $("srctag").textContent = "FLUX INTERROMPU"; };
+  }
+  send(c){ return fetch("/cmd", {method:"POST", body:JSON.stringify(c)}); }
+}
+class ReplaySource {
+  constructor(lines){
+    this.kind = "REJEU";
+    this.meta = lines[0].meta || {};
+    this.frames = lines.slice(1);
+    this.i = 0; this.rate = 1;
+  }
+  start(cb){
+    this.cb = cb;
+    const t0 = performance.now(), base = this.frames[0] ? this.frames[0].t : 0;
+    const tick = () => {
+      const el = (performance.now() - t0)/1000 * this.rate + base;
+      while (this.i < this.frames.length-1 && this.frames[this.i+1].t <= el) this.i++;
+      if (this.i >= this.frames.length-1) { this.i = 0; }
+      const f = Object.assign({}, this.frames[this.i]);
+      f.meta = this.meta; f.rate = this.rate;
+      cb(f);
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  send(c){
+    // En rejeu, seules les commandes locales ont un sens.
+    if (c.cmd === "rate") this.rate = c.valeur;
+    if (c.cmd === "restart") this.i = 0;
+    return Promise.resolve();
+  }
+}
+
+const embedded = document.getElementById("fixture");
+const SRC = embedded
+  ? new ReplaySource(embedded.textContent.trim().split("\n").map(JSON.parse))
+  : new LiveSource();
+
+/* ------------------------------------------------------------------ */
+let F = null;            // dernière trame reçue
+let tRecv = 0;           // horloge locale à la réception
+let range = 25, showTrails = true, showEll = true, showEbl = false;
+let hooked = null;
+
+function age(){ return (performance.now() - tRecv)/1000 * (F && F.rate ? F.rate : 1); }
+function simT(){ return F ? F.t + age() : 0; }
+
+/* extrapolation : les trames arrivent à 10 Hz (1 Hz en rejeu), l'écran
+   tourne à 60. On prolonge la route de chaque piste entre deux trames, ce
+   que fait tout scope réel entre deux tours d'antenne. */
+function dr(t){
+  const d = t.spd/3600 * age();                 // NM
+  const a = t.crs*Math.PI/180;
+  return {x: t.x + d*Math.sin(a), y: t.y + d*Math.cos(a)};
+}
+
+/* ---------------- scope ---------------- */
+const cv = $("scope"), g = cv.getContext("2d");
+let W=0,H=0,cx=0,cy=0,R=0;
+function resize(){
+  const r = cv.parentElement.getBoundingClientRect();
+  const dpr = Math.min(devicePixelRatio||1, 2);
+  W=r.width; H=r.height;
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  g.setTransform(dpr,0,0,dpr,0,0);
+  cx=W/2; cy=H/2; R=Math.min(W,H)/2-26;
+}
+new ResizeObserver(resize).observe(cv.parentElement);
+const px = p => ({x: cx + p.x/range*R, y: cy - p.y/range*R});
+
+function drawScope(){
+  g.clearRect(0,0,W,H);
+  if (R<=10) return;
+  const grd = g.createRadialGradient(cx,cy,R*0.05,cx,cy,R);
+  grd.addColorStop(0,"#14488c"); grd.addColorStop(.72,"#0d3062"); grd.addColorStop(1,"#071c39");
+  g.beginPath(); g.arc(cx,cy,R,0,7); g.fillStyle=grd; g.fill();
+  g.save(); g.beginPath(); g.arc(cx,cy,R,0,7); g.clip();
+
+  g.strokeStyle="rgba(96,168,240,.30)"; g.lineWidth=1;
+  for(let i=1;i<=4;i++){ g.beginPath(); g.arc(cx,cy,R*i/4,0,7); g.stroke(); }
+  g.font='10px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
+  for(let a=0;a<360;a+=5){
+    const long=a%30===0, len=long?11:5, s=Math.sin(a*Math.PI/180), c=Math.cos(a*Math.PI/180);
+    g.beginPath(); g.moveTo(cx+s*R,cy-c*R); g.lineTo(cx+s*(R-len),cy-c*(R-len));
+    g.strokeStyle=long?"rgba(140,205,255,.55)":"rgba(110,175,235,.28)"; g.stroke();
+    if(long){ g.fillStyle="rgba(160,210,250,.62)"; g.fillText(String(a).padStart(3,"0"),cx+s*(R+13),cy-c*(R+13)); }
+  }
+
+  const sweep = REDUCED ? 0 : (simT()*90)%360;
+  if(!REDUCED){
+    const a0=sweep*Math.PI/180;
+    g.save(); g.globalCompositeOperation="lighter";
+    for(let i=0;i<26;i++){
+      const a=a0-i*0.028;
+      g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+Math.sin(a)*R,cy-Math.cos(a)*R);
+      g.strokeStyle="rgba(150,225,255,"+(0.16*(1-i/26))+")"; g.lineWidth=2.4; g.stroke();
+    }
+    g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+Math.sin(a0)*R,cy-Math.cos(a0)*R);
+    g.strokeStyle="rgba(190,240,255,.85)"; g.lineWidth=1.4; g.stroke();
+    g.restore();
+  }
+
+  if(F) F.tracks.forEach(t=>{
+    const q = dr(t), p = px(q);
+    const rr = Math.hypot(q.x,q.y); if(rr > range*1.03) return;
+    const brg = (Math.atan2(q.x,q.y)*180/Math.PI+360)%360;
+    const a = REDUCED?0:(sweep-brg+360)%360/360;
+    const al = REDUCED?1:0.42+0.58*Math.pow(1-a,2.2);
+    const col = AFF[t.aff].c, isH = t.id===hooked;
+    const s = t.spd>60?7:6;
+
+    if(showTrails && t.trail && t.trail.length>1){
+      g.beginPath();
+      t.trail.forEach((h,i)=>{ const P=px({x:h[0],y:h[1]}); i?g.lineTo(P.x,P.y):g.moveTo(P.x,P.y); });
+      g.strokeStyle=col; g.globalAlpha=.20*al; g.lineWidth=1; g.stroke(); g.globalAlpha=1;
+    }
+    if(showEll && t.ell){
+      // 2 sigma : ce que le filtre dit savoir de la position, pas la vérité.
+      g.beginPath();
+      g.ellipse(p.x,p.y, Math.max(3,t.ell[0]*2/range*R), Math.max(3,t.ell[1]*2/range*R), 0,0,7);
+      g.strokeStyle=col; g.globalAlpha=.22*al; g.lineWidth=1; g.stroke(); g.globalAlpha=1;
+    }
+
+    g.globalAlpha=al; g.strokeStyle=col; g.fillStyle=col; g.lineWidth=isH?2.1:1.5;
+    if(t.aff==="friend"){ g.beginPath(); g.arc(p.x,p.y,s,0,7); g.stroke(); }
+    else if(t.aff==="hostile"){ g.beginPath(); g.moveTo(p.x,p.y-s*1.2); g.lineTo(p.x+s*1.2,p.y);
+      g.lineTo(p.x,p.y+s*1.2); g.lineTo(p.x-s*1.2,p.y); g.closePath(); g.stroke(); }
+    else if(t.aff==="neutral"){ g.strokeRect(p.x-s,p.y-s,s*2,s*2); }
+    else { const r2=s*.66; g.beginPath();
+      g.arc(p.x,p.y-r2,r2,Math.PI,2*Math.PI); g.arc(p.x+r2,p.y,r2,-Math.PI/2,Math.PI/2);
+      g.arc(p.x,p.y+r2,r2,0,Math.PI); g.arc(p.x-r2,p.y,r2,Math.PI/2,3*Math.PI/2);
+      g.closePath(); g.stroke(); }
+    if(t.spd>60){ g.beginPath(); g.moveTo(p.x-s,p.y-s*1.9); g.lineTo(p.x+s,p.y-s*1.9); g.stroke(); }
+
+    const d=t.spd/60*3/range*R;   // vecteur : 3 minutes de route
+    g.beginPath(); g.moveTo(p.x,p.y);
+    g.lineTo(p.x+Math.sin(t.crs*Math.PI/180)*d, p.y-Math.cos(t.crs*Math.PI/180)*d);
+    g.lineWidth=1; g.stroke();
+    g.font='10.5px "IBM Plex Mono", monospace'; g.textAlign="left"; g.textBaseline="alphabetic";
+    g.fillText(t.id, p.x+s+5, p.y+4);
+    if(t.emitter==="fc"){ g.fillStyle="#ff5566"; g.fillText("◆FC", p.x+s+5, p.y+15); }
+    g.globalAlpha=1;
+
+    if(isH){
+      g.strokeStyle="#8fdcff"; g.lineWidth=1.2;
+      g.strokeRect(p.x-s-7,p.y-s-7,(s+7)*2,(s+7)*2);
+      if(showEbl){
+        g.setLineDash([4,4]); g.beginPath(); g.moveTo(cx,cy); g.lineTo(p.x,p.y);
+        g.strokeStyle="rgba(143,220,255,.6)"; g.stroke(); g.setLineDash([]);
+        g.beginPath(); g.arc(cx,cy,rr/range*R,0,7);
+        g.strokeStyle="rgba(143,220,255,.35)"; g.stroke();
+      }
+    }
+  });
+
+  // munitions en vol : un trait du porteur vers la piste visée
+  if(F) F.tirs.forEach(s=>{
+    const t = F.tracks.find(x=>x.id===s.tgt); if(!t) return;
+    const p = px(dr(t));
+    g.setLineDash([2,5]); g.beginPath(); g.moveTo(cx,cy); g.lineTo(p.x,p.y);
+    g.strokeStyle="rgba(255,154,60,.75)"; g.lineWidth=1.4; g.stroke(); g.setLineDash([]);
+  });
+  g.restore();
+
+  const crs = F ? F.own.crs : 0;
+  g.save(); g.translate(cx,cy); g.rotate(crs*Math.PI/180);
+  g.beginPath(); g.moveTo(0,-11); g.lineTo(6,8); g.lineTo(0,4); g.lineTo(-6,8); g.closePath();
+  g.fillStyle="#bfeaff"; g.fill(); g.restore();
+  g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+Math.sin(crs*Math.PI/180)*R, cy-Math.cos(crs*Math.PI/180)*R);
+  g.strokeStyle="rgba(191,234,255,.28)"; g.lineWidth=1; g.setLineDash([2,6]); g.stroke(); g.setLineDash([]);
+  g.beginPath(); g.arc(cx,cy,R,0,7); g.strokeStyle="rgba(150,210,255,.5)"; g.lineWidth=1.2; g.stroke();
+}
+
+/* ---------------- panneaux ---------------- */
+function renderThreats(){
+  const rows = F.tracks.slice(0,9);
+  $("threats").innerHTML = rows.map(t=>{
+    const c = AFF[t.aff].c, sc = t.score;
+    const col = sc>0.7 ? "var(--crit)" : sc>0.4 ? "var(--warn)" : "var(--dim)";
+    const fk = Object.entries(t.fact||{}).filter(([,v])=>v>0.02)
+      .sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>k+" "+v.toFixed(2)).join(" · ");
+    return '<div class="threat" data-id="'+t.id+'" tabindex="0" aria-selected="'+(t.id===hooked)+'">'+
+      '<div class="tid" style="color:'+c+'">'+t.id+'</div>'+
+      '<div class="tmeta">'+t.rng.toFixed(1)+' NM · '+pad(t.brg,3,0)+'° · '+t.spd.toFixed(0)+' kt</div>'+
+      '<div class="tmeta" style="color:'+col+'">'+(sc*100).toFixed(0)+'</div>'+
+      '<div class="sbar"><i style="width:'+(sc*100)+'%;background:'+col+'"></i></div>'+
+      '<div class="tfact">'+(fk||'aucun facteur significatif')+
+        (t.tcpa>0 ? ' · cpa '+t.cpa.toFixed(1)+' NM / '+Math.round(t.tcpa)+' s' : ' · s\'ouvre')+'</div></div>';
+  }).join("");
+  $("thr-count").textContent = F.tracks.length + " pistes";
+}
+
+function renderSolutions(){
+  const S = F.solutions;
+  $("sol-count").textContent = S.length ? S.length + " proposées" : "aucune";
+  if(!S.length){
+    $("solutions").innerHTML = '<div class="empty">AUCUNE PISTE CLASSÉE HOSTILE<br>'+
+      'LE SYSTÈME NE PROPOSE RIEN SANS IDENTIFICATION</div>';
+    return;
+  }
+  $("solutions").innerHTML = S.map((s,i)=>{
+    const b = s.butee;
+    const hot = b !== null && b < 20;
+    const stc = s.statut==="recommandé" ? "st-recommande"
+              : s.statut==="butée dépassée" ? "st-butee" : "st-autre";
+    return '<div class="sol">'+
+      '<div class="sol-h"><b>'+s.piste+'</b><span>'+s.label+'</span>'+
+        '<span class="role '+(s.role==="défense"?"defense":"attaque")+'">'+s.role.toUpperCase()+'</span></div>'+
+      '<div class="sol-g">'+
+        '<div><i>SALVE</i><b>x'+s.salve+'</b></div>'+
+        '<div><i>PK CUMUL</i><b>'+(s.pk*100).toFixed(0)+'<small>%</small></b></div>'+
+        '<div><i>TEMPS DE VOL</i><b>'+s.tof.toFixed(0)+'<small>s</small></b></div>'+
+        '<div><i>INTERCEPT.</i><b>'+s.r_int.toFixed(1)+'<small>NM</small></b></div>'+
+      '</div>'+
+      '<div class="sol-a"><span class="chipst '+stc+'">'+s.statut.toUpperCase()+'</span>'+
+        (b!==null && b<9e7 ? '<span class="butee'+(hot?' hot':'')+'" data-butee="'+b+'" data-t="'+F.t+'">BUTÉE '+Math.max(0,b).toFixed(0)+'s</span>' : '')+
+        '<button class="act'+(s.role==="attaque"?" danger":"")+'" data-eng="'+s.piste+'" data-ef="'+s.effecteur+'"'+
+          (s.statut==="recommandé"?"":" disabled")+'>ENGAGER</button></div></div>';
+  }).join("");
+}
+
+function renderHook(){
+  const t = F.tracks.find(x=>x.id===hooked);
+  $("sk-hook").disabled = !t;
+  if(!t){
+    $("hook-body").className="empty";
+    $("hook-body").innerHTML="AUCUNE PISTE ACCROCHÉE<br>CLIQUER UN PLOT OU UNE MENACE";
+    $("hook-q").textContent="—"; return;
+  }
+  const c = AFF[t.aff];
+  $("hook-q").textContent = "QUALITÉ " + (t.qual*100).toFixed(0) + "%";
+  $("hook-body").className="hook";
+  const ro=(l,v,u,al)=>'<div class="ro'+(al?" alert":"")+'"><i>'+l+'</i><b>'+v+(u?'<small>'+u+'</small>':'')+'</b></div>';
+  $("hook-body").innerHTML =
+    '<div class="hook-id"><b>'+t.id+'</b>'+
+      '<span class="aff" style="color:'+c.c+'">'+c.l+'</span>'+
+      '<span class="src">'+(t.src||[]).join("+")+(t.ident?" · "+t.ident:"")+'</span></div>'+
+    '<div class="readouts">'+
+      ro("GISEMENT", pad(t.brg,3,0), "°") + ro("DISTANCE", t.rng.toFixed(1), "NM") +
+      ro("ROUTE", pad(t.crs,3,0), "°") + ro("VITESSE", t.spd.toFixed(0), "kt") +
+      ro("CPA", t.tcpa>0?t.cpa.toFixed(1):"—", t.tcpa>0?"NM":"", t.tcpa>0&&t.cpa<3) +
+      ro("TCPA", t.tcpa>0?Math.round(t.tcpa):"OUVR.", t.tcpa>0?"s":"", t.tcpa>0&&t.tcpa<90) +
+      ro("IFF", t.iff==="ami"?"AMI":t.iff?"SANS RÉP.":"—", "") +
+      ro("ESM", t.emitter?t.emitter.toUpperCase():"—", "", t.emitter==="fc") +
+    '</div>'+
+    '<div class="idrow">'+
+      '<button class="f" data-id-aff="friend">AMI</button>'+
+      '<button class="h" data-id-aff="hostile">HOSTILE</button>'+
+      '<button class="n" data-id-aff="neutral">NEUTRE</button>'+
+      '<button class="u" data-id-aff="unknown">INCONNU</button></div>';
+}
+
+function renderPlatform(){
+  const p = F.platform;
+  const rows = [
+    ["TEMP. GUIDE", p.temp, 20, 100, "°C", p.temp>=88?"crit":p.temp>=70?"warn":""],
+    ["PRESS. REFR.", p.press, 0, 8, "bar", p.press<1?"crit":""],
+    ["PUISS. ÉMIS.", p.puissance, 0, 100, "%", p.puissance<40?"crit":p.puissance<80?"warn":""],
+  ];
+  $("sensors").innerHTML = rows.map(([l,v,mn,mx,u,st])=>{
+    const pct = clamp((v-mn)/(mx-mn)*100,0,100);
+    return '<div class="srow"><i>'+l+'</i><div class="bar '+st+'"><span style="width:'+pct.toFixed(1)+'%"></span></div>'+
+      '<div class="sval">'+Number(v).toFixed(1)+' '+u+'</div></div>';
+  }).join("") + '<div class="chips">'+
+    '<span class="chip '+(p.pompe?"ok":"ko")+'">POMPE '+(p.pompe?"OK":"DÉFAUT")+'</span>'+
+    (p.defauts.length ? p.defauts.map(f=>'<span class="chip ko">'+f+'</span>').join("")
+                      : '<span class="chip ok">AUCUN DÉFAUT</span>')+'</div>';
+  $("ipms-em").textContent = p.source;
+  $("ipms-src").textContent = p.source;
+  $("radpwr").innerHTML = p.puissance + '<small>%</small>';
+  $("sk-pump").querySelector("span").textContent = p.pompe ? "ARRÊT POMPE" : "RELANCER POMPE";
+}
+
+function renderEvents(){
+  $("events").innerHTML = F.events.map(e=>{
+    const col = e.sev==="crit"?"var(--crit)":e.sev==="warn"?"var(--warn)":"var(--dim)";
+    const m = Math.floor(e.t/60), s = Math.floor(e.t%60);
+    return '<div class="ev '+e.sev+'"><div class="sev" style="background:'+col+'"></div>'+
+      '<time>'+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")+'</time>'+
+      '<p>'+e.txt+'</p></div>';
+  }).join("");
+  $("ev-count").textContent = F.events.length + " entrées";
+}
+
+function renderTop(){
+  const m = Math.floor(F.t/60), s = Math.floor(F.t%60);
+  $("clk").textContent = String(m).padStart(3,"0")+":"+String(s).padStart(2,"0");
+  $("own-crs").innerHTML = pad(F.own.crs,3,0)+'<small>°</small>';
+  $("own-spd").innerHTML = F.own.spd.toFixed(1)+'<small>kt</small>';
+  $("n-trk").textContent = F.tracks.length;
+  const sam = F.effecteurs.find(e=>e.key==="sam");
+  $("n-sam").textContent = sam ? sam.rounds+"/"+sam.canaux+"c" : "—";
+  $("n-dec").textContent = F.leurres;
+  const hot = F.tracks.some(t=>t.aff==="hostile" && t.tcpa>0 && t.tcpa<120);
+  const deg = F.platform.defauts.length>0;
+  $("posture").textContent = hot ? "ENGAGEMENT" : deg ? "PLATEFORME DÉGRADÉE" : "VEILLE";
+  $("posture").style.color = hot ? "var(--crit)" : deg ? "var(--warn)" : "var(--ok)";
+  $("pdot").style.background = hot ? "var(--crit)" : deg ? "var(--warn)" : "var(--ok)";
+  $("srctag").textContent = SRC.kind === "LIVE" ? "SIMULATION EN DIRECT" : "REJEU — ENREGISTREMENT";
+  $("srctag").className = "tag " + (SRC.kind === "LIVE" ? "live" : "rejeu");
+  if(F.meta){
+    $("brief").innerHTML = "<b>"+F.meta.scenario+"</b>"+F.meta.brief.replace(/\n/g," ");
+  }
+  $("ring-lbl").textContent = "ANNEAUX " + (range/4).toFixed(2) + " NM";
+}
+
+/* ---------------- boucle ---------------- */
+let tPanel = 0;
+function loop(now){
+  drawScope();
+  if(F && now - tPanel > 250){
+    tPanel = now;
+    renderThreats(); renderSolutions(); renderHook(); renderPlatform(); renderEvents(); renderTop();
+  }
+  // la butée descend en continu, elle ne peut pas attendre la trame suivante
+  document.querySelectorAll(".butee").forEach(el=>{
+    const b = parseFloat(el.dataset.butee) - age();
+    el.textContent = "BUTÉE " + Math.max(0,b).toFixed(0) + "s";
+    el.classList.toggle("hot", b < 20);
+  });
+  requestAnimationFrame(loop);
+}
+
+SRC.start(f => {
+  F = f; tRecv = performance.now();
+  // Première trame : on accroche la menace de tête. Un poste réel n'accroche
+  // pas tout seul, mais une console qui s'ouvre sur un panneau vide ne montre
+  // rien de ce qu'elle sait faire.
+  if (hooked === null && F.tracks.length) {
+    const top = F.tracks.find(t => t.aff === "hostile") || F.tracks[0];
+    hooked = top.id;
+  }
+});
+
+/* ---------------- interactions ---------------- */
+cv.addEventListener("click", e=>{
+  if(!F) return;
+  const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  let best=null, bd=20;
+  F.tracks.forEach(t=>{ const p=px(dr(t)), d=Math.hypot(p.x-mx,p.y-my); if(d<bd){bd=d;best=t;} });
+  hooked = best?best.id:null;
+});
+cv.addEventListener("mousemove", e=>{
+  const r=cv.getBoundingClientRect();
+  const dx=(e.clientX-r.left-cx)/R*range, dy=(cy-(e.clientY-r.top))/R*range;
+  const b=(Math.atan2(dx,dy)*180/Math.PI+360)%360, d=Math.hypot(dx,dy);
+  $("cursor-ro").textContent = d>range ? "GIS —— · DIST ——"
+    : "GIS "+pad(b,3,0)+"° · DIST "+d.toFixed(1)+" NM";
+});
+$("threats").addEventListener("click", e=>{
+  const row=e.target.closest(".threat"); if(row) hooked=row.dataset.id;
+});
+$("threats").addEventListener("keydown", e=>{
+  if(e.key!=="Enter" && e.key!==" ") return;
+  const row=e.target.closest(".threat"); if(row){ e.preventDefault(); hooked=row.dataset.id; }
+});
+$("solutions").addEventListener("click", e=>{
+  const b=e.target.closest("[data-eng]"); if(!b) return;
+  SRC.send({cmd:"engage", piste:b.dataset.eng, effecteur:b.dataset.ef});
+});
+$("hook-body").addEventListener("click", e=>{
+  const b=e.target.closest("[data-id-aff]"); if(!b || !hooked) return;
+  SRC.send({cmd:"classify", piste:hooked, aff:b.dataset.idAff});
+});
+document.querySelectorAll(".rangepad button").forEach(b=>{
+  b.onclick=()=>{ document.querySelectorAll(".rangepad button").forEach(o=>o.setAttribute("aria-pressed","false"));
+    b.setAttribute("aria-pressed","true"); range=+b.dataset.r; };
+});
+const tgl=(id,fn)=>{ $(id).onclick=e=>{ const on=e.currentTarget.getAttribute("aria-pressed")!=="true";
+  e.currentTarget.setAttribute("aria-pressed",String(on)); fn(on); }; };
+$("sk-hook").onclick = ()=>{ hooked=null; };
+tgl("sk-ebl", v=>showEbl=v); tgl("sk-trails", v=>showTrails=v); tgl("sk-ell", v=>showEll=v);
+$("sk-decoy").onclick = ()=>SRC.send({cmd:"decoys"});
+tgl("sk-autosam", v=>SRC.send({cmd:"doctrine", cle:"auto_sam", valeur:v}));
+$("sk-pump").onclick = ()=>SRC.send({cmd:"pump", valeur: F ? !F.platform.pompe : false});
+$("sk-restart").onclick = ()=>SRC.send({cmd:"restart"});
+$("sel-rate").onchange = e=>SRC.send({cmd:"rate", valeur:+e.target.value});
+$("sel-sc").onchange = e=>SRC.send({cmd:"scenario", fichier:e.target.value});
+document.addEventListener("keydown", e=>{
+  const map={F1:"sk-hook",F5:"sk-ebl",F6:"sk-trails",F7:"sk-ell",
+             F8:"sk-decoy",F9:"sk-autosam",F10:"sk-pump"};
+  if(map[e.key]){ e.preventDefault(); $(map[e.key]).click(); }
+});
+
+if(SRC.kind === "LIVE"){
+  fetch("/api/scenarios").then(r=>r.json()).then(l=>{
+    $("sel-sc").innerHTML = l.map(s=>'<option value="'+s.fichier+'">'+s.nom+'</option>').join("");
+  }).catch(()=>{});
+} else {
+  $("sel-sc").innerHTML = '<option>enregistrement embarqué</option>';
+  $("sel-sc").disabled = true; $("sk-pump").disabled = true;
+  $("sk-decoy").disabled = true; $("sk-autosam").disabled = true;
+}
+
+resize();
+requestAnimationFrame(loop);
+})();
+</script>
+<!-- END CONSOLE -->
+</body>
+</html>

@@ -1,0 +1,362 @@
+"""Boucle de simulation — déterministe, à pas fixe.
+
+Le cœur ne connaît ni le réseau ni l'écran : il avance d'un tick et rend un
+instantané. C'est ce qui permet de le faire tourner à 200x la vitesse réelle
+pour du Monte-Carlo, puis de rejouer un run dans la console. Une graine RNG
+fixée rend un scénario reproductible au tick près.
+"""
+import random
+
+from . import tewa
+from .entities import Contact, Ownship
+from .geo import KT, NM, bearing, rng
+from .platform import Platform
+from .scenario import WEAPONS
+from .sensors import Ais, Esm, Iff, Radar
+from .tracker import Tracker
+
+DT = 0.05                 # 20 Hz
+CIWS_RANGE = 2 * NM
+AUTO_SAM_MARGIN = 45.0   # s avant la butée : de quoi observer et retirer
+DECOY_RANGE = 5 * NM
+
+
+class Interceptor:
+    """Munition en vol. Sa seule raison d'être est le délai : on ne sait pas
+    tout de suite si on a touché, et cette incertitude déclenche — ou non —
+    le réengagement."""
+    __slots__ = ("x", "y", "tgt", "v", "pk", "eta", "ef", "salve", "assessed")
+
+    def __init__(self, x, y, tgt, v, pk, eta, ef, salve):
+        self.x, self.y, self.tgt, self.v = x, y, tgt, v
+        self.pk, self.eta, self.ef, self.salve = pk, eta, ef, salve
+        self.assessed = False
+
+
+class Engine:
+    def __init__(self, sc):
+        self.sc = sc
+        self.rand = random.Random(sc["seed"])
+        self.t = 0.0
+        o = sc["ownship"]
+        self.own = Ownship(course=float(o.get("course", 0)),
+                           speed=float(o.get("speed_kt", 14)) * KT,
+                           ordered_course=float(o.get("course", 0)),
+                           ordered_speed=float(o.get("speed_kt", 14)) * KT,
+                           mast_height=float(o.get("mast_m", 30)))
+        self.world = {c.uid: c for c in sc["contacts"]}
+        self.radar = Radar()
+        self.esm, self.iff, self.ais = Esm(), Iff(), Ais()
+        self.tracker = Tracker()
+        self.platform = Platform()
+        self.effectors = tewa.default_effectors()
+        self.doctrine = {"auto_ciws": True, "auto_sam": False, "auto_id": False}
+        self.shots = []
+        self.events = []
+        self.solutions = []
+        self.threats = []
+        self.pending = list(sc["events"])
+        self.decoys = 12
+        self.hooked = None
+        self._seq = 0
+
+    # -- journal ---------------------------------------------------------
+    def log(self, sev, txt):
+        self._seq += 1
+        self.events.insert(0, {"n": self._seq, "t": round(self.t, 1),
+                               "sev": sev, "txt": txt})
+        del self.events[60:]
+
+    # -- scénario --------------------------------------------------------
+    def _fire_events(self):
+        while self.pending and self.pending[0].get("at", 0) <= self.t:
+            e = self.pending.pop(0)
+            k = e.get("type")
+            if k == "launch":
+                self._launch(e)
+            elif k == "platform":
+                self.platform.pump = bool(e.get("pump", True))
+                self.log("crit" if not self.platform.pump else "info",
+                         "IPMS — pompe de refroidissement "
+                         + ("à l'arrêt" if not self.platform.pump else "rétablie"))
+            elif k == "order":
+                if "course" in e:
+                    self.own.ordered_course = float(e["course"])
+                if "speed_kt" in e:
+                    self.own.ordered_speed = float(e["speed_kt"]) * KT
+                self.log("info", "Manœuvre du porteur ordonnée")
+            elif k == "emitter":
+                c = self.world.get(e.get("from"))
+                if c:
+                    c.emitters = list(e.get("emitters", []))
+
+    def _launch(self, e):
+        src = self.world.get(e.get("from"))
+        if not src:
+            return
+        spec = WEAPONS.get(e.get("weapon", "asm"), WEAPONS["asm"])
+        for i in range(int(e.get("count", 1))):
+            uid = "%s-M%d" % (src.uid, i + 1)
+            brg = bearing(self.own.x - src.x, self.own.y - src.y)
+            # Dispersion de salve. Deux munitions tirées au même instant depuis
+            # le même point volent en formation parfaite et ne forment qu'une
+            # seule piste — ce qui est vrai, mais rend le tableau illisible et
+            # ne correspond à aucune doctrine de tir réelle.
+            from math import radians, cos, sin
+            a = radians(brg)
+            back, side = i * 4.0 * spec["speed"], (i - 0.5) * 600.0
+            sx = src.x - back * sin(a) + side * cos(a)
+            sy = src.y - back * cos(a) - side * sin(a)
+            self.world[uid] = Contact(
+                uid=uid, name=spec["name"], kind="missile",
+                x=sx, y=sy, alt=spec["alt"], course=brg,
+                speed=spec["speed"], rcs=spec["rcs"], intent="hostile",
+                target="OWN", launched_at=self.t)
+        self.log("crit", "Départ missile détecté par ESM — origine %s" % src.name)
+
+    # -- tick ------------------------------------------------------------
+    def step(self):
+        dt = DT
+        self.t += dt
+        self._fire_events()
+        self.platform.step(dt)
+        self.radar.power = self.platform.radar_power
+        self.own.step(dt)
+
+        tgt = {"OWN": self.own}
+        for c in self.world.values():
+            c.step(dt, tgt)
+
+        prev = self.radar.step(dt)
+        scan_done = self.radar.sweep < prev
+        plots = []
+        for c in list(self.world.values()):
+            if not c.alive:
+                continue
+            b = bearing(c.x - self.own.x, c.y - self.own.y)
+            if self.radar.crossed(prev, b):
+                p = self.radar.detect(self.own, c, self.rand)
+                if p:
+                    plots.append((p[0], p[1], self.radar.sigma_r, self.radar.sigma_b))
+        self.tracker.step(dt, self.own, plots, self.t, scan_done)
+
+        if scan_done:
+            self._passive()
+            self._impacts()
+
+        self._weapons(dt)
+        self._assess()
+        return scan_done
+
+    def _passive(self):
+        for c in self.world.values():
+            if not c.alive:
+                continue
+            d = self.esm.detect(self.own, c, self.rand)
+            if d:
+                tr = self.tracker.fuse_bearing(self.own, d[0], d[1])
+                if tr and d[1] == "fc" and tr.aff != "hostile":
+                    self.log("crit", "%s — illumination conduite de tir" % tr.num)
+            nm = self.ais.receive(self.own, c)
+            if nm:
+                for tr in self.tracker.confirmed():
+                    x, y = tr.pos
+                    if rng(x - c.x, y - c.y) < 900:
+                        tr.ident, tr.sources = nm, tr.sources | {"AIS"}
+                        if tr.aff == "unknown" and c.intent != "hostile":
+                            tr.aff = "neutral"
+            a = self.iff.interrogate(self.own, c)
+            if a:
+                for tr in self.tracker.confirmed():
+                    x, y = tr.pos
+                    if rng(x - c.x, y - c.y) < 900:
+                        tr.iff = a
+                        if a == "ami" and tr.aff == "unknown":
+                            tr.aff = "friend"
+
+    def _impacts(self):
+        for c in list(self.world.values()):
+            if c.kind == "missile" and c.alive:
+                if rng(c.x - self.own.x, c.y - self.own.y) < 120:
+                    c.alive = False
+                    self.log("crit", "IMPACT sur le porteur — %s" % c.name)
+
+    # -- effecteurs ------------------------------------------------------
+    def _weapons(self, dt):
+        # CIWS automatique : le dernier rempart ne demande pas l'avis de
+        # l'opérateur, il n'en a pas le temps.
+        if self.doctrine.get("auto_ciws"):
+            for tr in self.tracker.confirmed():
+                if tr.aff != "hostile":
+                    continue
+                x, y = tr.pos
+                if rng(x - self.own.x, y - self.own.y) < CIWS_RANGE:
+                    if not self._awaiting_assessment(tr):
+                        self.engage(tr.num, "ciws", auto=True)
+        self.shots = [s for s in self.shots if not s.assessed or s.eta > -30.0]
+        for s in list(self.shots):
+            s.eta -= dt
+            if s.eta <= 0 and not s.assessed:
+                s.assessed = True
+                self._resolve(s)
+
+    def engage(self, track_num, ef_key, auto=False):
+        tr = self.tracker.tracks.get(track_num)
+        ef = next((e for e in self.effectors if e.key == ef_key), None)
+        if not tr or not ef or ef.free_channels < 1 or ef.rounds < 1:
+            return False
+        # Un seul tir non évalué par couple (piste, effecteur) : le canal de
+        # conduite de tir reste accroché jusqu'à l'évaluation du résultat.
+        if any(s.tgt == track_num and s.ef == ef_key and not s.assessed
+               for s in self.shots):
+            return False
+        x, y = tr.pos
+        vx, vy = tr.vel
+        ox, oy = self.own.vxy
+        from .geo import intercept_time
+        tof = intercept_time(x - self.own.x, y - self.own.y, vx - ox, vy - oy, ef.v)
+        if tof is None:
+            return False
+        n = tewa.salvo_for(ef.pk)
+        ef.busy += 1
+        ef.rounds = max(0, ef.rounds - n)
+        self.shots.append(Interceptor(self.own.x, self.own.y, track_num, ef.v,
+                                      1 - (1 - ef.pk) ** n, tof, ef.key, n))
+        self.log("warn", "%s — %s x%d sur %s%s"
+                 % (ef.label, "tir", n, track_num, " (doctrine)" if auto else ""))
+        return True
+
+    def _resolve(self, s):
+        ef = next((e for e in self.effectors if e.key == s.ef), None)
+        if ef:
+            ef.busy = max(0, ef.busy - 1)
+        tr = self.tracker.tracks.get(s.tgt)
+        if not tr:
+            self.log("info", "%s — piste perdue avant interception" % s.tgt)
+            return
+        # Fenêtre d'évaluation du résultat : tant qu'aucun plot frais n'est
+        # revenu sur la piste, on ne sait pas si elle est morte ou si elle a
+        # simplement disparu du faisceau. La doctrine suspend le tir plutôt
+        # que de vider les râteliers sur une piste déjà détruite.
+        tr.assessed_at = self.t
+        x, y = tr.pos
+        victim, best = None, 1500.0
+        for c in self.world.values():
+            if c.alive and rng(c.x - x, c.y - y) < best:
+                victim, best = c, rng(c.x - x, c.y - y)
+        if victim is None:
+            self.log("info", "%s — plus de cible à l'interception" % s.tgt)
+        elif self.rand.random() < s.pk:
+            victim.alive = False
+            self.log("info", "%s — destruction confirmée (%s)" % (s.tgt, s.ef.upper()))
+        else:
+            self.log("warn", "%s — échec d'interception, réengagement à évaluer" % s.tgt)
+
+    def deploy_decoys(self):
+        if self.decoys < 2:
+            return False
+        self.decoys -= 2
+        n = 0
+        for c in self.world.values():
+            if c.kind == "missile" and c.alive and not c.seduced:
+                if rng(c.x - self.own.x, c.y - self.own.y) < DECOY_RANGE:
+                    if self.rand.random() < 0.45:
+                        c.seduced, n = True, n + 1
+                        c.course = (c.course + self.rand.choice((-35, 35))) % 360
+        self.log("warn", "Leurres largués — %d missile(s) séduit(s)" % n)
+        return True
+
+    # -- produit ---------------------------------------------------------
+    def _assess(self):
+        evals = []
+        for tr in self.tracker.confirmed():
+            evals.append({"track": tr, "eval": tewa.evaluate(tr, self.own, self.t)})
+        evals.sort(key=lambda e: -e["eval"]["score"])
+        self.threats = evals
+        # Identification par doctrine. Dans un vrai CMS l'identification est un
+        # acte d'opérateur ; la doctrine ne prend la main que sur des critères
+        # explicites et armés à l'avance, et le journal dit toujours qui a
+        # classé la piste.
+        if self.doctrine.get("auto_id"):
+            for e in evals:
+                tr, ev = e["track"], e["eval"]
+                if tr.aff != "unknown" or tr.iff == "ami":
+                    continue
+                # Le radar de veille est 2D : la piste n'a pas d'altitude, on
+                # ne peut donc pas invoquer un « profil rasant ». Les critères
+                # tenables sont la géométrie, la vitesse et l'absence de
+                # réponse IFF — d'où l'importance d'interroger avant de classer.
+                inbound = ev["tcpa"] > 0 and ev["cpa"] < 3 * NM
+                fast_closer = inbound and tr.speed > 150 and tr.iff == "pas de réponse"
+                if tr.emitter == "fc" or fast_closer:
+                    tr.aff, tr.classified_by = "hostile", "doctrine"
+                    self.log("crit", "%s — classée HOSTILE par doctrine (%s)"
+                             % (tr.num, "illumination conduite de tir"
+                                if tr.emitter == "fc"
+                                else "convergent rapide sans réponse IFF"))
+        self.solutions = tewa.solutions(evals, self.own, self.effectors,
+                                        self.t, self.doctrine)
+        if self.doctrine.get("auto_sam"):
+            for s in self.solutions:
+                # Tirer à cinq secondes de la butée, c'est tirer au dernier
+                # instant possible : aucune marge pour observer le résultat et
+                # réengager. Une doctrine tenable ouvre le feu dès que la cible
+                # est dans l'enveloppe, en gardant de quoi retirer une fois.
+                if s["effecteur"] == "sam" and s["statut"] == "recommandé" \
+                        and s["butee"] is not None and s["butee"] < AUTO_SAM_MARGIN:
+                    tr = self.tracker.tracks.get(s["piste"])
+                    if tr and self._awaiting_assessment(tr):
+                        continue
+                    self.engage(s["piste"], "sam", auto=True)
+
+    def _awaiting_assessment(self, tr, window=15.0):
+        at = getattr(tr, "assessed_at", None)
+        return at is not None and tr.updated <= at and self.t - at < window
+
+    def snapshot(self):
+        tks = []
+        for e in self.threats:
+            tr, ev = e["track"], e["eval"]
+            x, y = tr.pos
+            ex, ey = tr.ellipse()
+            tks.append({
+                "id": tr.num,
+                "x": round((x - self.own.x) / NM, 4),
+                "y": round((y - self.own.y) / NM, 4),
+                "brg": round(bearing(x - self.own.x, y - self.own.y), 1),
+                "rng": round(rng(x - self.own.x, y - self.own.y) / NM, 2),
+                "crs": round(tr.course, 1), "spd": round(tr.speed / KT, 1),
+                "aff": tr.aff, "qual": round(tr.quality, 2),
+                "ell": [round(ex / NM, 4), round(ey / NM, 4)],
+                "src": sorted(tr.sources), "emitter": tr.emitter,
+                "iff": tr.iff, "ident": tr.ident,
+                "score": round(ev["score"], 3), "fact": ev["facteurs"],
+                "cpa": round(ev["cpa"] / NM, 2),
+                "tcpa": round(ev["tcpa"], 0) if ev["tcpa"] > 0 else -1,
+                # Une dizaine de tours d'antenne suffisent à lire le sillage.
+                # Au-delà, la trace d'un mobile rapide traverse tout le scope
+                # et masque l'image au lieu de la renseigner.
+                "trail": [[round((hx - self.own.x) / NM, 3),
+                           round((hy - self.own.y) / NM, 3)]
+                          for hx, hy in tr.history[-10:]],
+            })
+        return {
+            "t": round(self.t, 2),
+            "scenario": self.sc["name"],
+            "sweep": round(self.radar.sweep, 1),
+            "own": {"crs": round(self.own.course, 1),
+                    "spd": round(self.own.speed / KT, 1),
+                    "ord_crs": round(self.own.ordered_course, 1),
+                    "ord_spd": round(self.own.ordered_speed / KT, 1)},
+            "tracks": tks,
+            "solutions": self.solutions[:8],
+            "platform": self.platform.snapshot(),
+            "effecteurs": [{"key": e.key, "label": e.label, "role": e.role,
+                            "rounds": e.rounds, "libres": e.free_channels,
+                            "canaux": e.channels} for e in self.effectors],
+            "leurres": self.decoys,
+            "doctrine": dict(self.doctrine),
+            "tirs": [{"tgt": s.tgt, "ef": s.ef, "eta": round(s.eta, 1)}
+                     for s in self.shots if not s.assessed],
+            "events": self.events[:14],
+        }

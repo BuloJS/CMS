@@ -1,0 +1,33 @@
+# Surcharge « automate réel ».
+#
+# Modbus n'a ni authentification ni chiffrement : c'est une propriété du
+# protocole. Le bus reste donc sur le réseau interne du compose, et seule
+# l'interface web d'OpenPLC est publiée sur l'hôte.
+services:
+  cms:
+    environment:
+      PLC_HOST: openplc
+      PLC_PORT: "502"
+    depends_on:
+      - openplc
+
+  openplc:
+    profiles: ["plc"]
+    build: ./plc
+    image: cms-lab/openplc
+    ports:
+      - "8080:8080"          # interface web de l'automate (openplc / openplc)
+    expose:
+      - "502"                # serveur Modbus : interne, jamais publié
+    restart: unless-stopped
+
+  field-sim:
+    profiles: ["plc"]
+    image: cms-lab/cms
+    build: .
+    command: ["python3", "services/field_sim.py"]
+    environment:
+      FIELD_PORT: "5020"
+    expose:
+      - "5020"
+    restart: unless-stopped

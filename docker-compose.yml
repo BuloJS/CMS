@@ -1,0 +1,30 @@
+# Stack par défaut : la console et son simulateur, rien d'autre.
+#
+#   docker compose up --build          -> http://localhost:8000
+#
+# L'IPMS tourne alors sur son modèle logiciel. Pour brancher un vrai automate
+# OpenPLC et des capteurs Modbus, ajouter le fichier de surcharge :
+#
+#   docker compose -f docker-compose.yml -f docker-compose.plc.yml \
+#     --profile plc up --build
+#
+services:
+  cms:
+    build: .
+    image: cms-lab/cms
+    ports:
+      - "8000:8000"
+    environment:
+      CMS_SCENARIO: 02-saturation-asm.toml
+      CMS_PORT: "8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/scenarios')"]
+      interval: 20s
+      timeout: 4s
+      retries: 3
+
+networks:
+  default:
+    name: cms-lab

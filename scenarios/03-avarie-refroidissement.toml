@@ -1,0 +1,74 @@
+name = "Avarie refroidissement sous menace"
+brief = """Même géométrie d'attaque que la saturation antinavire, mais la pompe de
+production d'eau glacée s'arrête à 60 secondes. La température des baies radar
+monte, l'émission est déclassée, le SNR chute — et la distance à laquelle on
+détecte un missile de 0,09 m² recule d'autant."""
+attendu = """Démonstration du couplage plateforme / combat : un défaut d'automate
+réduit physiquement la capacité de veille. La détection des missiles se fait plus
+tard, la butée de tir SAM peut passer en négatif, et la défense se joue au CIWS
+et aux leurres. La bonne réaction est côté IPMS — relancer la pompe — autant que
+côté CMS."""
+seed = 4212
+duration = 560
+
+[ownship]
+course = 25
+speed_kt = 18
+mast_m = 30
+
+[[contact]]
+id = "AIR-1"
+name = "Aéronef non identifié"
+kind = "air"
+brg = 318
+rng_nm = 46
+course = 138
+speed_kt = 340
+alt_ft = 21000
+rcs = 6
+emitters = ["search"]
+intent = "hostile"
+
+[[contact]]
+id = "AIR-2"
+name = "Aéronef non identifié"
+kind = "air"
+brg = 333
+rng_nm = 49
+course = 145
+speed_kt = 330
+alt_ft = 22000
+rcs = 6
+emitters = ["search"]
+intent = "hostile"
+
+[[contact]]
+id = "MV-ORIOL"
+name = "MV ORIOL"
+kind = "surf"
+brg = 95
+rng_nm = 16
+course = 280
+speed_kt = 12
+rcs = 11000
+ais = true
+emitters = ["nav"]
+
+[[event]]
+at = 60
+type = "platform"
+pump = false
+
+[[event]]
+at = 120
+type = "launch"
+from = "AIR-1"
+weapon = "asm"
+count = 2
+
+[[event]]
+at = 132
+type = "launch"
+from = "AIR-2"
+weapon = "asm"
+count = 2
