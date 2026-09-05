@@ -369,7 +369,8 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .ro.alert b{color:var(--crit)}
 .idrow{display:flex;gap:5px;margin-top:11px}
 .idrow button{flex:1;font-family:var(--f-disp);font-size:11px;letter-spacing:.1em;padding:5px 0;border-radius:2px;background:transparent;border:1px solid var(--line);color:var(--dim);cursor:pointer}
-.idrow button:hover{border-color:currentColor}
+.idrow button:hover:not(:disabled){border-color:currentColor}
+.idrow button:disabled{opacity:.3;cursor:default}
 .idrow button.f:hover{color:var(--friend)} .idrow button.h:hover{color:var(--hostile)}
 .idrow button.n:hover{color:var(--neutral)} .idrow button.u:hover{color:var(--unknown)}
 .empty{padding:22px 11px;text-align:center;color:var(--dimmest);font-family:var(--f-mono);font-size:10.5px;line-height:1.6}
@@ -557,6 +558,11 @@ const SRC = embedded
   ? new ReplaySource(embedded.textContent.trim().split("\n").map(JSON.parse))
   : new LiveSource();
 
+/* Un enregistrement ne se pilote pas : tout ce qui modifierait le cours de
+   la simulation est inerte en rejeu. Autant que les commandes concernées le
+   disent, plutôt que d'offrir un bouton qui ne répond pas. */
+const PILOTABLE = SRC.kind === "LIVE";
+
 /* ------------------------------------------------------------------ */
 let F = null;            // dernière trame reçue
 let tRecv = 0;           // horloge locale à la réception
@@ -713,7 +719,8 @@ function renderThreats(){
 
 function renderSolutions(){
   const S = F.solutions;
-  $("sol-count").textContent = S.length ? S.length + " proposées" : "aucune";
+  $("sol-count").textContent = (S.length ? S.length + " proposées" : "aucune")
+    + (PILOTABLE ? "" : " · lecture seule");
   if(!S.length){
     $("solutions").innerHTML = '<div class="empty">AUCUNE PISTE CLASSÉE HOSTILE<br>'+
       'LE SYSTÈME NE PROPOSE RIEN SANS IDENTIFICATION</div>';
@@ -736,7 +743,7 @@ function renderSolutions(){
       '<div class="sol-a"><span class="chipst '+stc+'">'+s.statut.toUpperCase()+'</span>'+
         (b!==null && b<9e7 ? '<span class="butee'+(hot?' hot':'')+'" data-butee="'+b+'" data-t="'+F.t+'">BUTÉE '+Math.max(0,b).toFixed(0)+'s</span>' : '')+
         '<button class="act'+(s.role==="attaque"?" danger":"")+'" data-eng="'+s.piste+'" data-ef="'+s.effecteur+'"'+
-          (s.statut==="recommandé"?"":" disabled")+'>ENGAGER</button></div></div>';
+          (s.statut==="recommandé" && PILOTABLE ? "" : " disabled")+'>ENGAGER</button></div></div>';
   }).join("");
 }
 
@@ -765,10 +772,10 @@ function renderHook(){
       ro("ESM", t.emitter?t.emitter.toUpperCase():"—", "", t.emitter==="fc") +
     '</div>'+
     '<div class="idrow">'+
-      '<button class="f" data-id-aff="friend">AMI</button>'+
-      '<button class="h" data-id-aff="hostile">HOSTILE</button>'+
-      '<button class="n" data-id-aff="neutral">NEUTRE</button>'+
-      '<button class="u" data-id-aff="unknown">INCONNU</button></div>';
+      ["friend","hostile","neutral","unknown"].map((a,i)=>
+        '<button class="'+["f","h","n","u"][i]+'" data-id-aff="'+a+'"'+
+        (PILOTABLE?"":" disabled")+'>'+AFF[a].l+'</button>').join("")+
+    '</div>';
 }
 
 function renderPlatform(){
