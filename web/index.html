@@ -118,6 +118,17 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .ro b{font-family:var(--f-mono);font-size:15px;color:#e8f4ff;font-variant-numeric:tabular-nums}
 .ro b small{font-size:9.5px;color:var(--dim);margin-left:1px}
 .ro.alert b{color:var(--crit)}
+.aisbox{margin-top:11px;border:1px solid var(--line-soft);border-radius:2px;padding:8px 9px 9px;background:rgba(6,18,34,.5)}
+.aisbox.flag{border-color:var(--warn)}
+.aisbox>header{font-family:var(--f-disp);font-size:9.5px;letter-spacing:.14em;color:var(--dimmest);margin-bottom:8px}
+.aisbox.flag>header{color:var(--warn)}
+.aisbox .readouts{grid-template-columns:repeat(2,1fr);gap:8px 7px}
+.aisbox .ro b{font-size:12.5px}
+.aisbox .ro.wide{grid-column:span 2}
+.aisbox .attente{font-family:var(--f-mono);font-size:10px;line-height:1.45;color:var(--dim)}
+.silent{margin-top:11px;padding:7px 9px;border:1px dashed var(--line-soft);border-radius:2px;
+  font-family:var(--f-mono);font-size:10px;line-height:1.45;color:var(--dim)}
+.silent b{display:block;font-family:var(--f-disp);font-size:10px;letter-spacing:.13em;color:var(--unknown);margin-bottom:2px}
 .idrow{display:flex;gap:5px;margin-top:11px}
 .idrow button{flex:1;font-family:var(--f-disp);font-size:11px;letter-spacing:.1em;padding:5px 0;border-radius:2px;background:transparent;border:1px solid var(--line);color:var(--dim);cursor:pointer}
 .idrow button:hover:not(:disabled){border-color:currentColor}
@@ -209,7 +220,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       <div class="brief" id="brief"></div>
       <div class="rangepad" role="group" aria-label="Échelle de portée">
         <button data-r="5">5</button><button data-r="10">10</button>
-        <button data-r="25" aria-pressed="true">25</button><button data-r="50">50</button>
+        <button data-r="25" aria-pressed="true">25</button><button data-r="50">50</button><button data-r="100">100</button>
       </div>
     </div>
 
@@ -332,6 +343,45 @@ function dr(t){
   return {x: t.x + d*Math.sin(a), y: t.y + d*Math.cos(a)};
 }
 
+/* ---------------- géographie ---------------- */
+/* Le serveur envoie le point de référence de sa projection et ses deux
+   facteurs d'échelle. La console refait la même conversion localement
+   plutôt que d'interroger le serveur à chaque mouvement de souris — c'est
+   la même arithmétique, donc le même résultat au mètre près.
+
+   Tant que le scénario ne porte pas d'ancrage géographique, `F.geo` est
+   nul : la console reste en relatif et n'affiche simplement pas de
+   position. Aucun scénario existant ne casse. */
+let COAST = null;
+const geoOk = () => !!(F && F.geo && F.own && F.own.lat !== undefined);
+
+/* (x,y) en NM relatifs au porteur -> [lat, lon] */
+function toLatLon(x, y){
+  return [F.own.lat + y*1852/F.geo.m_lat, F.own.lon + x*1852/F.geo.m_lon];
+}
+/* lon/lat -> (x,y) en NM relatifs au porteur */
+function toLocal(lon, lat){
+  return {x: (lon - F.own.lon) * F.geo.m_lon / 1852,
+          y: (lat - F.own.lat) * F.geo.m_lat / 1852};
+}
+/* Degrés et minutes décimales : la façon dont une position se dicte à la
+   passerelle. Le degré décimal est pour les machines. */
+function fmtLatLon(lat, lon){
+  const one = (v,pos,neg) => {
+    const h = v>=0?pos:neg; v = Math.abs(v); const d = Math.floor(v);
+    return d+"\u00b0"+((v-d)*60).toFixed(2).padStart(5,"0")+"'"+h;
+  };
+  return one(lat,"N","S")+" "+one(lon,"E","W");
+}
+
+/* Le trait de côte est embarqué dans l'artefact hors ligne, chargé par le
+   réseau sinon. Son absence n'est pas une erreur : un scénario en haute mer
+   n'en a aucun besoin. */
+const coastEl = document.getElementById("coastline");
+if (coastEl) { try { COAST = JSON.parse(coastEl.textContent); } catch(e){} }
+else { fetch("coastline.json").then(r => r.ok ? r.json() : null)
+         .then(d => { COAST = d; }).catch(() => {}); }
+
 /* ---------------- scope ---------------- */
 const cv = $("scope"), g = cv.getContext("2d");
 let W=0,H=0,cx=0,cy=0,R=0;
@@ -353,6 +403,23 @@ function drawScope(){
   grd.addColorStop(0,"#14488c"); grd.addColorStop(.72,"#0d3062"); grd.addColorStop(1,"#071c39");
   g.beginPath(); g.arc(cx,cy,R,0,7); g.fillStyle=grd; g.fill();
   g.save(); g.beginPath(); g.arc(cx,cy,R,0,7); g.clip();
+
+  /* La terre, sous les anneaux : c'est le fond de carte, pas une piste.
+     Natural Earth ne donne que des polylignes, pas des polygones fermés —
+     on trace donc le trait, sans remplir. Il ne masque toujours rien : le
+     radar continue de voir à travers, ce qui reste faux et documenté. */
+  if(COAST && geoOk()){
+    g.strokeStyle="rgba(150,170,110,.62)"; g.lineWidth=1.15;
+    g.lineJoin="round"; g.lineCap="round";
+    COAST.lignes.forEach(ln=>{
+      g.beginPath();
+      for(let i=0;i<ln.length;i++){
+        const P = px(toLocal(ln[i][0], ln[i][1]));
+        i ? g.lineTo(P.x,P.y) : g.moveTo(P.x,P.y);
+      }
+      g.stroke();
+    });
+  }
 
   g.strokeStyle="rgba(96,168,240,.30)"; g.lineWidth=1;
   for(let i=1;i<=4;i++){ g.beginPath(); g.arc(cx,cy,R*i/4,0,7); g.stroke(); }
@@ -498,6 +565,54 @@ function renderSolutions(){
   }).join("");
 }
 
+/* Le bloc AIS. Son titre dit l'essentiel : ce sont des déclarations, pas
+   des mesures. Un navire diffuse ce qu'il veut, et rien n'oblige ce qu'il
+   dit à correspondre à ce que le radar voit — c'est exactement pour cela
+   que les deux sont affichés côte à côte plutôt que fusionnés. */
+function renderAis(a){
+  const ro = (l,v,wide) => v ? '<div class="ro'+(wide?" wide":"")+'"><i>'+l+'</i><b>'+v+'</b></div>' : '';
+  const dims = a.loa ? a.loa+" × "+(a.beam||"?")+" m" : "";
+  const flag = a.notable || a.contraint;
+  let head = "AIS — DÉCLARÉ PAR LE NAVIRE";
+  if(a.contraint) head = "AIS — MANŒUVRE CONTRAINTE";
+  else if(a.notable) head = "AIS — BÂTIMENT NON MARCHAND";
+
+  /* Un navire diffuse sa position toutes les deux à dix secondes, mais son
+     statique (nom, type, dimensions, destination) seulement toutes les six
+     minutes. Recevoir l'un sans l'autre est le cas normal, pas une panne :
+     il faut le dire plutôt que d'afficher un panneau vide. */
+  const statique = a.mmsi || a.callsign || a.type || a.navstat || a.loa ||
+                   a.draught || a.imo || a.dest;
+  if(!statique){
+    return '<div class="aisbox"><header>AIS — POSITION SEULE</header>'+
+      '<div class="attente">Identité reçue' + (a.name ? ' (' + a.name + ')' : '') +
+      '. Le message statique — type, dimensions, destination — n\'a pas encore '+
+      'été diffusé : il ne l\'est que toutes les six minutes.</div></div>';
+  }
+
+  return '<div class="aisbox'+(flag?" flag":"")+'"><header>'+head+'</header>'+
+    '<div class="readouts">'+
+      ro("MMSI", a.mmsi) + ro("INDICATIF", a.callsign) +
+      ro("TYPE", a.type, true) +
+      ro("STATUT", a.navstat, true) +
+      ro("DIMENSIONS", dims) +
+      ro("TIRANT D'EAU", a.draught ? a.draught.toFixed(1)+" m" : "") +
+      ro("OMI", a.imo) + ro("DESTINATION", a.dest) +
+    '</div></div>';
+}
+
+/* L'absence d'AIS sur un mobile de surface est une information, pas un
+   champ vide. C'est même la seule que le système ne peut pas obtenir en
+   demandant : un contact qui ne se déclare pas est le contact à regarder.
+   Le seuil de vitesse est celui que le scope utilise déjà pour distinguer
+   une piste aérienne d'une piste de surface. */
+function renderSansAis(t){
+  if(t.spd > 60) return "";
+  return '<div class="silent"><b>AUCUNE ÉMISSION AIS</b>'+
+    'Mobile de surface non coopératif : hors zone VHF, transpondeur éteint, '+
+    'ou navire non soumis à obligation. À corréler par IFF et par ESM.</div>';
+}
+
 function renderHook(){
   const t = F.tracks.find(x=>x.id===hooked);
   $("sk-hook").disabled = !t;
@@ -522,6 +637,7 @@ function renderHook(){
       ro("IFF", t.iff==="ami"?"AMI":t.iff?"SANS RÉP.":"—", "") +
       ro("ESM", t.emitter?t.emitter.toUpperCase():"—", "", t.emitter==="fc") +
     '</div>'+
+    ((t.src||[]).indexOf("AIS") >= 0 ? renderAis(t.ais||{}) : renderSansAis(t)) +
     '<div class="idrow">'+
       ["friend","hostile","neutral","unknown"].map((a,i)=>
         '<button class="'+["f","h","n","u"][i]+'" data-id-aff="'+a+'"'+
@@ -623,8 +739,10 @@ cv.addEventListener("mousemove", e=>{
   const r=cv.getBoundingClientRect();
   const dx=(e.clientX-r.left-cx)/R*range, dy=(cy-(e.clientY-r.top))/R*range;
   const b=(Math.atan2(dx,dy)*180/Math.PI+360)%360, d=Math.hypot(dx,dy);
-  $("cursor-ro").textContent = d>range ? "GIS —— · DIST ——"
-    : "GIS "+pad(b,3,0)+"° · DIST "+d.toFixed(1)+" NM";
+  if(d>range){ $("cursor-ro").textContent = "GIS —— · DIST ——"; return; }
+  let ro = "GIS "+pad(b,3,0)+"° · DIST "+d.toFixed(1)+" NM";
+  if(geoOk()){ const g2 = toLatLon(dx,dy); ro += " · " + fmtLatLon(g2[0], g2[1]); }
+  $("cursor-ro").textContent = ro;
 });
 $("threats").addEventListener("click", e=>{
   const row=e.target.closest(".threat"); if(row) hooked=row.dataset.id;

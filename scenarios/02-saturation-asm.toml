@@ -13,6 +13,13 @@ groupées, la question est de savoir lesquelles on traite et dans quel ordre."""
 seed = 4212
 duration = 560
 
+# Même théâtre que le scénario 01, un peu plus au large : tous les
+# scénarios du lab tombent ainsi sur la même carte, avec la même
+# projection et le même trait de côte.
+[origine]
+lat = 59.80
+lon = 24.40
+
 [ownship]
 course = 25
 speed_kt = 18
@@ -54,6 +61,7 @@ course = 280
 speed_kt = 12
 rcs = 11000
 ais = true
+ais_data = { mmsi = 276841000, callSign = "ESOR2", imo = 9312884, type = 70, navStat = 0, refA = 130, refB = 28, refC = 14, refD = 11, draught = 78, destination = "HAMINA" }
 emitters = ["nav"]
 
 [[contact]]
@@ -67,6 +75,7 @@ speed_kt = 18
 rcs = 4000
 iff = true
 ais = true
+ais_data = { mmsi = 230990000, callSign = "OJFR", type = 35, navStat = 0, refA = 78, refB = 24, refC = 8, refD = 8 }
 
 # Six munitions tirées en quatre secondes : l'attaque ne cherche pas à
 # percer la défense, elle cherche à épuiser ses canaux de conduite de tir.

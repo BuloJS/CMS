@@ -9,7 +9,7 @@
  * <script id="fixture"> et bascule seule en source « rejeu » — aucune
  * duplication de code entre la version connectée et la version hors ligne.
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,8 +31,19 @@ const body = src.slice(a + B.length, b).trim();
 // Seule la séquence </script> doit être neutralisée.
 const safe = jsonl.replace(/<\/script/gi, '<\\/script');
 
+// Le trait de côte suit le même chemin que l'enregistrement : embarqué s'il
+// existe, absent sinon. La console le charge par le réseau quand elle est
+// servie, depuis la balise quand elle ne l'est pas — un artefact autonome
+// n'a droit à aucune requête.
+const coastPath = join(root, 'web/coastline.json');
+const coast = existsSync(coastPath)
+  ? `<script id="coastline" type="application/json">\n` +
+    readFileSync(coastPath, 'utf8').replace(/<\/script/gi, '<\\/script') +
+    `\n</script>\n`
+  : '';
+
 mkdirSync(join(root, 'dist'), { recursive: true });
-const out = `<title>${title}</title>\n${fonts}\n` +
+const out = `<title>${title}</title>\n${fonts}\n` + coast +
   `<script id="fixture" type="application/x-ndjson">\n${safe}\n</script>\n${body}\n`;
 const dest = join(root, 'dist/console-artifact.html');
 writeFileSync(dest, out);

@@ -117,11 +117,21 @@ class Iff:
 
 
 class Ais:
-    """Identité coopérative. Portée VHF, donc horizon de surface."""
+    """Identité coopérative. Portée VHF, donc horizon de surface.
+
+    Un navire coopératif ne déclare pas qu'un nom : indicatif, numéro OMI,
+    type, dimensions, tirant d'eau, statut de navigation, destination.
+    Cette richesse est le vrai intérêt de l'AIS pour un CMS — non pas
+    parce qu'elle renseigne, mais parce qu'elle se compare. Un plot radar
+    sans AIS, ou un AIS dont la cinématique ne colle pas au plot, est
+    exactement le contact qui mérite un opérateur.
+    """
 
     def receive(self, own, c):
         if not c.ais:
             return None
         if rng(c.x - own.x, c.y - own.y) > radar_horizon(own.mast_height, 20):
             return None
-        return c.name
+        rec = {"name": c.name}
+        rec.update(c.ais_static)
+        return rec

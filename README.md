@@ -72,6 +72,19 @@ de voir la plateforme qui le porte), l'IFF, l'AIS, et un bruit de mesure en
 polaire — l'erreur transverse grandit avec la distance, ce qui fait
 « frétiller » les pistes lointaines.
 
+**L'AIS est décodé au format de la norme** (UIT-R M.1371) : MMSI, indicatif,
+numéro OMI, type de navire, statut de navigation, dimensions hors tout,
+tirant d'eau, destination. `sim/ais.py` traduit les codes en libellés, et la
+console affiche le tout sous un titre qui dit l'essentiel — *déclaré par le
+navire*. Un navire diffuse ce qu'il veut : l'AIS ne prouve rien, il propose
+une identité que le radar est libre de contredire.
+
+C'est pour cette raison que **l'absence d'AIS est affichée comme une
+information**, et non comme un champ vide. Un mobile de surface qui ne se
+déclare pas — transpondeur éteint, hors zone VHF, ou navire non soumis à
+obligation — est exactement le contact qui mérite un opérateur. Dans le
+scénario du détroit, les deux vedettes sont les seules à ne rien émettre.
+
 ### Pistage
 
 Filtre de Kalman à vitesse constante, association au plus proche voisin sous
@@ -104,6 +117,35 @@ propose pas un missile antinavire contre une vedette à 9 NM.
 **Le système propose, l'opérateur dispose.** Rien ne part au tir sans action
 explicite, sauf doctrine armée à l'avance — et le journal dit toujours qui a
 classé une piste et qui a ouvert le feu.
+
+### Position géographique
+
+![console avec trait de côte et bloc AIS](docs/console-ais.png)
+
+Le cœur travaille en mètres dans un plan tangent local, et n'a jamais vu un
+degré de latitude. `sim/geo.Projection` fait la conversion à l'entrée et à la
+sortie, avec les vrais rayons de courbure de l'ellipsoïde au point de
+référence : sur une centaine de milles, l'écart avec un rayon sphérique moyen
+dépasse largement une ellipse d'incertitude.
+
+Un scénario s'ancre sur la carte avec un bloc `[origine]`. Sans lui il reste
+purement relatif, et la console n'affiche simplement pas de position — aucun
+scénario écrit avant l'ancrage ne casse.
+
+```toml
+[origine]
+lat = 59.85
+lon = 24.85
+```
+
+Le trait de côte est du Natural Earth 10 m découpé pour la zone
+d'opérations. Il est **réel mais toujours transparent** : le radar voit à
+travers.
+
+```bash
+curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_coastline.geojson
+python3 tools/coastline.py ne_10m_coastline.geojson --lat 59.85 --lon 24.85 --rayon 120 -o web/coastline.json
+```
 
 ### Plateforme
 
@@ -144,6 +186,17 @@ analyse existe pour révéler. Pour qu'il discrimine, il faut resserrer les
 arrivées à quelques secondes, augmenter leur nombre, ou revoir le Pk du CIWS
 — tous des paramètres du scénario et de `sim/tewa.py`.
 
+## Tests
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+Volontairement courts, et sans dépendance. Ils portent sur ce qui casse en
+silence : la projection géographique, l'horizon radio, la décroissance du SNR
+en R⁴, le CPA et le temps d'interception. Une constante mal placée dans l'une
+de ces formules ne lève aucune exception — elle décale simplement tout.
+
 ## Aperçu hors ligne
 
 ```bash
@@ -169,6 +222,11 @@ duplication de code entre la version connectée et la version hors ligne.
 | `F9` | Armer la doctrine SAM automatique |
 | `F10` | Arrêter la pompe (poste instructeur) |
 
+Échelles 5 / 10 / 25 / 50 / 100 NM. Le bandeau de curseur donne gisement,
+distance **et position géographique** en degrés et minutes décimales — la
+façon dont une position se dicte à la passerelle — dès que le scénario porte
+une `[origine]`.
+
 Symbologie : cercle = ami, losange = hostile, carré = neutre, quatre-feuilles
 = inconnu. Barre au-dessus = piste aérienne. Vecteur = trois minutes de route.
 
@@ -180,7 +238,9 @@ Symbologie : cercle = ami, losange = hostile, carré = neutre, quatre-feuilles
 - Le vol des intercepteurs est réduit à un temps de vol et une probabilité de
   destruction. Pas de navigation proportionnelle, pas d'enveloppe de manœuvre.
 - Pas de fouillis de mer, de multitrajet ni de conduits de propagation.
-- Le trait de côte est décoratif : il ne masque rien.
+- Le trait de côte est réel (Natural Earth 10 m) mais ne masque rien : pas
+  de zone d'ombre, pas de diffraction, un contact derrière une île reste
+  visible.
 
 ## Sécurité
 

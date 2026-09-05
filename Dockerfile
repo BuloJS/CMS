@@ -13,6 +13,7 @@ COPY scenarios/ ./scenarios/
 COPY web/ ./web/
 COPY tools/ ./tools/
 COPY fixtures/ ./fixtures/
+COPY tests/ ./tests/
 
 RUN useradd --create-home --uid 10001 cms && chown -R cms /app
 USER cms

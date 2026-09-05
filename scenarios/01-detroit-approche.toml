@@ -10,6 +10,14 @@ pas le SAM — cible de surface, courte distance, effet gradué."""
 seed = 7314
 duration = 600
 
+# Ancrage géographique du plan tangent local. Le choix n'est pas décoratif :
+# c'est l'approche du golfe de Finlande, dans la zone couverte par le flux
+# AIS public finlandais. Le scénario écrit à la main et le trafic réel
+# tomberont donc sur la même carte, avec la même projection.
+[origine]
+lat = 59.85
+lon = 24.85
+
 [ownship]
 course = 68
 speed_kt = 12
@@ -26,6 +34,10 @@ speed_kt = 13
 rcs = 9000
 ais = true
 emitters = ["nav"]
+# Champs AIS tels qu'ils arrivent sur la liaison : refA/B/C/D sont les
+# distances de l'antenne aux quatre bords (180 m hors tout, 28 m de large),
+# le tirant d'eau est en décimètres.
+ais_data = { mmsi = 636019428, callSign = "D5AT7", imo = 9401235, type = 70, navStat = 0, refA = 150, refB = 30, refC = 16, refD = 12, draught = 95, destination = "KOTKA" }
 
 [[contact]]
 id = "MV-KEPLER"
@@ -38,6 +50,7 @@ speed_kt = 11
 rcs = 12000
 ais = true
 emitters = ["nav"]
+ais_data = { mmsi = 538006712, callSign = "V7KP3", imo = 9556201, type = 80, navStat = 0, refA = 210, refB = 35, refC = 22, refD = 20, draught = 128, destination = "PORVOO" }
 
 [[contact]]
 id = "PATROL-9"
@@ -50,6 +63,10 @@ speed_kt = 14
 rcs = 3000
 iff = true
 ais = true
+# Un bâtiment militaire en transit de paix diffuse son AIS comme les autres,
+# et se déclare pour ce qu'il est. Ce sont les deux vedettes qui n'ont pas
+# d'AIS du tout — et c'est précisément ce silence qui les désigne.
+ais_data = { mmsi = 230118000, callSign = "OJPA", type = 35, navStat = 0, refA = 55, refB = 17, refC = 6, refD = 5 }
 
 [[contact]]
 id = "FAC-1"

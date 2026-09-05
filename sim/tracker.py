@@ -63,7 +63,8 @@ class Track:
         self.sources = {"RADAR"}
         self.emitter = ""               # dernier émetteur corrélé
         self.iff = ""
-        self.ident = ""                 # identité AIS
+        self.ident = ""                 # nom AIS
+        self.ais = {}                   # message AIS corrélé, tel que reçu
         self.aff = "unknown"            # affiliation retenue par l'opérateur
         self.classified_by = ""
         self.history = []

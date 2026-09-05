@@ -9,7 +9,7 @@ import random
 
 from . import tewa
 from .entities import Contact, Ownship
-from .geo import KT, NM, bearing, rng
+from .geo import KT, NM, Projection, bearing, rng
 from .platform import Platform
 from .scenario import WEAPONS
 from .sensors import Ais, Esm, Iff, Radar
@@ -44,6 +44,13 @@ class Engine:
                            ordered_course=float(o.get("course", 0)),
                            ordered_speed=float(o.get("speed_kt", 14)) * KT,
                            mast_height=float(o.get("mast_m", 30)))
+        og = sc.get("origine") or {}
+        # Sans point de référence dans le scénario, la simulation reste
+        # relative au porteur et la console n'affiche pas de position
+        # géographique. Rien ne casse : c'est le cas de tous les
+        # scénarios écrits avant que le monde réel entre dans le lab.
+        self.proj = (Projection(og["lat"], og["lon"])
+                     if "lat" in og and "lon" in og else None)
         self.world = {c.uid: c for c in sc["contacts"]}
         self.radar = Radar()
         self.esm, self.iff, self.ais = Esm(), Iff(), Ais()
@@ -157,12 +164,14 @@ class Engine:
                 tr = self.tracker.fuse_bearing(self.own, d[0], d[1])
                 if tr and d[1] == "fc" and tr.aff != "hostile":
                     self.log("crit", "%s — illumination conduite de tir" % tr.num)
-            nm = self.ais.receive(self.own, c)
-            if nm:
+            rec = self.ais.receive(self.own, c)
+            if rec:
                 for tr in self.tracker.confirmed():
                     x, y = tr.pos
                     if rng(x - c.x, y - c.y) < 900:
-                        tr.ident, tr.sources = nm, tr.sources | {"AIS"}
+                        tr.ident = rec["name"]
+                        tr.ais = rec
+                        tr.sources = tr.sources | {"AIS"}
                         if tr.aff == "unknown" and c.intent != "hostile":
                             tr.aff = "neutral"
             a = self.iff.interrogate(self.own, c)
@@ -329,7 +338,7 @@ class Engine:
                 "aff": tr.aff, "qual": round(tr.quality, 2),
                 "ell": [round(ex / NM, 4), round(ey / NM, 4)],
                 "src": sorted(tr.sources), "emitter": tr.emitter,
-                "iff": tr.iff, "ident": tr.ident,
+                "iff": tr.iff, "ident": tr.ident, "ais": tr.ais,
                 "score": round(ev["score"], 3), "fact": ev["facteurs"],
                 "cpa": round(ev["cpa"] / NM, 2),
                 "tcpa": round(ev["tcpa"], 0) if ev["tcpa"] > 0 else -1,
@@ -340,14 +349,26 @@ class Engine:
                            round((hy - self.own.y) / NM, 3)]
                           for hx, hy in tr.history[-10:]],
             })
+        own = {"crs": round(self.own.course, 1),
+               "spd": round(self.own.speed / KT, 1),
+               "ord_crs": round(self.own.ordered_course, 1),
+               "ord_spd": round(self.own.ordered_speed / KT, 1)}
+        geo = None
+        if self.proj:
+            # La console a besoin du point de référence pour convertir la
+            # position du curseur ; elle refait la projection côté client
+            # plutôt que de demander au serveur à chaque mouvement de souris.
+            lat, lon = self.proj.to_latlon(self.own.x, self.own.y)
+            own["lat"], own["lon"] = round(lat, 6), round(lon, 6)
+            geo = {"lat0": self.proj.lat0, "lon0": self.proj.lon0,
+                   "m_lat": round(self.proj.m_per_lat, 4),
+                   "m_lon": round(self.proj.m_per_lon, 4)}
         return {
             "t": round(self.t, 2),
             "scenario": self.sc["name"],
             "sweep": round(self.radar.sweep, 1),
-            "own": {"crs": round(self.own.course, 1),
-                    "spd": round(self.own.speed / KT, 1),
-                    "ord_crs": round(self.own.ordered_course, 1),
-                    "ord_spd": round(self.own.ordered_speed / KT, 1)},
+            "geo": geo,
+            "own": own,
             "tracks": tks,
             "solutions": self.solutions[:8],
             "platform": self.platform.snapshot(),

@@ -6,55 +6,69 @@ on rouvre un projet trois semaines plus tard.
 
 ---
 
-## 1. Des données réelles — ADS-B
+## Déjà fait
 
-**Une soirée. Le meilleur rapport plaisir/effort du lot.**
-
-Un CMS avec des pistes inventées se démode en dix minutes. Un CMS qui affiche
-les avions réels au-dessus de chez toi, non.
-
-Le format de piste est déjà le bon : `Contact` porte position, route, vitesse,
-altitude et surface équivalente radar. Il n'y a rien à changer au cœur.
-
-- **Avec une clé RTL-SDR (~25 €)** : `dump1090-fa` expose un `aircraft.json`
-  rafraîchi à la seconde sur `http://localhost:8080/data/aircraft.json`.
-- **Sans matériel** : l'API OpenSky Network, en HTTP, avec quelques secondes
-  de retard.
-
-**Par où commencer** — un `services/adsb.py` qui lit le JSON et fabrique des
-`Contact`. Il manque une conversion géographique : ajouter à `sim/geo.py` une
-projection tangente locale (`lat/lon → x/y` en mètres autour d'un point de
-référence). Une quinzaine de lignes, formule de la projection équirectangulaire
-suffisante sur quelques dizaines de milles.
-
-Ensuite les senseurs s'appliquent tels quels : un avion de ligne à 33 000 pieds
-sort à 235 NM d'horizon, un drone à 400 pieds à 30 NM. **La physique déjà
-écrite devient un filtre sur du trafic réel** — et c'est là que ça devient
-vraiment intéressant.
-
-Garder les pistes simulées injectables par-dessus : le front ne fait pas la
-différence, `src` distingue déjà l'origine.
+- **Projection géographique** (`sim/geo.Projection`) et ancrage des scénarios
+  par un bloc `[origine]`. Les scénarios sans ancrage restent relatifs.
+- **Décodage AIS normalisé** (`sim/ais.py`) : types de navire, statuts de
+  navigation, dimensions, tirant d'eau. Porté jusqu'à la console.
+- **Console adaptée aux données réelles** : échelle 100 NM, position
+  géographique du curseur, bloc AIS dans le panneau de piste, marquage
+  explicite des contacts de surface qui n'émettent pas.
+- **Trait de côte réel**, Natural Earth 10 m découpé par `tools/coastline.py`.
+- **Garde-fou de tests** sur la projection et les deux lois de senseur.
 
 ---
 
-## 2. Des tests automatisés
+## 1. Le flux AIS réel — l'étape suivante
 
-**Deux heures. C'est le vrai trou du projet.**
+**Une soirée. Tout le raccord est déjà en place.**
 
-Il n'y en a aucun aujourd'hui. Or la physique se casse en silence : une
-constante mal placée dans l'équation radar ne lève pas d'exception, elle
-change juste toutes les portées.
+Le format est le bon, le décodage est écrit, la console sait l'afficher. Il
+manque le service qui va chercher les messages et fabrique des `Contact`.
 
-`unittest` de la bibliothèque standard suffit — pas de dépendance à ajouter.
-Ce qui mérite un test, par ordre :
+- **Digitraffic (Fintraffic)**, sans clé ni inscription, eaux finlandaises :
+  `https://meri.digitraffic.fi/api/ais/v1/locations` et `/api/ais/v1/vessels`,
+  du JSON sur HTTPS — donc `urllib` suffit et la règle zéro-dépendance tient.
+  Un flux MQTT existe (`wss://meri.digitraffic.fi:443/mqtt`) mais imposerait
+  une bibliothèque.
+- **Kystverket (Norvège)**, TCP brut sur `153.44.253.27:5631`, sans
+  inscription, 40 à 60 NM des côtes, licence NLOD. Trames AIVDM : il faut
+  écrire le désarmurage ASCII 6 bits et le réassemblage multi-trames, une
+  centaine de lignes très agréables à écrire.
 
-- `sim/geo.py` — `cpa()` sur des géométries connues (route de collision,
-  contact qui s'ouvre, vitesse relative nulle), `intercept_time()` quand la
-  cible fuit plus vite que l'intercepteur, le passage de 359° à 001°.
-- `sim/sensors.py` — l'horizon rend bien 17,2 NM pour 30 m et 5 m ; le SNR
-  décroît de 12 dB quand la distance double.
-- `sim/tracker.py` — convergence sur une trajectoire connue. Je l'ai fait à la
-  main pendant le développement (301 m/s estimés pour 300 réels) ; ce contrôle
+**Par où commencer** — un `services/ais.py` qui interroge Digitraffic et
+fabrique des `Contact(kind="surf", ais=True, ais_static=decode(...))`. Deux
+points à traiter :
+
+- **La surface équivalente radar.** L'AIS donne les dimensions, pas la RCS.
+  Le déplacement s'estime par `L × B × tirant d'eau × coefficient de bloc`,
+  et la formule empirique de Skolnik (`σ ≈ 52 √f D^1,5`, f en MHz, D en
+  kilotonnes) donne un ordre de grandeur — connu pour majorer, et donné au
+  travers du navire. À calibrer contre les RCS des scénarios écrits à la
+  main (9 000 m² pour un cargo de 180 m) plutôt qu'à croire sur parole.
+- **La cadence.** Un navire au mouillage émet toutes les trois minutes, un
+  navire rapide toutes les deux secondes. Le pistage attend des plots
+  réguliers ; il faudra soit extrapoler entre deux messages, soit accepter
+  des pistes qui se dégradent — et c'est probablement plus intéressant de
+  les laisser se dégrader.
+
+Garder les contacts simulés injectables par-dessus le trafic réel : le front
+ne fait pas la différence, `src` distingue déjà l'origine. **C'est là que le
+sujet devient vraiment naval** — une vedette simulée sans AIS au milieu d'un
+rail marchand réel, et le problème d'identification se pose tout seul.
+
+---
+
+## 2. Compléter les tests
+
+**Le socle est posé, il manque deux morceaux.**
+
+`tests/test_geo.py` couvre la projection, l'horizon radio, la loi en R⁴, le
+CPA et l'interception. Restent :
+
+- `sim/tracker.py` — convergence sur une trajectoire connue. Fait à la main
+  pendant le développement (301 m/s estimés pour 300 réels) ; ce contrôle
   devrait être un test, pas un souvenir.
 - `sim/tewa.py` — `salvo_for()`, le rejet hors enveloppe, le signe de la butée.
 
@@ -91,6 +105,14 @@ Constat mesuré : sur `02-saturation-asm`, doctrine SAM armée et désarmée
 donnent le même résultat, 25 % de fuite. Six arrivées étalées sur une
 vingtaine de secondes restent traitables en séquence par un canal CIWS unique.
 Le scénario ne sature pas, malgré son nom.
+
+**Préalable : afficher un intervalle de confiance.** `tools/montecarlo.py`
+sort une proportion brute, affichée avec une décimale. Sur 6 fuites en 24
+runs, l'intervalle de Wilson à 95 % va de 12 % à 45 % — deux doctrines qui
+diffèrent de vingt points afficheraient toutes deux « 25 % ». Tant que l'IC
+n'est pas là, l'outil ne peut pas répondre à la question pour laquelle il
+existe, et ce scénario est invérifiable par construction. Une dizaine de
+lignes, et il faudra n≈200 plutôt que 24 (2,6 s par run, donc 9 minutes).
 
 Trois leviers, dans `scenarios/*.toml` et `sim/tewa.py` :
 - resserrer les tirs à quelques secondes d'écart, ou tirer depuis deux
@@ -178,10 +200,15 @@ jamais publié.
 
 ```bash
 python3 services/server.py                      # tester, sans rien installer
+python3 -m unittest discover -s tests           # le garde-fou
 docker compose up --build                       # la stack conteneurisée
 python3 tools/montecarlo.py scenarios/X.toml -n 24
 python3 tools/record.py scenarios/X.toml -o fixtures/X.jsonl --hz 1 --slim
 node tools/build-artifact.mjs                   # l'artefact autonome
+
+# Refaire le trait de côte pour une autre zone d'opérations
+curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_coastline.geojson
+python3 tools/coastline.py ne_10m_coastline.geojson --lat 59.85 --lon 24.85 --rayon 120 -o web/coastline.json
 ```
 
 Le build Docker n'a jamais été exécuté — pas de démon disponible au moment de

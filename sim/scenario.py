@@ -8,6 +8,7 @@ donc une image Docker sans `pip install`.
 import tomllib
 from pathlib import Path
 
+from .ais import decode as decode_ais
 from .entities import Contact
 from .geo import FT, KT, NM, to_xy
 
@@ -28,6 +29,10 @@ def load(path):
         "seed": int(data.get("seed", 1)),
         "duration": float(data.get("duration", 900)),
         "ownship": data.get("ownship", {}),
+        # Ancre le plan tangent local sur la carte. Sans elle le scénario
+        # reste purement relatif — ce qui suffisait tant que rien de réel
+        # n'entrait dans le système.
+        "origine": data.get("origine", {}),
         "events": sorted(data.get("event", []), key=lambda e: e.get("at", 0)),
         "contacts": [],
     }
@@ -38,6 +43,11 @@ def load(path):
             x=x, y=y, alt=float(c.get("alt_ft", 0)) * FT,
             course=float(c.get("course", 0)), speed=float(c.get("speed_kt", 0)) * KT,
             rcs=float(c.get("rcs", 100)), iff=bool(c.get("iff", False)),
-            ais=bool(c.get("ais", False)), emitters=list(c.get("emitters", [])),
+            ais=bool(c.get("ais", False)),
+            # Le scénario écrit le statique AIS dans les champs bruts de la
+            # norme, comme le ferait un vrai message : un scénario et un
+            # navire réel doivent être indiscernables en aval.
+            ais_static=decode_ais(c.get("ais_data", {})) if c.get("ais_data") else {},
+            emitters=list(c.get("emitters", [])),
             intent=c.get("intent", "neutral")))
     return sc

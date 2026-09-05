@@ -23,6 +23,7 @@ class Contact:
     rcs: float = 100.0        # m²
     iff: bool = False         # répond à l'interrogation ami
     ais: bool = False         # émet une identité AIS
+    ais_static: dict = field(default_factory=dict)   # ce que le message AIS déclare
     emitters: list = field(default_factory=list)   # ["nav", "search", "fc"]
     intent: str = "neutral"   # neutral | hostile | friend — vérité, jamais affichée
     alive: bool = True
