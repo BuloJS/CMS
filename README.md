@@ -216,10 +216,16 @@ relevé parce que l'œil ne distingue pas « au large » de « dans les cailloux
 sur un scope à cinquante milles.
 
 ```bash
-python3 tools/eaux.py
-01-detroit-approche            au large           14.43 NM de la côte
-...
+python3 tools/eaux.py                                       # origines et contacts
+python3 tools/eaux.py --capture fixtures/ais-golfe-finlande.json
 ```
+
+Le contrôle couvre l'origine de chaque scénario, **la position de chaque
+contact de surface, et sa route** : un contact correctement posé au départ ne
+prouve rien, puisqu'à quatorze nœuds pendant un quart d'heure il parcourt
+trois milles et demi. `--capture` inspecte un instantané AIS et dit lesquels
+de ses navires la carte place à terre, en distinguant ceux que le pont écarte
+de ceux qui resteraient affichés.
 
 Limite connue : Natural Earth 10 m ne porte pas les petits îlots. Le contrôle
 attrape la faute grossière, pas la subtile.
@@ -297,6 +303,15 @@ donc étalonnée sur les valeurs écrites à la main dans les scénarios (25 m �
 un navire réel doit être exactement aussi détectable qu'un navire inventé de
 même taille. Au-delà d'un millier de m², la détection est de toute façon
 limitée par l'horizon, pas par le bilan de liaison.
+
+**Les navires à quai sont écartés.** Un grand port en tient des dizaines
+en permanence, et Natural Earth ne modélise pas les bassins portuaires : ils
+se dessineraient donc sur la terre. Le filtre porte sur le statut déclaré
+(à quai, échoué) et non sur une géométrie — un test point-dans-polygone pour
+cinq cents navires toutes les six secondes coûterait plus que tout le reste du
+pont, et se tromperait sur un navire légitimement dans un chenal étroit. « Au
+mouillage » n'est pas filtré : un navire sur rade est en mer. Un scénario de
+surveillance portuaire peut tout garder avec `inclure_a_quai = true`.
 
 **Un message inchangé ne recale pas le contact.** Digitraffic rend la dernière
 position connue de chaque navire ; pour un navire lent, c'est le même message

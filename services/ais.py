@@ -56,6 +56,20 @@ UA = "CMS-Lab/1.0 (simulateur de systeme de combat naval; usage laboratoire)"
 SOG_INDISPO = 102.3
 COG_INDISPO = 360.0
 
+# Statuts de navires qui ne sont pas en mer. Un flux réel en charrie
+# beaucoup : un grand port en tient des dizaines à quai en permanence, et
+# Natural Earth ne modélise pas les bassins portuaires — ils apparaissent
+# donc « sur la terre » à l'écran, ce qui est laid et faux à la fois.
+#
+# Le filtre porte sur ce que le navire déclare, pas sur une géométrie : un
+# test point-dans-polygone pour cinq cents navires toutes les six secondes
+# coûterait plus cher que tout le reste du pont réuni, et il se tromperait
+# sur les navires légitimement dans un chenal étroit.
+#
+# « Au mouillage » (1) n'est pas dans la liste : un navire sur rade est en
+# mer, c'est un contact comme un autre, et souvent un contact intéressant.
+A_QUAI = {5, 6}          # à quai, échoué
+
 
 # --------------------------------------------------------------------- #
 # Lecture de la source
@@ -314,10 +328,12 @@ class AisBridge(threading.Thread):
     """
     daemon = True
 
-    def __init__(self, sim, source=None, rayon_nm=60.0, periode=6.0, oubli=600.0):
+    def __init__(self, sim, source=None, rayon_nm=60.0, periode=6.0,
+                 oubli=600.0, inclure_a_quai=False):
         super().__init__()
         self.sim = sim
         self.source = source
+        self.inclure_a_quai = inclure_a_quai
         self.cfg = None             # configuration en vigueur, suivie du scénario
         self.rayon_nm = rayon_nm
         self.periode = periode
@@ -344,6 +360,18 @@ class AisBridge(threading.Thread):
             return "AIS " + getattr(self.source, "etiquette", "FICHIER")
         return "AIS RÉEL"
 
+    def _purger(self):
+        """Sort du monde tous les navires venus d'une source AIS.
+
+        Les contacts d'un scénario, eux, ne portent pas ce préfixe et ne
+        sont jamais touchés : le trafic réel s'ajoute au scénario, il ne le
+        remplace pas.
+        """
+        with self.sim.lock:
+            monde = self.sim.engine.world
+            for uid in [u for u in monde if u.startswith("AIS-")]:
+                del monde[uid]
+
     def _proj(self):
         with self.sim.lock:
             return self.sim.engine.proj
@@ -361,6 +389,12 @@ class AisBridge(threading.Thread):
             return self.source is not None
         self.cfg, self.source = cfg, None
         self.vus, self.applique, self.n = {}, {}, 0
+        # Retirer du monde les navires de la source précédente. Vider le
+        # suivi sans les retirer les rendait orphelins : la boucle d'oubli
+        # n'itère que sur ce qui est suivi, donc ils restaient indéfiniment.
+        # Après une capture, on voyait ainsi les navires de l'ancien
+        # instantané *et* ceux du nouveau, superposés pour toujours.
+        self._purger()
         if not cfg:
             self.etat = "éteint"
             return False
@@ -376,6 +410,7 @@ class AisBridge(threading.Thread):
             return False
         self.rayon_nm = cfg["rayon_nm"]
         self.periode = cfg["periode"]
+        self.inclure_a_quai = bool(cfg.get("inclure_a_quai", False))
         self.etat = "démarrage"
         self._statique_le = 0.0
         return True
@@ -393,6 +428,8 @@ class AisBridge(threading.Thread):
             eng = self.sim.engine
             monde, t = eng.world, eng.t
             for p in positions:
+                if not self.inclure_a_quai and p.get("navStat") in A_QUAI:
+                    continue
                 c = en_contact(p, statique, proj)
                 if math.hypot(c.x - eng.own.x, c.y - eng.own.y) > limite:
                     continue

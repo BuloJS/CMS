@@ -108,7 +108,11 @@ class Sim:
         return {"source": source,
                 "fichier": bloc.get("fichier", AIS_FILE),
                 "rayon_nm": float(bloc.get("rayon_nm", AIS_RAYON)),
-                "periode": float(bloc.get("periode", AIS_PERIODE))}
+                "periode": float(bloc.get("periode", AIS_PERIODE)),
+                # Les navires à quai encombrent le scope et se dessinent sur
+                # la terre. On les écarte par défaut ; un scénario de
+                # surveillance portuaire peut les vouloir.
+                "inclure_a_quai": bool(bloc.get("inclure_a_quai", False))}
 
     def command(self, c):
         k = c.get("cmd")

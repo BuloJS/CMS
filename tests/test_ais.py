@@ -365,6 +365,7 @@ class TestPont(unittest.TestCase):
         self.sim = _FauxSim(self.eng)
         self.src = Fichier(ROOT / "fixtures" / "ais-golfe-finlande.json")
         self.pont = AisBridge(self.sim, self.src, rayon_nm=60.0)
+        self.sim.ais_cfg = None
 
     def test_premier_cycle_peuple_le_monde(self):
         self.pont._cycle()
@@ -402,6 +403,77 @@ class TestPont(unittest.TestCase):
         self.eng.t = self.pont.oubli + 1.0
         self.pont._cycle()
         self.assertEqual(len(self.eng.world), 0)
+
+    def test_changer_de_source_efface_les_navires_precedents(self):
+        """Après une capture, l'ancien instantané ne doit rien laisser.
+
+        Vider le suivi sans retirer les contacts les rendait orphelins : la
+        boucle d'oubli n'itère que sur ce qui est suivi, donc ils restaient
+        pour toujours. On voyait alors les navires de l'ancien instantané et
+        ceux du nouveau, superposés.
+        """
+        from sim.entities import Contact
+        self.eng.world["MV-SCENARIO"] = Contact(
+            uid="MV-SCENARIO", name="scénario", kind="surf", x=0.0, y=0.0)
+        self.pont.cfg = {"source": "fichier", "fichier": "x",
+                         "rayon_nm": 60.0, "periode": 6.0}
+        self.pont._cycle()
+        self.assertGreater(len(self.eng.world), 10)
+
+        rep = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, rep, True)
+        autre = rep / "capture.json"
+        autre.write_text(json.dumps({
+            "source": "capture Digitraffic", "statique": {},
+            "positions": [{"mmsi": 111111111, "lat": 59.95, "lon": 25.30,
+                           "sog": 10, "cog": 90}]}), encoding="utf-8")
+        self.sim.ais_cfg = {"source": "fichier", "fichier": str(autre),
+                            "rayon_nm": 60.0, "periode": 6.0}
+        self.pont._suivre_scenario()
+        self.pont._cycle()
+
+        ais = sorted(u for u in self.eng.world if u.startswith("AIS-"))
+        self.assertEqual(ais, ["AIS-111111111"])
+        # Le trafic réel s'ajoute au scénario, il ne le remplace pas.
+        self.assertIn("MV-SCENARIO", self.eng.world)
+
+    def test_navires_a_quai_ecartes(self):
+        """Un grand port en tient des dizaines à quai en permanence, et
+        Natural Earth ne modélise pas les bassins portuaires : ils se
+        dessinent donc sur la terre. Le filtre porte sur le statut déclaré,
+        pas sur une géométrie — un test point-dans-polygone pour cinq cents
+        navires toutes les six secondes coûterait plus que tout le pont.
+        """
+        from services.ais import A_QUAI
+        rep = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, rep, True)
+        f = rep / "c.json"
+        f.write_text(json.dumps({"statique": {}, "positions": [
+            {"mmsi": 1, "lat": 60.10, "lon": 24.91, "sog": 0.0, "navStat": 5},
+            {"mmsi": 2, "lat": 60.10, "lon": 24.92, "sog": 0.0, "navStat": 6},
+            {"mmsi": 3, "lat": 60.10, "lon": 24.93, "sog": 0.2, "navStat": 1},
+            {"mmsi": 4, "lat": 60.10, "lon": 24.94, "sog": 12.0, "navStat": 0},
+        ]}), encoding="utf-8")
+
+        pont = AisBridge(self.sim, Fichier(f), rayon_nm=60.0)
+        pont.cfg = {"deja": True}
+        pont._cycle()
+        # Au mouillage est conservé : un navire sur rade est en mer, et
+        # c'est souvent un contact intéressant.
+        self.assertEqual(sorted(self.eng.world), ["AIS-3", "AIS-4"])
+        self.assertEqual(A_QUAI, {5, 6})
+
+    def test_navires_a_quai_conserves_sur_demande(self):
+        rep = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, rep, True)
+        f = rep / "c.json"
+        f.write_text(json.dumps({"statique": {}, "positions": [
+            {"mmsi": 1, "lat": 60.10, "lon": 24.91, "sog": 0.0, "navStat": 5},
+        ]}), encoding="utf-8")
+        pont = AisBridge(self.sim, Fichier(f), rayon_nm=60.0, inclure_a_quai=True)
+        pont.cfg = {"deja": True}
+        pont._cycle()
+        self.assertIn("AIS-1", self.eng.world)
 
     def test_sans_origine_le_pont_se_tait(self):
         """Un scénario non ancré n'a nulle part où poser une position AIS."""

@@ -29,7 +29,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from sim.geo import NM, Projection            # noqa: E402
+from sim.geo import KT, NM, Projection, vel   # noqa: E402
+from sim.scenario import load as charger      # noqa: E402
 
 CARTE = ROOT / "web" / "coastline.json"
 MARGE_NM = 8.0      # en deçà, on est en eaux resserrées
@@ -90,6 +91,99 @@ def juger(lat, lon, doc, marge_nm=MARGE_NM):
     return ("resserre" if d < marge_nm else "large"), d
 
 
+def route(lat, lon, cap_deg, vitesse_kt, duree_s, doc, pas_s=60.0):
+    """Suit une route en ligne droite et dit si elle finit par toucher terre.
+
+    Un contact correctement posé au départ ne prouve rien : à quatorze nœuds
+    pendant un quart d'heure, un navire parcourt trois milles et demi, et une
+    route mal choisie le fait traverser une île sans que personne ne l'ait
+    voulu. C'est le défaut qui se voit le plus à l'écran, parce qu'il se voit
+    *pendant* qu'on regarde.
+
+    Rend (instant du premier échouage en secondes, ou None ; distance
+    minimale à la côte le long de la route, en NM).
+    """
+    proj = Projection(lat, lon)
+    vx, vy = vel(cap_deg, vitesse_kt * KT)
+    mini, t = float("inf"), 0.0
+    while t <= duree_s:
+        la, lo = proj.to_latlon(vx * t, vy * t)
+        if a_terre(lo, la, doc):
+            return t, 0.0
+        mini = min(mini, distance_terre(lo, la, doc))
+        t += pas_s
+    return None, mini / NM
+
+
+def contacts_du_scenario(sc, doc, marge_nm=0.5):
+    """Contrôle chaque contact scripté : sa position, puis sa route.
+
+    La marge est bien plus faible que pour le porteur : un scénario a de
+    bonnes raisons de placer une vedette près de la côte — elle en sort,
+    c'est le sujet. Ce qu'on veut interdire, c'est la terre ferme.
+    """
+    og = sc.get("origine") or {}
+    if "lat" not in og:
+        return []
+    proj = Projection(og["lat"], og["lon"])
+    duree = float(sc.get("duration", 600))
+    out = []
+    for c in sc.get("contacts", []):
+        if c.kind != "surf":
+            continue                       # un aéronef survole ce qu'il veut
+        la, lo = proj.to_latlon(c.x, c.y)
+        v, d = juger(la, lo, doc, marge_nm)
+        quand, mini = (None, d)
+        if v != "terre":
+            quand, mini = route(la, lo, c.course, c.speed / KT, duree, doc)
+        out.append({"id": c.uid, "nom": c.name, "lat": la, "lon": lo,
+                    "verdict": "terre" if v == "terre" else
+                               ("echoue" if quand is not None else "ok"),
+                    "distance_nm": d, "mini_nm": mini, "echoue_a": quand})
+    return out
+
+
+def inspecter_capture(chemin, doc):
+    """Liste les navires d'un instantané AIS que la carte place à terre.
+
+    Attendu sur une capture réelle, et ce n'est pas une erreur du flux : un
+    navire à quai *est* dans un bassin portuaire, que Natural Earth ne
+    modélise pas. Le pont les écarte sur leur statut déclaré, pas sur la
+    géométrie — mais il reste utile de voir ce que contient une capture,
+    ne serait-ce que pour vérifier que le filtre fait son travail.
+    """
+    from services.ais import A_QUAI, Fichier
+    src = Fichier(chemin)
+    pos = src.positions()
+    a_terre_l, quai = [], 0
+    for p in pos:
+        st = src.statique.get(p["mmsi"], {})
+        if p.get("navStat") in A_QUAI:
+            quai += 1
+        if a_terre(p["lon"], p["lat"], doc):
+            a_terre_l.append((st.get("name") or p["mmsi"], p, st))
+
+    print("%s — %d navires, %d se déclarent à quai ou échoués"
+          % (chemin, len(pos), quai))
+    if not a_terre_l:
+        print("  aucun sur la terre selon la carte.")
+        return 0
+    print("  %d sur la terre selon la carte :" % len(a_terre_l))
+    for nom, p, st in a_terre_l[:30]:
+        ecarte = "écarté" if p.get("navStat") in A_QUAI else "CONSERVÉ"
+        print("    %-22s %8.4fN %8.4fE  %5.1f kt  %-22s %s"
+              % (str(nom)[:22], p["lat"], p["lon"], p["sog"],
+                 (st.get("navstat") or "statut inconnu")[:22], ecarte))
+    reste = [x for x in a_terre_l if x[1].get("navStat") not in A_QUAI]
+    if reste:
+        print("  %d resteraient affichés sur la terre. Causes ordinaires :"
+              % len(reste))
+        print("    un chenal entre des îlots que Natural Earth 10 m ne porte")
+        print("    pas, ou un navire en manœuvre dans un port sans avoir")
+        print("    encore basculé son statut.")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--carte", default=str(CARTE))
@@ -97,6 +191,8 @@ def main():
     ap.add_argument("--lon", type=float)
     ap.add_argument("--marge", type=float, default=MARGE_NM,
                     help="eau libre attendue autour du porteur, en NM")
+    ap.add_argument("--capture", help="inspecte un instantané AIS au lieu "
+                                      "des scénarios")
     a = ap.parse_args()
 
     doc = json.loads(Path(a.carte).read_text(encoding="utf-8"))
@@ -105,6 +201,9 @@ def main():
         print("  python3 tools/coastline.py ne_10m_coastline.geojson \\")
         print("      --terres ne_10m_land.geojson --lat .. --lon .. -o web/coastline.json")
         return 2
+
+    if a.capture:
+        return inspecter_capture(a.capture, doc)
 
     ETIQ = {"terre": "À TERRE", "resserre": "eaux resserrées", "large": "au large"}
     if a.lat is not None and a.lon is not None:
@@ -123,6 +222,15 @@ def main():
         print("%-30s %-17s %6.2f NM de la côte" % (p.stem, ETIQ[v], d))
         if v != "large":
             mauvais += 1
+        for c in contacts_du_scenario(charger(p), doc):
+            if c["verdict"] == "ok":
+                continue
+            mauvais += 1
+            if c["verdict"] == "terre":
+                print("    %-14s %-22s À TERRE au départ" % (c["id"], c["nom"][:22]))
+            else:
+                print("    %-14s %-22s s'échoue à t+%.0f s"
+                      % (c["id"], c["nom"][:22], c["echoue_a"]))
     return 1 if mauvais else 0
 
 

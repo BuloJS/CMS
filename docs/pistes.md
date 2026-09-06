@@ -251,7 +251,8 @@ curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/ge
 curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson
 python3 tools/coastline.py ne_10m_coastline.geojson --terres ne_10m_land.geojson \
     --lat 59.85 --lon 24.85 --rayon 120 -o web/coastline.json
-python3 tools/eaux.py                           # les scénarios sont-ils au large
+python3 tools/eaux.py                           # origines, contacts et leurs routes
+python3 tools/eaux.py --capture fixtures/ais-golfe-finlande.json
 ```
 
 Le build Docker n'a jamais été exécuté — pas de démon disponible au moment de
