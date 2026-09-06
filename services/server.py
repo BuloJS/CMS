@@ -280,11 +280,19 @@ def main():
     PlcBridge(SIM).start()
     demarrer_ais(SIM)
     srv = ThreadingHTTPServer((HOST, PORT), Handler)
+    # 0.0.0.0 est une adresse d'écoute — « toutes les interfaces » — pas une
+    # adresse qu'un navigateur sait ouvrir : Windows et Safari la refusent
+    # net. Afficher l'adresse de liaison telle quelle envoie donc
+    # l'utilisateur sur une URL morte alors que le serveur marche.
+    visible = "localhost" if HOST in ("0.0.0.0", "::", "") else HOST
     print("CMS-Lab sur http://%s:%d  (scénario %s, IPMS %s, AIS %s)"
-          % (HOST, PORT, DEFAULT_SC,
+          % (visible, PORT, DEFAULT_SC,
              "Modbus " + PLC_HOST if PLC_HOST else "simulé",
              AIS_SOURCE or "éteint"),
           flush=True)
+    if visible != HOST:
+        print("           écoute sur %s:%d — accessible aussi depuis le réseau local"
+              % (HOST, PORT), flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
