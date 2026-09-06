@@ -17,7 +17,9 @@ on rouvre un projet trois semaines plus tard.
 - **Console adaptée aux données réelles** : échelle 100 NM, position
   géographique du curseur, bloc AIS dans le panneau de piste, marquage des
   contacts de surface qui n'émettent pas, état de la source dans le bandeau.
-- **Trait de côte réel**, Natural Earth 10 m découpé par `tools/coastline.py`.
+- **Fond de carte réel**, Natural Earth 10 m découpé par `tools/coastline.py` :
+  trait de côte et polygones de terre remplis. `tools/eaux.py` vérifie que
+  chaque scénario est posé au large — deux l'étaient à 2,5 NM d'un port.
 - **Bruit de manœuvre adaptatif** dans le filtre — voir ci-dessous.
 - **Contrôle de vraisemblance AIS** (`sim/veracite.py`) : écart de position,
   écart de cinématique, extinction de transpondeur, statut contredit, gabarit
@@ -244,7 +246,10 @@ node tools/build-artifact.mjs                   # l'artefact autonome
 
 # Refaire le trait de côte pour une autre zone d'opérations
 curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_coastline.geojson
-python3 tools/coastline.py ne_10m_coastline.geojson --lat 59.85 --lon 24.85 --rayon 120 -o web/coastline.json
+curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson
+python3 tools/coastline.py ne_10m_coastline.geojson --terres ne_10m_land.geojson \
+    --lat 59.85 --lon 24.85 --rayon 120 -o web/coastline.json
+python3 tools/eaux.py                           # les scénarios sont-ils au large
 ```
 
 Le build Docker n'a jamais été exécuté — pas de démon disponible au moment de

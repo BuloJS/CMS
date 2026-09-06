@@ -413,11 +413,28 @@ function drawScope(){
   g.beginPath(); g.arc(cx,cy,R,0,7); g.fillStyle=grd; g.fill();
   g.save(); g.beginPath(); g.arc(cx,cy,R,0,7); g.clip();
 
-  /* La terre, sous les anneaux : c'est le fond de carte, pas une piste.
-     Natural Earth ne donne que des polylignes, pas des polygones fermés —
-     on trace donc le trait, sans remplir. Il ne masque toujours rien : le
-     radar continue de voir à travers, ce qui reste faux et documenté. */
+  /* Le fond de carte, sous les anneaux. La terre est remplie : un trait
+     seul ne dit pas de quel côté est la mer, et sur un scope dense c'est
+     illisible. Les anneaux intérieurs — lacs, mers intérieures — sont dans
+     le même chemin, et la règle pair-impair les creuse toute seule.
+
+     La terre ne masque toujours rien : le radar voit à travers, ce qui
+     reste faux et documenté. */
   if(COAST && geoOk()){
+    if(COAST.terres){
+      g.fillStyle = "rgba(28,46,34,.72)";
+      COAST.terres.forEach(poly=>{
+        g.beginPath();
+        poly.forEach(ring=>{
+          for(let i=0;i<ring.length;i++){
+            const P = px(toLocal(ring[i][0], ring[i][1]));
+            i ? g.lineTo(P.x,P.y) : g.moveTo(P.x,P.y);
+          }
+          g.closePath();
+        });
+        g.fill("evenodd");
+      });
+    }
     g.strokeStyle="rgba(150,170,110,.62)"; g.lineWidth=1.15;
     g.lineJoin="round"; g.lineCap="round";
     COAST.lignes.forEach(ln=>{

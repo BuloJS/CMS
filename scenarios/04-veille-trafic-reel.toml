@@ -1,7 +1,7 @@
 name = "Veille en zone de trafic réel"
-brief = """Pas de scénario. Le porteur tient une veille au large d'Helsinki et
-la console affiche le trafic maritime réel, reçu par AIS et passé au travers du
-modèle de senseurs : équation radar en R⁴, horizon radio, bruit de mesure,
+brief = """Pas de scénario. Le porteur tient une veille au milieu du golfe de
+Finlande, sur le rail Helsinki–Tallinn, et la console affiche le trafic maritime
+réel, reçu par AIS et passé au travers du modèle de senseurs : équation radar en R⁴, horizon radio, bruit de mesure,
 pistage. Ce qui est à l'écran n'est pas la vérité AIS, c'est ce que le
 bâtiment en perçoit."""
 attendu = """Les grands navires sortent à l'horizon, limités par lui et non par
@@ -12,11 +12,13 @@ inconnu."""
 seed = 1
 duration = 3600
 
-# Au large d'Helsinki, au centre de la zone couverte par le flux AIS public
-# finlandais. Le rayon d'ingestion par défaut est de 60 NM.
+# Au milieu du golfe de Finlande, sur le rail Helsinki–Tallinn : quinze
+# milles d'eau libre dans toutes les directions, et en plein trafic. Un
+# bâtiment en veille ne se met pas à deux milles d'un port, au milieu
+# des skerries — la position se vérifie avec tools/eaux.py.
 [origine]
-lat = 60.10
-lon = 24.90
+lat = 59.90
+lon = 25.25
 
 [ownship]
 course = 90

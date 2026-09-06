@@ -14,9 +14,11 @@ fraude vise. Le TEWA en fait un facteur de doute, jamais une preuve."""
 seed = 4021
 duration = 900
 
+# Au milieu du golfe de Finlande, sur le rail Helsinki–Tallinn : quinze
+# milles d'eau libre dans toutes les directions, et en plein trafic.
 [origine]
-lat = 60.10
-lon = 24.90
+lat = 59.90
+lon = 25.25
 
 [ownship]
 course = 90

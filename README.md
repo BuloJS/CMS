@@ -193,14 +193,36 @@ lat = 59.85
 lon = 24.85
 ```
 
-Le trait de côte est du Natural Earth 10 m découpé pour la zone
-d'opérations. Il est **réel mais toujours transparent** : le radar voit à
-travers.
+Le fond de carte est du Natural Earth 10 m découpé pour la zone
+d'opérations, en deux couches : le trait de côte pour le dessin, et les
+polygones de terre pour le remplissage. Les deux sont nécessaires — un trait
+seul ne dit pas de quel côté est la mer, et sur un scope dense c'est
+illisible. La terre est **réelle mais toujours transparente** : le radar voit
+à travers.
 
 ```bash
 curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_coastline.geojson
-python3 tools/coastline.py ne_10m_coastline.geojson --lat 59.85 --lon 24.85 --rayon 120 -o web/coastline.json
+curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson
+python3 tools/coastline.py ne_10m_coastline.geojson --terres ne_10m_land.geojson \
+    --lat 59.85 --lon 24.85 --rayon 120 -o web/coastline.json
 ```
+
+Les polygones servent aussi à vérifier qu'un scénario est posé où il doit
+l'être. Ce n'est pas de la coquetterie : l'origine décide de l'eau libre
+autour du porteur et de la zone où l'ingestion AIS va chercher du trafic.
+Deux scénarios avaient été écrits à deux milles et demi d'un port, au milieu
+des skerries — ça se voit tout de suite à l'écran, et personne ne l'avait
+relevé parce que l'œil ne distingue pas « au large » de « dans les cailloux »
+sur un scope à cinquante milles.
+
+```bash
+python3 tools/eaux.py
+01-detroit-approche            au large           14.43 NM de la côte
+...
+```
+
+Limite connue : Natural Earth 10 m ne porte pas les petits îlots. Le contrôle
+attrape la faute grossière, pas la subtile.
 
 ### Trafic maritime réel
 
@@ -340,7 +362,7 @@ Symbologie : cercle = ami, losange = hostile, carré = neutre, quatre-feuilles
 - Le vol des intercepteurs est réduit à un temps de vol et une probabilité de
   destruction. Pas de navigation proportionnelle, pas d'enveloppe de manœuvre.
 - Pas de fouillis de mer, de multitrajet ni de conduits de propagation.
-- Le trait de côte est réel (Natural Earth 10 m) mais ne masque rien : pas
+- Le fond de carte est réel (Natural Earth 10 m) mais ne masque rien : pas
   de zone d'ombre, pas de diffraction, un contact derrière une île reste
   visible.
 - La surface équivalente radar déduite de l'AIS est étalonnée sur l'échelle
