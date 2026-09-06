@@ -199,10 +199,16 @@ class Fichier:
     et un lab qui ne démarre pas sans internet n'est pas un lab.
     """
 
+    # Un instantané rejoué n'est pas forcément une capture réelle : le dépôt
+    # en embarque un écrit à la main, pour que le lab tourne sans réseau. La
+    # différence compte trop pour être devinée — un opérateur doit savoir si
+    # ce qu'il regarde vient du monde ou d'un fichier inventé.
     def __init__(self, path):
         doc = json.loads(Path(path).read_text(encoding="utf-8"))
         self._pos = [p for p in (normalise(f) for f in doc.get("positions", [])) if p]
         self.statique = doc.get("statique", {})
+        self.synthetique = "synth" in str(doc.get("source", "")).lower()
+        self.etiquette = "SYNTHÉTIQUE" if self.synthetique else "CAPTURE"
         self.etat = "fichier"
 
     def positions(self, lat=None, lon=None, rayon_nm=None):
@@ -277,6 +283,16 @@ class AisBridge(threading.Thread):
         # divisée par deux. C'est le genre de faute qui ne lève rien et qui
         # ne se voit que sur la vitesse affichée.
         self.applique = {}          # uid -> (horodatage, lat, lon)
+
+    def etiquette_source(self):
+        """Ce que la console affiche en clair. Trois cas, et il ne faut pas
+        les confondre : le flux public en direct, un instantané réel capturé
+        plus tôt, et l'instantané synthétique livré avec le dépôt."""
+        if self.source is None:
+            return "AIS ÉTEINT"
+        if isinstance(self.source, Fichier):
+            return "AIS " + getattr(self.source, "etiquette", "FICHIER")
+        return "AIS RÉEL"
 
     def _proj(self):
         with self.sim.lock:
@@ -360,8 +376,7 @@ class AisBridge(threading.Thread):
                     self.vus.pop(uid, None)
                     self.applique.pop(uid, None)
             self.n = len(self.vus)
-        self.etat = "%s — %d navires" % (
-            "AIS RÉEL" if not isinstance(self.source, Fichier) else "AIS FICHIER", self.n)
+        self.etat = "%s — %d navires" % (self.etiquette_source(), self.n)
 
     def run(self):
         self._statique_le = 0.0

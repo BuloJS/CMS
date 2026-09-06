@@ -1,9 +1,13 @@
 name = "Veille en zone de trafic réel"
 brief = """Pas de scénario. Le porteur tient une veille au milieu du golfe de
-Finlande, sur le rail Helsinki–Tallinn, et la console affiche le trafic maritime
-réel, reçu par AIS et passé au travers du modèle de senseurs : équation radar en R⁴, horizon radio, bruit de mesure,
-pistage. Ce qui est à l'écran n'est pas la vérité AIS, c'est ce que le
-bâtiment en perçoit."""
+Finlande, sur le rail Helsinki–Tallinn, et la console affiche du trafic reçu par
+AIS, passé au travers du modèle de senseurs : équation radar en R⁴, horizon radio, bruit de mesure,
+pistage. Ce qui est à l'écran n'est pas la vérité AIS, c'est ce que le bâtiment
+en perçoit.
+
+Par défaut la source est l'instantané SYNTHÉTIQUE livré avec le dépôt, pour que
+le scénario tourne sans réseau — le bandeau AIS le dit en clair. Pour le flux
+public réel : AIS_SOURCE=digitraffic python3 services/server.py"""
 attendu = """Les grands navires sortent à l'horizon, limités par lui et non par
 le bilan de liaison. Les petits mobiles — voiliers, pilotines, bateaux de pêche —
 n'apparaissent que de près, et leurs pistes se dégradent dès qu'un plot manque.

@@ -1060,8 +1060,14 @@ function renderTop(){
   $("stat-ais").hidden = !af;
   if(af){
     const ko = /indisponible|illisible|sans \[origine\]/.test(af.etat);
-    $("ais-src").textContent = ko ? "HORS SERVICE" : String(af.n);
-    $("ais-src").style.color = ko ? "var(--crit)" : "";
+    /* La nature de la source s'affiche en clair, pas dans une infobulle :
+       « c'est du réel ? » est la première question qu'on se pose devant ce
+       scénario, et une réponse cachée n'en est pas une. */
+    const nat = (af.source || "").replace("AIS ", "");
+    $("ais-src").innerHTML = ko ? "HORS SERVICE"
+      : af.n + '<small>' + (nat === "RÉEL" ? " RÉEL" : " " + nat.toLowerCase()) + '</small>';
+    $("ais-src").style.color = ko ? "var(--crit)"
+      : (nat === "RÉEL" ? "var(--ok)" : "var(--unknown)");
     $("stat-ais").title = af.etat;
   }
 }

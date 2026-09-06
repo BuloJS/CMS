@@ -169,7 +169,8 @@ class Sim:
                     f = self.engine.snapshot()
                     f["meta"] = self.meta
                     f["rate"] = self.rate
-                    f["ais_feed"] = ({"etat": self.ais.etat, "n": self.ais.n}
+                    f["ais_feed"] = ({"etat": self.ais.etat, "n": self.ais.n,
+                                      "source": self.ais.etiquette_source()}
                                      if self.ais else None)
                 with self.cv:
                     self.frame, self.rev = f, self.rev + 1

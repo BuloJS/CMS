@@ -239,6 +239,17 @@ AIS_SOURCE=digitraffic python3 services/server.py   # flux public réel
 python3 services/ais.py --capture mon-instantane.json
 ```
 
+**Trois sources, et la console dit laquelle est en service** — la question
+« est-ce que c'est du réel ? » se pose immédiatement, et une réponse cachée
+n'en est pas une. Le bandeau affiche `RÉEL` en vert, `capture` ou
+`synthétique` en ambre.
+
+| Source | D'où ça vient | Comment |
+| --- | --- | --- |
+| `synthétique` | L'instantané livré avec le dépôt, écrit à la main. Plausible, mais inventé — c'est **le défaut**, pour que le lab tourne sans réseau | rien à faire |
+| `capture` | Un instantané réel que vous avez capturé, rejoué hors ligne | `python3 services/ais.py --capture …` |
+| `RÉEL` | Le flux public Digitraffic, en direct | `AIS_SOURCE=digitraffic` |
+
 **Un scénario déclare sa source.** Un scénario sans contact scripté n'a rien
 à montrer sans le flux ; il doit donc le réclamer lui-même, sinon il s'ouvre
 sur un scope vide et rien n'explique pourquoi. Le pont suit le scénario
