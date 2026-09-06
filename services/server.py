@@ -68,6 +68,8 @@ class Sim:
         self.meta = {}
         self.ais = None
         self.ais_cfg = None
+        self.capture = None          # compte rendu de la dernière capture
+        self.capture_en_cours = False
         self.load(DEFAULT_SC)
 
     def load(self, fname):
@@ -139,6 +141,8 @@ class Sim:
                 e.log("crit" if not e.platform.pump else "info",
                       "IPMS — pompe %s depuis le poste instructeur"
                       % ("arrêtée" if not e.platform.pump else "relancée"))
+            elif k == "ais_capture":
+                return self.lancer_capture()
             elif k == "rate":
                 self.rate = max(0.0, min(20.0, float(c.get("valeur", 1))))
             elif k == "scenario":
@@ -150,6 +154,53 @@ class Sim:
         if k == "restart":
             return {"ok": self.load(self.name)}
         return {"ok": True}
+
+    def lancer_capture(self):
+        """Va chercher un instantané du flux public et l'enregistre.
+
+        Le chemin d'écriture est fixé côté serveur, jamais fourni par le
+        client : ce point d'entrée écrit un fichier, et une console n'a
+        aucune raison de choisir lequel.
+
+        La capture part dans un fil : elle prend quelques secondes, et la
+        simulation ne doit pas s'arrêter pendant ce temps.
+        """
+        if self.capture_en_cours:
+            return {"ok": False, "erreur": "capture déjà en cours"}
+        og = (self.engine.sc.get("origine") or {}) if self.engine else {}
+        if "lat" not in og or "lon" not in og:
+            return {"ok": False, "erreur": "scénario sans [origine] : "
+                                           "aucune zone à capturer"}
+        rayon = (self.ais_cfg or {}).get("rayon_nm", AIS_RAYON)
+        self.capture_en_cours = True
+        self.capture = {"etat": "en cours"}
+
+        def travail():
+            from services.ais import capturer
+            r = capturer(og["lat"], og["lon"], rayon, ROOT / AIS_FILE)
+            self.capture = dict(r, etat="ok" if r["ok"] else "échec")
+            self.capture_en_cours = False
+            # Le journal, pas seulement une infobulle : une capture ratée est
+            # un événement d'exploitation, et l'opérateur ne survole pas les
+            # boutons pour savoir ce qui s'est passé.
+            with self.lock:
+                if self.engine:
+                    if r["ok"]:
+                        self.engine.log("info", "AIS — instantané capturé : "
+                                        "%d positions, %d navires au statique"
+                                        % (r["n"], r["statique"]))
+                    else:
+                        self.engine.log("warn", "AIS — capture impossible : %s"
+                                        % r["erreur"])
+            # Faire relire l'instantané au pont : sans cela la console
+            # continuerait d'afficher l'ancien jusqu'au prochain changement
+            # de scénario. Écrire cfg depuis ce fil est sans danger — au pire
+            # le pont reconstruit sa source une fois de trop.
+            if r["ok"] and self.ais:
+                self.ais.cfg = None
+
+        threading.Thread(target=travail, daemon=True).start()
+        return {"ok": True, "etat": "en cours"}
 
     def run(self):
         acc, last, pub = 0.0, time.monotonic(), 0.0
@@ -172,6 +223,7 @@ class Sim:
                     f["ais_feed"] = ({"etat": self.ais.etat, "n": self.ais.n,
                                       "source": self.ais.etiquette_source()}
                                      if self.ais else None)
+                    f["capture"] = self.capture
                 with self.cv:
                     self.frame, self.rev = f, self.rev + 1
                     self.cv.notify_all()

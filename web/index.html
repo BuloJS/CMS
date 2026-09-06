@@ -262,6 +262,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
     <button class="sk" id="sk-decoy"><u>F8</u><span>LEURRES</span></button>
     <button class="sk" id="sk-autosam"><u>F9</u><span>SAM AUTO</span></button>
     <button class="sk sim" id="sk-pump"><u>F10</u><span>ARRÊT POMPE</span></button>
+    <button class="sk sim" id="sk-capture"><u>F2</u><span>CAPTURE AIS</span></button>
     <div class="foot-sel">
       <label for="sel-sc">SCÉNARIO</label>
       <select id="sel-sc"></select>
@@ -774,6 +775,26 @@ function renderVide(){
   box.hidden = false;
 }
 
+function renderCapture(){
+  const c = F.capture, b = $("sk-capture");
+  const lbl = b.querySelector("span");
+  if(!c){ lbl.textContent = "CAPTURE AIS"; b.disabled = !PILOTABLE;
+          b.removeAttribute("title"); return; }
+  if(c.etat === "en cours"){
+    lbl.textContent = "CAPTURE…"; b.disabled = true;
+    b.title = "interrogation du flux public"; return;
+  }
+  b.disabled = !PILOTABLE;
+  if(c.ok){
+    lbl.textContent = "CAPTURÉ " + c.n;
+    b.title = c.n + " positions, " + c.statique + " au statique — " +
+              c.fichier + " (" + c.quand + ")";
+  } else {
+    lbl.textContent = "CAPTURE KO";
+    b.title = c.erreur || "échec";
+  }
+}
+
 function renderTop(){
   const m = Math.floor(F.t/60), s = Math.floor(F.t%60);
   $("clk").textContent = String(m).padStart(3,"0")+":"+String(s).padStart(2,"0");
@@ -795,6 +816,7 @@ function renderTop(){
   }
   $("ring-lbl").textContent = "ANNEAUX " + (range/4).toFixed(2) + " NM";
   renderVide();
+  renderCapture();
   if(F.meta && F.meta.fichier && $("sel-sc").options.length > 1
      && $("sel-sc").value !== F.meta.fichier
      && [...$("sel-sc").options].some(o => o.value === F.meta.fichier)){
@@ -887,6 +909,12 @@ document.querySelectorAll(".rangepad button").forEach(b=>{
 const tgl=(id,fn)=>{ $(id).onclick=e=>{ const on=e.currentTarget.getAttribute("aria-pressed")!=="true";
   e.currentTarget.setAttribute("aria-pressed",String(on)); fn(on); }; };
 $("sk-hook").onclick = ()=>{ hooked=null; };
+
+/* Capture : va chercher un instantané du flux public et l'enregistre, puis
+   le pont le relit. C'est ce qui transforme un lab qui a besoin du réseau
+   en un lab qui n'en a plus besoin — et le geste devait pouvoir se faire
+   depuis la console, pas seulement en ligne de commande. */
+$("sk-capture").onclick = ()=>{ SRC.send({cmd:"ais_capture"}); };
 tgl("sk-ebl", v=>showEbl=v); tgl("sk-trails", v=>showTrails=v); tgl("sk-ell", v=>showEll=v);
 $("sk-decoy").onclick = ()=>SRC.send({cmd:"decoys"});
 tgl("sk-autosam", v=>SRC.send({cmd:"doctrine", cle:"auto_sam", valeur:v}));
@@ -896,7 +924,7 @@ $("sel-rate").onchange = e=>SRC.send({cmd:"rate", valeur:+e.target.value});
 $("sel-sc").onchange = e=>SRC.send({cmd:"scenario", fichier:e.target.value});
 document.addEventListener("keydown", e=>{
   const map={F1:"sk-hook",F5:"sk-ebl",F6:"sk-trails",F7:"sk-ell",
-             F8:"sk-decoy",F9:"sk-autosam",F10:"sk-pump"};
+             F8:"sk-decoy",F9:"sk-autosam",F10:"sk-pump",F2:"sk-capture"};
   if(map[e.key]){ e.preventDefault(); $(map[e.key]).click(); }
 });
 
@@ -910,6 +938,7 @@ if(SRC.kind === "LIVE"){
 } else {
   $("sel-sc").innerHTML = '<option>enregistrement embarqué</option>';
   $("sel-sc").disabled = true; $("sk-pump").disabled = true;
+  $("sk-capture").disabled = true;
   $("sk-decoy").disabled = true; $("sk-autosam").disabled = true;
 }
 

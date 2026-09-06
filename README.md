@@ -247,7 +247,7 @@ n'en est pas une. Le bandeau affiche `RÉEL` en vert, `capture` ou
 | Source | D'où ça vient | Comment |
 | --- | --- | --- |
 | `synthétique` | L'instantané livré avec le dépôt, écrit à la main. Plausible, mais inventé — c'est **le défaut**, pour que le lab tourne sans réseau | rien à faire |
-| `capture` | Un instantané réel que vous avez capturé, rejoué hors ligne | `python3 services/ais.py --capture …` |
+| `capture` | Un instantané réel que vous avez capturé, rejoué hors ligne | touche `F2`, ou `python3 services/ais.py --capture …` |
 | `RÉEL` | Le flux public Digitraffic, en direct | `AIS_SOURCE=digitraffic` |
 
 **Un scénario déclare sa source.** Un scénario sans contact scripté n'a rien
@@ -385,6 +385,7 @@ duplication de code entre la version connectée et la version hors ligne.
 | `F8` | Larguer les leurres |
 | `F9` | Armer la doctrine SAM automatique |
 | `F10` | Arrêter la pompe (poste instructeur) |
+| `F2` | Capturer un instantané du flux AIS public |
 
 Échelles 5 / 10 / 25 / 50 / 100 NM. Le bandeau de curseur donne gisement,
 distance **et position géographique** en degrés et minutes décimales — la
@@ -421,3 +422,15 @@ Symbologie : cercle = ami, losange = hostile, carré = neutre, quatre-feuilles
 
 Réseau interne au compose, port Modbus jamais publié, identifiants OpenPLC par
 défaut à changer. Le lab est conçu pour tourner isolé sur une machine de test.
+
+`/cmd` n'a **aucune authentification**, et le serveur écoute par défaut sur
+toutes les interfaces. Quiconque atteint le port 8000 peut donc changer de
+scénario, arrêter la pompe, ouvrir le feu — et depuis l'ajout de la capture,
+déclencher une requête sortante et réécrire un fichier du dépôt. Le chemin
+d'écriture est fixé côté serveur et jamais fourni par le client, l'écriture
+est atomique, mais cela ne remplace pas l'isolement du réseau. Pour se
+restreindre à la machine locale :
+
+```bash
+CMS_HOST=127.0.0.1 python3 services/server.py
+```

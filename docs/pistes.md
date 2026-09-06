@@ -238,7 +238,7 @@ python3 -m unittest discover -s tests           # le garde-fou
 # Trafic réel
 AIS_SOURCE=fichier python3 services/server.py                  # sans réseau
 CMS_SCENARIO=04-veille-trafic-reel.toml AIS_SOURCE=digitraffic python3 services/server.py
-python3 services/ais.py --capture fixtures/ais-golfe-finlande.json
+python3 services/ais.py --capture fixtures/ais-golfe-finlande.json   # ou touche F2
 python3 services/ais.py --fichier fixtures/ais-golfe-finlande.json   # inspecter
 CMS_SCENARIO=05-identite-douteuse.toml python3 services/server.py    # les doutes
 docker compose up --build                       # la stack conteneurisée

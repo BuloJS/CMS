@@ -26,6 +26,7 @@ jamais remplacé par une valeur par défaut trompeuse.
 import argparse
 import json
 import math
+import os
 import sys
 import threading
 import time
@@ -40,7 +41,9 @@ from sim.ais import decode as decode_ais, rcs_from_length   # noqa: E402
 from sim.entities import Contact                            # noqa: E402
 from sim.geo import KT, NM                                  # noqa: E402
 
-BASE = "https://meri.digitraffic.fi/api/ais/v1"
+# Surchargeable : utile pour éprouver le client contre un serveur
+# d'essai, et pour pointer un miroir si le service principal bouge.
+BASE = os.environ.get("AIS_BASE", "https://meri.digitraffic.fi/api/ais/v1")
 AIS_DEFAUT = "fixtures/ais-golfe-finlande.json"
 # Digitraffic demande que chaque client s'identifie. Ce n'est pas une clé,
 # c'est une politesse d'exploitation : elle leur permet de joindre l'auteur
@@ -447,6 +450,56 @@ class AisBridge(threading.Thread):
 
 
 # --------------------------------------------------------------------- #
+# Capture
+# --------------------------------------------------------------------- #
+
+RAISONS_HTTP = {
+    406: "en-têtes refusés — Digitraffic impose Accept-Encoding: gzip",
+    403: "accès refusé — un proxy d'entreprise s'interpose peut-être",
+    404: "l'adresse du point d'entrée a changé",
+    429: "trop de requêtes — espacer les interrogations",
+}
+
+
+def capturer(lat, lon, rayon_nm, chemin, source=None):
+    """Interroge le flux public et écrit un instantané rejouable.
+
+    C'est ce qui transforme un lab qui a besoin du réseau en un lab qui n'en
+    a plus besoin : une fois la capture faite, le scénario rejoue du trafic
+    réel hors ligne, indéfiniment et à l'identique.
+
+    Rend un dictionnaire de compte rendu — jamais d'exception. L'appelant
+    peut être un fil de service qui ne doit pas mourir sur un flux
+    momentanément indisponible.
+    """
+    src = source or Digitraffic()
+    try:
+        src.rafraichir_statique()
+        pos = src.positions(lat, lon, rayon_nm)
+    except urllib.error.HTTPError as e:
+        return {"ok": False, "erreur": "HTTP %d — %s" % (
+            e.code, RAISONS_HTTP.get(e.code, e.reason))}
+    except urllib.error.URLError as e:
+        return {"ok": False, "erreur": "flux injoignable : %s" % e.reason}
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        return {"ok": False, "erreur": "réponse illisible (%s)" % type(e).__name__}
+
+    doc = {"positions": pos, "statique": src.statique,
+           "ref": [lat, lon], "rayon_nm": rayon_nm,
+           "source": "capture Digitraffic",
+           "capture_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    chemin = Path(chemin)
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    # Écriture atomique : une capture interrompue ne doit pas laisser
+    # derrière elle un instantané tronqué que le lab chargera au démarrage.
+    tmp = chemin.with_suffix(chemin.suffix + ".tmp")
+    tmp.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(chemin)
+    return {"ok": True, "n": len(pos), "statique": len(src.statique),
+            "fichier": str(chemin), "quand": doc["capture_utc"]}
+
+
+# --------------------------------------------------------------------- #
 # Ligne de commande : capturer, inspecter
 # --------------------------------------------------------------------- #
 
@@ -466,15 +519,9 @@ def main():
     except urllib.error.HTTPError as e:
         # Une trace Python ne dit rien à qui essaie simplement de brancher un
         # flux. Le code de statut, lui, dit presque toujours quoi faire.
-        raisons = {
-            406: "en-têtes refusés — Digitraffic impose Accept-Encoding: gzip",
-            403: "accès refusé — un proxy d'entreprise s'interpose peut-être",
-            404: "l'adresse du point d'entrée a changé",
-            429: "trop de requêtes — espacer les interrogations",
-        }
         print("Digitraffic répond HTTP %d (%s)." % (e.code, e.reason))
-        if e.code in raisons:
-            print("  %s" % raisons[e.code])
+        if e.code in RAISONS_HTTP:
+            print("  %s" % RAISONS_HTTP[e.code])
         print("  Le serveur est donc joignable : ce n'est pas un problème réseau.")
         print("  Repli hors ligne : python3 services/ais.py --fichier %s" % AIS_DEFAUT)
         return 1
@@ -498,11 +545,12 @@ def main():
                  (st.get("type") or "—")[:22], c.rcs))
 
     if a.capture:
-        Path(a.capture).write_text(json.dumps(
-            {"positions": pos, "statique": src.statique,
-             "ref": [a.lat, a.lon], "rayon_nm": a.rayon},
-            ensure_ascii=False), encoding="utf-8")
-        print("\ninstantané -> %s" % a.capture)
+        r = capturer(a.lat, a.lon, a.rayon, a.capture, source=src)
+        if not r["ok"]:
+            print("\ncapture impossible : %s" % r["erreur"])
+            return 1
+        print("\ninstantané -> %s  (%d positions, %s)"
+              % (r["fichier"], r["n"], r["quand"]))
     return 0
 
 

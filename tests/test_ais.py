@@ -10,7 +10,9 @@ piste construite.
 """
 import gzip
 import json
+import shutil
 import sys
+import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -20,7 +22,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from services.ais import (AisBridge, Digitraffic, Fichier,      # noqa: E402
-                          en_contact, _features, _flatten, normalise)
+                          capturer, en_contact, _features, _flatten,
+                          normalise)
 from sim.ais import (decode, nav_status_label, rcs_from_length,  # noqa: E402
                      ship_type_label)
 from sim.geo import KT, NM, Projection                          # noqa: E402
@@ -247,6 +250,57 @@ class TestNegociation(unittest.TestCase):
         p = d.positions(59.95, 25.10, 60)[0]
         self.assertEqual(p["mmsi"], "230982000")
         self.assertAlmostEqual(p["sog"], 12.5)
+
+
+class TestCapture(unittest.TestCase):
+    """La capture est ce qui rend le lab indépendant du réseau : une fois
+    faite, le scénario rejoue du trafic réel hors ligne, à l'identique."""
+
+    def _servir(self, handler=_Strict):
+        srv = HTTPServer(("127.0.0.1", 0), handler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.shutdown)
+        return "http://127.0.0.1:%d/api/ais/v1" % srv.server_address[1]
+
+    def test_ecrit_un_instantane_rejouable(self):
+        rep = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, rep, True)
+        cible = rep / "sous" / "dossier" / "capture.json"
+        r = capturer(59.95, 25.10, 60, cible,
+                     source=Digitraffic(base=self._servir()))
+        self.assertTrue(r["ok"], r)
+        self.assertEqual(r["n"], 1)
+        self.assertTrue(cible.exists(), "le dossier parent doit être créé")
+
+        # Ce qui a été écrit doit se relire par la source hors ligne, et se
+        # déclarer comme une capture — pas comme l'instantané synthétique.
+        src = Fichier(cible)
+        self.assertEqual(len(src.positions()), 1)
+        self.assertFalse(src.synthetique)
+        self.assertEqual(src.etiquette, "CAPTURE")
+
+    def test_ne_laisse_pas_de_fichier_tronque(self):
+        """Une capture qui échoue ne doit pas abîmer l'instantané en place :
+        le lab le charge au démarrage, et un JSON tronqué le bloquerait."""
+        rep = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, rep, True)
+        cible = rep / "capture.json"
+        cible.write_text(json.dumps({"positions": [], "statique": {},
+                                     "source": "capture Digitraffic"}),
+                         encoding="utf-8")
+        avant = cible.read_text(encoding="utf-8")
+        r = capturer(59.95, 25.10, 60, cible,
+                     source=Digitraffic(base="http://127.0.0.1:1/api"))
+        self.assertFalse(r["ok"])
+        self.assertIn("erreur", r)
+        self.assertEqual(cible.read_text(encoding="utf-8"), avant)
+
+    def test_un_echec_ne_leve_pas(self):
+        """L'appelant peut être un fil de service qui ne doit pas mourir
+        parce que le flux est momentanément indisponible."""
+        r = capturer(59.95, 25.10, 60, "/dev/null/impossible",
+                     source=Digitraffic(base="http://127.0.0.1:1/api"))
+        self.assertFalse(r["ok"])
 
 
 class TestContact(unittest.TestCase):
