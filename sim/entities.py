@@ -24,6 +24,14 @@ class Contact:
     iff: bool = False         # répond à l'interrogation ami
     ais: bool = False         # émet une identité AIS
     ais_static: dict = field(default_factory=dict)   # ce que le message AIS déclare
+    # Écart entre la position diffusée et la position réelle, en mètres.
+    # Nul pour un navire honnête — c'est-à-dire presque tous. Non nul, il
+    # modélise une position AIS fausse, par panne ou par intention.
+    ais_ecart: tuple = (0.0, 0.0)
+    # Surcharges de la cinématique déclarée (sog en nœuds, cog en degrés).
+    # Un fraudeur ne pense pas toujours à mentir sur tout à la fois : c'est
+    # justement ce qui le trahit.
+    ais_declare: dict = field(default_factory=dict)
     emitters: list = field(default_factory=list)   # ["nav", "search", "fc"]
     intent: str = "neutral"   # neutral | hostile | friend — vérité, jamais affichée
     alive: bool = True

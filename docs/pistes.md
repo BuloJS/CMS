@@ -19,8 +19,13 @@ on rouvre un projet trois semaines plus tard.
   contacts de surface qui n'émettent pas, état de la source dans le bandeau.
 - **Trait de côte réel**, Natural Earth 10 m découpé par `tools/coastline.py`.
 - **Bruit de manœuvre adaptatif** dans le filtre — voir ci-dessous.
-- **44 tests** : projection, senseurs, convergence du filtre, décodage AIS,
-  pont d'ingestion.
+- **Contrôle de vraisemblance AIS** (`sim/veracite.py`) : écart de position,
+  écart de cinématique, extinction de transpondeur, statut contredit, gabarit
+  incompatible, MMSI hors plage. Corrélation refaite sur la position
+  déclarée. Scénario `05-identite-douteuse`.
+- **72 tests** : projection, senseurs, convergence du filtre, décodage AIS,
+  pont d'ingestion, vraisemblance — dont un test d'intégration qui vérifie
+  l'absence de fausse alarme sur du trafic honnête.
 
 ---
 
@@ -46,38 +51,55 @@ revient en arrière.
 
 ---
 
-## 1. Contrôle de vraisemblance AIS — l'étape suivante
+## Comment les seuils ont été choisis
 
-**C'est le vrai sujet naval, et il est maintenant à portée.**
+À noter pour la suite, parce que la méthode se réutilise. Les deux premiers
+jets de seuils étaient au jugé, et les deux ont produit des fausses alarmes
+sur du trafic parfaitement honnête — d'abord parce qu'ils s'appuyaient sur
+`quality`, qui ne mesure que la position et ne dit rien de la vitesse, puis
+parce que trois sigma ne couvrent pas la queue de distribution du filtre.
 
-Le flux entre sans aucun contrôle. Or l'AIS est **déclaratif** : un navire
-diffuse ce qu'il veut, et rien n'oblige ce qu'il dit à correspondre à ce que
-le radar voit. Un CMS qui gobe l'AIS n'est pas un CMS, c'est un afficheur.
+La méthode qui a marché : instrumenter les scénarios honnêtes, récolter
+351 000 relevés de position et 234 000 de cinématique, et balayer la grille
+de seuils en comptant les fausses alarmes. Cinq sigma en position, cinq en
+cinématique avec une garde à trois nœuds d'incertitude de vitesse : zéro.
 
-Ce qui se détecte avec ce qui est déjà là :
+Le principe derrière : **une fausse alarme coûte plus cher qu'une détection
+manquée.** Elle est journalisée, elle reste au journal quand elle s'efface,
+et elle apprend à l'opérateur à ignorer l'indicateur. Le prix payé est
+assumé — un mensonge subtil sur la cinématique reste indiscernable du bruit.
 
-- **Écart AIS / radar.** Le plot radar et la position AIS déclarée divergent
-  au-delà de l'ellipse d'incertitude. La corrélation par proximité de
-  `engine._passive()` fait déjà le rapprochement — il suffit de mesurer le
-  résidu au lieu de le jeter.
-- **Saut de position.** Une position qui bouge plus vite que le navire ne
-  peut aller. Une vitesse implicite incompatible avec le `sog` déclaré.
-- **Extinction.** Un contact radar tenu qui perd son AIS sans sortir de
-  portée VHF. C'est le cas le plus intéressant et le plus simple à écrire.
-- **Identité douteuse.** MMSI hors plage MID valide, dimensions
-  incompatibles avec le type déclaré, deux navires au même MMSI.
+---
 
-Aucune de ces règles ne prouve une intention hostile, et la console ne doit
-pas prétendre le contraire : elles produisent un **doute qualifié**, un
-facteur de plus dans `tewa.evaluate()` à côté de la géométrie et de l'IFF.
+## 1. L'usurpation cohérente
+
+**Ce que les contrôles actuels ne voient pas.**
+
+Un fraudeur qui déclare une position, une cinématique et une identité toutes
+plausibles et mutuellement compatibles passe sans rien déclencher. C'est le
+cas difficile, et il demande autre chose que des contrôles instantanés :
+
+- **Corrélation dans la durée.** Un MMSI qui apparaît là où un autre vient de
+  disparaître. Une piste tenue au radar dont l'identité AIS change en cours
+  de route. Il faut garder un historique par piste, ce que `Track` ne fait
+  pas aujourd'hui.
+- **Deux navires, un MMSI.** Deux déclarations au même MMSI en des points
+  différents : l'une des deux ment, et le système peut le dire sans savoir
+  laquelle.
+- **Cohérence avec le trafic.** Un navire qui se déclare cargo mais ne suit
+  aucun rail, ou qui manœuvre comme rien de ce qui porte ce type.
+
+---
 
 ## 2. Compléter les tests
 
 **Le socle est posé, il manque deux morceaux.**
 
-Projection, senseurs, convergence du filtre et décodage AIS sont couverts.
-Reste `sim/tewa.py` : `salvo_for()`, le rejet hors enveloppe, le signe de la
-butée. C'est la dernière couche qui produit un chiffre affiché sans filet.
+Projection, senseurs, convergence du filtre, décodage AIS et vraisemblance
+sont couverts. Reste `sim/tewa.py` : `salvo_for()`, le rejet hors enveloppe,
+le signe de la butée. C'est la dernière couche qui produit un chiffre affiché
+sans filet — et la butée de tir est le chiffre sur lequel un opérateur
+décide.
 
 ---
 
@@ -214,6 +236,7 @@ AIS_SOURCE=fichier python3 services/server.py                  # sans réseau
 CMS_SCENARIO=04-veille-trafic-reel.toml AIS_SOURCE=digitraffic python3 services/server.py
 python3 services/ais.py --capture fixtures/ais-golfe-finlande.json
 python3 services/ais.py --fichier fixtures/ais-golfe-finlande.json   # inspecter
+CMS_SCENARIO=05-identite-douteuse.toml python3 services/server.py    # les doutes
 docker compose up --build                       # la stack conteneurisée
 python3 tools/montecarlo.py scenarios/X.toml -n 24
 python3 tools/record.py scenarios/X.toml -o fixtures/X.jsonl --hz 1 --slim

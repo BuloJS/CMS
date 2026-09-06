@@ -14,6 +14,7 @@ action explicite, sauf si la doctrine d'auto-engagement a été armée.
 from math import ceil, log
 
 from .geo import NM, cpa, intercept_time
+from .veracite import gravite
 
 REACTION_S = 8.0          # décision + désignation + séquence de mise de feu
 
@@ -43,6 +44,13 @@ def evaluate(track, own, t):
     f["iff"] = 0.06 if track.iff == "pas de réponse" else (-0.10 if track.iff == "ami" else 0.0)
     f["esm"] = {"fc": 0.30, "search": 0.06}.get(track.emitter, 0.0)
     f["ident"] = {"hostile": 0.25, "friend": -0.60, "neutral": -0.25}.get(track.aff, 0.0)
+    # Vraisemblance de la déclaration AIS. Le poids est délibérément modeste
+    # et plafonné : une incohérence n'est pas une intention. Un GPS fatigué
+    # et une dissimulation produisent le même écart, et le système n'a aucun
+    # moyen de les distinguer — il ne doit donc pas prétendre le faire. Ce
+    # facteur sert à faire remonter un contact dans la liste pour qu'un
+    # opérateur le regarde, pas à le désigner.
+    f["veracite"] = gravite(getattr(track, "anomalies", [])) * 0.16
 
     score = _clamp(sum(f.values()))
     return {"score": score, "facteurs": {k: round(v, 3) for k, v in f.items() if v},

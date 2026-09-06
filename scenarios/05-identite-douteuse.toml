@@ -1,0 +1,132 @@
+name = "Identité douteuse en rail marchand"
+brief = """Rail resserré du golfe de Finlande, trafic marchand dense. Trois
+contacts ne se comportent pas comme les autres : un qui n'a jamais émis, un
+qui éteint son transpondeur en cours de transit, et un dont la position
+déclarée ne tombe pas là où le radar le voit. Aucun n'est hostile en soi.
+L'enjeu est de les distinguer du trafic honnête sans transformer un GPS
+fatigué en menace."""
+attendu = """Le contact silencieux reste INCONNU : rien ne le classe, et c'est
+correct. L'extinction est constatée après deux minutes de silence sur un
+contact toujours tenu au radar et à portée VHF. La position falsifiée produit
+un écart au-delà de trois sigma de la piste, et la déclaration cesse de valoir
+classement en neutre — un fraudeur n'obtient pas gratuitement le statut que sa
+fraude vise. Le TEWA en fait un facteur de doute, jamais une preuve."""
+seed = 4021
+duration = 900
+
+[origine]
+lat = 60.10
+lon = 24.90
+
+[ownship]
+course = 90
+speed_kt = 11
+mast_m = 30
+
+# --- trafic honnête, pour que le doute ait un fond de comparaison -----
+[[contact]]
+id = "MV-SAIMAA"
+name = "MV SAIMAA"
+kind = "surf"
+brg = 65
+rng_nm = 11.0
+course = 255
+speed_kt = 12
+rcs = 8600
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 230447000, callSign = "OJSA", imo = 9402887, type = 70, navStat = 0, refA = 145, refB = 30, refC = 15, refD = 12, draught = 82, destination = "KOTKA" }
+
+[[contact]]
+id = "MV-NEVA"
+name = "MV NEVA"
+kind = "surf"
+brg = 285
+rng_nm = 14.0
+course = 78
+speed_kt = 13
+rcs = 15000
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 273812400, callSign = "UBNV", imo = 9515317, type = 80, navStat = 0, refA = 200, refB = 38, refC = 21, refD = 19, draught = 119, destination = "PRIMORSK" }
+
+# --- 1. le contact qui n'a jamais émis ---------------------------------
+# Pas d'AIS du tout. Ce n'est pas une anomalie détectable — c'est une
+# absence, et c'est justement ce que la console doit dire plutôt que de
+# laisser un panneau vide.
+[[contact]]
+id = "DARK-1"
+name = "Contact non coopératif"
+kind = "surf"
+brg = 20
+rng_nm = 13.0
+course = 195
+speed_kt = 28
+rcs = 55
+
+# --- 2. celui qui éteint son transpondeur ------------------------------
+[[contact]]
+id = "MV-ARGO"
+name = "MV ARGO"
+kind = "surf"
+brg = 140
+rng_nm = 9.0
+course = 320
+speed_kt = 15
+rcs = 3200
+ais = true
+ais_data = { mmsi = 636014822, callSign = "D5AR2", type = 70, navStat = 0, refA = 78, refB = 18, refC = 10, refD = 9, draught = 55, destination = "HELSINKI" }
+
+# --- 3. celui dont la position déclarée est fausse ---------------------
+# Il émet normalement pendant les premières minutes : sans cette phase
+# honnête, la piste ne se corrèlerait jamais et il ne serait qu'un contact
+# muet de plus. C'est le basculement qui est intéressant.
+[[contact]]
+id = "MV-KAIRA"
+name = "MV KAIRA"
+kind = "surf"
+brg = 320
+rng_nm = 10.5
+course = 105
+speed_kt = 14
+rcs = 5200
+ais = true
+ais_data = { mmsi = 276331000, callSign = "ESKA", imo = 9298871, type = 70, navStat = 0, refA = 96, refB = 22, refC = 12, refD = 10, draught = 63, destination = "TALLINN" }
+
+# --- 4. l'identité bricolée --------------------------------------------
+# Un MMSI n'est pas un numéro libre : ses trois premiers chiffres sont un
+# indicatif de pays attribué par l'UIT. 199 n'existe pas, et aucune
+# administration ne l'a délivré.
+[[contact]]
+id = "SMALL-9"
+name = "Embarcation déclarée"
+kind = "surf"
+brg = 55
+rng_nm = 7.5
+course = 240
+speed_kt = 19
+rcs = 60
+ais = true
+ais_data = { mmsi = 199000042, callSign = "XXXX", type = 37, navStat = 0, refA = 12, refB = 6, refC = 2, refD = 2 }
+
+# MV ARGO coupe son AIS à 180 s. Le système ne l'apprend pas : il le
+# constate par le silence, deux minutes plus tard.
+[[event]]
+at = 180
+type = "ais"
+from = "MV-ARGO"
+on = false
+
+# MV KAIRA se met à diffuser une position décalée de quatre encablures vers
+# le nord-est, tout en continuant à déclarer sa vraie cinématique. Une panne
+# de récepteur produirait cela ; une dissimulation prudente aussi — l'écart
+# est assez petit pour que la déclaration reste corrélée à la piste, donc
+# pour passer inaperçue de qui ne compare pas. C'est exactement le cas que
+# le contrôle existe pour attraper : un décalage franc, lui, se verrait tout
+# seul puisque la déclaration n'aurait plus aucun écho radar en face.
+[[event]]
+at = 300
+type = "ais"
+from = "MV-KAIRA"
+ecart_nm = 0.4
+ecart_brg = 45

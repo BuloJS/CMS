@@ -127,6 +127,52 @@ propose pas un missile antinavire contre une vedette à 9 NM.
 explicite, sauf doctrine armée à l'avance — et le journal dit toujours qui a
 classé une piste et qui a ouvert le feu.
 
+### Vraisemblance des déclarations
+
+![panneau de vraisemblance](docs/console-vraisemblance.png)
+
+L'AIS est **déclaratif**. Un navire diffuse ce qu'il veut, et éteindre un
+transpondeur ne demande qu'un interrupteur. Un système qui gobe l'AIS n'est
+pas un système de combat, c'est un afficheur.
+
+`sim/veracite.py` compare donc la déclaration à la mesure :
+
+| Contrôle | Ce qu'il regarde |
+| --- | --- |
+| Écart de position | La position déclarée tombe-t-elle sur le plot radar, à cinq sigma près de l'ellipse de la piste |
+| Écart de cinématique | Le vecteur vitesse déclaré contre le vecteur mesuré — pas la vitesse et le cap séparément |
+| Extinction | Un contact tenu au radar, toujours à portée VHF, qui cesse d'émettre |
+| Statut contredit | Se déclare au mouillage et fait route à dix nœuds |
+| Gabarit incompatible | Deux cents mètres de coque annoncés à quarante nœuds |
+| MMSI hors plage | Les trois premiers chiffres sont un indicatif de pays attribué par l'UIT ; 199 n'existe pas |
+
+Un point d'architecture en découle, et il n'est pas cosmétique : **la
+corrélation AIS se fait désormais sur la position déclarée**, pas sur la
+vérité terrain. C'est la seule position qu'un vrai système reçoit. Une
+déclaration qui ne trouve aucun écho radar en face reste orpheline et
+s'affiche comme telle — un petit mobile s'entend plus loin qu'il ne se voit,
+donc ce n'est pas une anomalie, mais l'opérateur doit le savoir.
+
+Deux principes tiennent tout le reste :
+
+**Une incohérence n'est pas une intention.** Un GPS fatigué et une
+dissimulation produisent le même écart, et le système n'a aucun moyen de les
+distinguer — il ne doit donc pas prétendre le faire. Le TEWA en fait un
+facteur plafonné à 0,16, qui fait remonter un contact dans la liste pour
+qu'un opérateur le regarde. Jamais une désignation.
+
+**Mais une déclaration douteuse cesse de valoir classement.** La corrélation
+AIS classait automatiquement en neutre ; elle ne le fait plus quand la
+déclaration est incohérente. Un fraudeur n'obtient pas gratuitement le statut
+que sa fraude vise.
+
+Les seuils sont **mesurés, pas choisis** : 351 000 relevés de position et
+234 000 de cinématique sur du trafic honnête. À trois sigma, le contrôle de
+position produisait huit cents fausses alarmes ; à cinq, aucune. C'est ce qui
+décide, parce qu'une fausse alarme coûte plus cher qu'une détection manquée —
+elle reste au journal quand elle s'efface, et elle apprend à l'opérateur à
+ignorer l'indicateur.
+
 ### Position géographique
 
 ![console avec trait de côte et bloc AIS](docs/console-ais.png)
@@ -216,6 +262,7 @@ Voir [`plc/modbus-map.md`](plc/modbus-map.md).
 | `02-saturation-asm` | Six missiles rasants en quatre secondes | Détection à l'horizon, SAM sur la butée, CIWS en ultime, leurres |
 | `03-avarie-refroidissement` | Même attaque, pompe arrêtée à 60 s | Détection tardive, décrochage de pistes — la bonne réaction est côté IPMS autant que côté CMS |
 | `04-veille-trafic-reel` | Aucun contact scripté : le trafic AIS réel au large d'Helsinki | Les grands navires sortent à l'horizon, les petits mobiles de près. La corrélation AIS renseigne les coopératifs |
+| `05-identite-douteuse` | Rail marchand dense, quatre contacts atypiques : un muet, une extinction, une position falsifiée, un MMSI inexistant | Chacun détecté pour ce qu'il est, aucun classé hostile, le trafic honnête indemne |
 
 Les scénarios sont en TOML, en unités du domaine (milles nautiques, nœuds,
 pieds), convertis en SI à l'entrée. Une graine fixée les rend reproductibles
@@ -246,9 +293,11 @@ python3 -m unittest discover -s tests
 Sans dépendance, et cadrés sur ce qui casse en silence : la projection
 géographique, l'horizon radio, la décroissance du SNR en R⁴, le CPA, le temps
 d'interception, la convergence du filtre dans les deux régimes (missile à
-300 m/s et caboteur à 13 nœuds), et le décodage AIS — dont les champs « non
+300 m/s et caboteur à 13 nœuds), le décodage AIS — dont les champs « non
 disponible » de la norme, qui produisent des navires à cent nœuds au pôle Nord
-si on les laisse passer.
+si on les laisse passer — et les contrôles de vraisemblance, avec un test
+d'intégration qui vérifie qu'ils ne s'allument **jamais** sur du trafic
+honnête. C'est ce dernier qui tient le calage des seuils.
 
 ## Aperçu hors ligne
 
@@ -296,8 +345,15 @@ Symbologie : cercle = ami, losange = hostile, carré = neutre, quatre-feuilles
   visible.
 - La surface équivalente radar déduite de l'AIS est étalonnée sur l'échelle
   interne du simulateur, pas sur des mesures. Elle est cohérente, pas exacte.
-- Le flux AIS n'a pas de contrôle de vraisemblance : une position aberrante
-  ou une identité usurpée entre telle quelle. C'est la piste suivante.
+- Les contrôles de vraisemblance ne couvrent pas l'usurpation cohérente : un
+  fraudeur qui déclare une position, une cinématique et une identité toutes
+  plausibles et mutuellement compatibles passe. Il faudrait pour cela une
+  corrélation dans la durée — un MMSI qui apparaît là où un autre a disparu —
+  et une base de trajets connus.
+- Le contrôle de cinématique n'attrape que les incohérences franches. Le
+  seuil à cinq sigma le rend insensible aux mensonges subtils, et c'est un
+  choix assumé : en dessous, le bruit du filtre est indiscernable d'une
+  déclaration fausse.
 
 ## Sécurité
 

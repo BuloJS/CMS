@@ -11,7 +11,7 @@ Le reste (fouillis, multitrajet, conduits) est du décor et peut attendre.
 """
 import math
 
-from .geo import NM, bearing, rng
+from .geo import KT, NM, bearing, rng
 
 
 def radar_horizon(h_ant, h_tgt):
@@ -134,4 +134,12 @@ class Ais:
             return None
         rec = {"name": c.name}
         rec.update(c.ais_static)
+        # La position et la cinématique **déclarées**. Le système ne
+        # reçoit que celles-là ; la vérité terrain ne lui est jamais
+        # accessible, et la corrélation doit donc se faire sur elles.
+        dx, dy = getattr(c, "ais_ecart", (0.0, 0.0))
+        rec["x"], rec["y"] = c.x + dx, c.y + dy
+        rec["sog"] = c.speed / KT
+        rec["cog"] = c.course
+        rec.update(c.ais_declare or {})
         return rec

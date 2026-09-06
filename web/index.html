@@ -126,6 +126,14 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .aisbox .ro b{font-size:12.5px}
 .aisbox .ro.wide{grid-column:span 2}
 .aisbox .attente{font-family:var(--f-mono);font-size:10px;line-height:1.45;color:var(--dim)}
+.doutes{margin-top:11px;border:1px solid #6b4416;border-radius:2px;background:rgba(40,22,4,.5);padding:8px 9px 9px}
+.doutes>header{font-family:var(--f-disp);font-size:9.5px;letter-spacing:.14em;color:var(--warn);margin-bottom:7px}
+.doutes .dt{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;margin-top:6px}
+.doutes .dt:first-of-type{margin-top:0}
+.doutes .dt b{grid-column:1/-1;font-family:var(--f-disp);font-size:11px;letter-spacing:.09em;color:#ffd7a8;font-weight:500}
+.doutes .dt span{grid-column:1/-1;font-family:var(--f-mono);font-size:9.5px;line-height:1.45;color:var(--dim)}
+.doutes .caveat{margin-top:9px;padding-top:7px;border-top:1px solid #4a3110;font-family:var(--f-mono);font-size:9px;line-height:1.5;color:var(--dimmest)}
+.threat .dflag{font-family:var(--f-disp);font-size:9px;letter-spacing:.1em;color:var(--warn);border:1px solid #6b4416;border-radius:2px;padding:0 4px;margin-left:6px}
 .silent{margin-top:11px;padding:7px 9px;border:1px dashed var(--line-soft);border-radius:2px;
   font-family:var(--f-mono);font-size:10px;line-height:1.45;color:var(--dim)}
 .silent b{display:block;font-family:var(--f-disp);font-size:10px;letter-spacing:.13em;color:var(--unknown);margin-bottom:2px}
@@ -499,6 +507,26 @@ function drawScope(){
     }
   });
 
+  /* Déclarations AIS sans écho radar. Dessinées autrement que les pistes,
+     et volontairement discrètes : ce ne sont pas des contacts, ce sont des
+     affirmations. Un petit mobile s'entend plus loin qu'il ne se voit, donc
+     la plupart sont parfaitement légitimes — mais si l'un d'eux se tient
+     là où le radar devrait voir quelque chose, l'opérateur doit pouvoir le
+     remarquer. */
+  if(F && F.ais_orphelins) F.ais_orphelins.forEach(o=>{
+    if(Math.hypot(o.x,o.y) > range*1.03) return;
+    const p = px(o), s2 = 5;
+    g.strokeStyle = "rgba(255,210,77,.55)"; g.lineWidth = 1;
+    g.setLineDash([2,2]);
+    g.beginPath(); g.arc(p.x, p.y, s2, 0, 7); g.stroke();
+    g.setLineDash([]);
+    g.beginPath(); g.moveTo(p.x-s2-3,p.y); g.lineTo(p.x+s2+3,p.y);
+    g.moveTo(p.x,p.y-s2-3); g.lineTo(p.x,p.y+s2+3); g.stroke();
+    g.font='9.5px "IBM Plex Mono", monospace'; g.textAlign="left";
+    g.fillStyle="rgba(255,210,77,.5)";
+    g.fillText((o.nom||o.mmsi||"AIS")+" (sans écho)", p.x+s2+5, p.y+3);
+  });
+
   // munitions en vol : un trait du porteur vers la piste visée
   if(F) F.tirs.forEach(s=>{
     const t = F.tracks.find(x=>x.id===s.tgt); if(!t) return;
@@ -526,7 +554,9 @@ function renderThreats(){
     const fk = Object.entries(t.fact||{}).filter(([,v])=>v>0.02)
       .sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>k+" "+v.toFixed(2)).join(" · ");
     return '<div class="threat" data-id="'+t.id+'" tabindex="0" aria-selected="'+(t.id===hooked)+'">'+
-      '<div class="tid" style="color:'+c+'">'+t.id+'</div>'+
+      '<div class="tid" style="color:'+c+'">'+t.id+
+        ((t.anomalies&&t.anomalies.length) ? '<span class="dflag" title="'+
+          t.anomalies.map(a=>a.libelle).join(" · ")+'">AIS ?</span>' : '')+'</div>'+
       '<div class="tmeta">'+t.rng.toFixed(1)+' NM · '+pad(t.brg,3,0)+'° · '+t.spd.toFixed(0)+' kt</div>'+
       '<div class="tmeta" style="color:'+col+'">'+(sc*100).toFixed(0)+'</div>'+
       '<div class="sbar"><i style="width:'+(sc*100)+'%;background:'+col+'"></i></div>'+
@@ -614,6 +644,20 @@ function renderSansAis(t){
     'ou navire non soumis à obligation. À corréler par IFF et par ESM.</div>';
 }
 
+/* Les doutes de vraisemblance. Le pavé se termine toujours par le même
+   rappel, et ce n'est pas de la décoration : un écart de position AIS a
+   beaucoup plus de chances de venir d'un récepteur fatigué que d'une
+   manœuvre. Un système qui laisse glisser « incohérent » vers « suspect »
+   fabrique des hostiles à partir de pannes. */
+function renderDoutes(an){
+  if(!an || !an.length) return "";
+  return '<div class="doutes"><header>VRAISEMBLANCE — ' + an.length +
+    (an.length > 1 ? ' INCOHÉRENCES' : ' INCOHÉRENCE') + '</header>' +
+    an.map(a => '<div class="dt"><b>'+a.libelle+'</b><span>'+a.detail+'</span></div>').join("") +
+    '<div class="caveat">Une incohérence n\'est pas une intention. Elle demande '+
+    'un regard, pas un classement.</div></div>';
+}
+
 function renderHook(){
   const t = F.tracks.find(x=>x.id===hooked);
   $("sk-hook").disabled = !t;
@@ -639,6 +683,7 @@ function renderHook(){
       ro("ESM", t.emitter?t.emitter.toUpperCase():"—", "", t.emitter==="fc") +
     '</div>'+
     ((t.src||[]).indexOf("AIS") >= 0 ? renderAis(t.ais||{}) : renderSansAis(t)) +
+    renderDoutes(t.anomalies) +
     '<div class="idrow">'+
       ["friend","hostile","neutral","unknown"].map((a,i)=>
         '<button class="'+["f","h","n","u"][i]+'" data-id-aff="'+a+'"'+

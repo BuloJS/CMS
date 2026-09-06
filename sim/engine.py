@@ -12,7 +12,8 @@ from .entities import Contact, Ownship
 from .geo import KT, NM, Projection, bearing, rng
 from .platform import Platform
 from .scenario import WEAPONS
-from .sensors import Ais, Esm, Iff, Radar
+from . import veracite
+from .sensors import Ais, Esm, Iff, Radar, radar_horizon
 from .tracker import Tracker
 
 DT = 0.05                 # 20 Hz
@@ -65,6 +66,8 @@ class Engine:
         self.pending = list(sc["events"])
         self.decoys = 12
         self.hooked = None
+        self.ais_orphelins = []          # déclarations sans écho radar
+        self._anomalies_dites = {}       # pour ne journaliser qu'une fois
         self._seq = 0
 
     # -- journal ---------------------------------------------------------
@@ -96,6 +99,21 @@ class Engine:
                 c = self.world.get(e.get("from"))
                 if c:
                     c.emitters = list(e.get("emitters", []))
+            elif k == "ais":
+                # Extinction, allumage, ou début d'une position falsifiée.
+                # Le journal ne dit rien : le système n'est pas censé savoir
+                # qu'un navire vient de couper son transpondeur — il ne peut
+                # que le constater ensuite, par le silence.
+                c = self.world.get(e.get("from"))
+                if c:
+                    if "on" in e:
+                        c.ais = bool(e["on"])
+                    if "ecart_nm" in e and "ecart_brg" in e:
+                        from .geo import to_xy
+                        c.ais_ecart = to_xy(float(e["ecart_brg"]),
+                                            float(e["ecart_nm"]) * NM)
+                    if "declare" in e:
+                        c.ais_declare = dict(e["declare"])
 
     def _launch(self, e):
         src = self.world.get(e.get("from"))
@@ -148,7 +166,9 @@ class Engine:
         self.tracker.step(dt, self.own, plots, self.t, scan_done)
 
         if scan_done:
+            self.ais_orphelins = []
             self._passive()
+            self._extinctions()
             self._impacts()
 
         self._weapons(dt)
@@ -166,14 +186,33 @@ class Engine:
                     self.log("crit", "%s — illumination conduite de tir" % tr.num)
             rec = self.ais.receive(self.own, c)
             if rec:
-                for tr in self.tracker.confirmed():
-                    x, y = tr.pos
-                    if rng(x - c.x, y - c.y) < 900:
-                        tr.ident = rec["name"]
-                        tr.ais = rec
-                        tr.sources = tr.sources | {"AIS"}
-                        if tr.aff == "unknown" and c.intent != "hostile":
-                            tr.aff = "neutral"
+                # Corrélation sur la position **déclarée**, pas sur la vérité
+                # terrain. Le système ne reçoit que celle-là. Tant que l'AIS
+                # est honnête cela ne change rien ; dès qu'il ment, c'est
+                # toute la différence entre modéliser la tromperie et la
+                # gommer.
+                tr = self._correler_ais(rec)
+                if tr is None:
+                    # Une déclaration sans écho radar en face. Ce n'est pas
+                    # une anomalie en soi — un petit mobile s'entend plus
+                    # loin qu'il ne se voit — mais l'opérateur doit le savoir.
+                    self.ais_orphelins.append(rec)
+                    continue
+                tr.ident = rec["name"]
+                tr.ais = rec
+                tr.ais_vu = self.t
+                tr.sources = tr.sources | {"AIS"}
+                tr.anomalies = veracite.controler(tr, rec, self.t)
+                for a in tr.anomalies:
+                    if a["code"] not in self._anomalies_dites.get(tr.num, ()):
+                        self._anomalies_dites.setdefault(tr.num, set()).add(a["code"])
+                        self.log("warn", "%s — %s : %s"
+                                 % (tr.num, a["libelle"], a["detail"]))
+                # Une identité coopérative vaut classement en neutre — mais
+                # seulement si elle est crédible. Un fraudeur ne doit pas
+                # obtenir gratuitement le statut que sa fraude vise.
+                if tr.aff == "unknown" and c.intent != "hostile" and not tr.anomalies:
+                    tr.aff = "neutral"
             a = self.iff.interrogate(self.own, c)
             if a:
                 for tr in self.tracker.confirmed():
@@ -182,6 +221,39 @@ class Engine:
                         tr.iff = a
                         if a == "ami" and tr.aff == "unknown":
                             tr.aff = "friend"
+
+    def _correler_ais(self, rec):
+        """Rapproche une déclaration AIS de la piste radar la plus proche.
+
+        Fenêtre volontairement large : le but n'est pas de rejeter les
+        déclarations décalées — ce sont précisément les intéressantes — mais
+        de ne pas coller une déclaration sur la mauvaise piste dans un rail
+        dense. Au-delà, la déclaration reste orpheline et le dit.
+        """
+        best, bd = None, 1200.0
+        for tr in self.tracker.confirmed():
+            x, y = tr.pos
+            d = rng(x - rec["x"], y - rec["y"])
+            if d < bd:
+                best, bd = tr, d
+        return best
+
+    def _extinctions(self):
+        """Repère les transpondeurs qui se sont tus sur un contact tenu."""
+        portee = radar_horizon(self.own.mast_height, 20)
+        for tr in self.tracker.confirmed():
+            if not tr.ais_vu or tr.ais_vu >= self.t - 0.1:
+                continue
+            x, y = tr.pos
+            a = veracite.extinction(tr, self.t, portee,
+                                    rng(x - self.own.x, y - self.own.y))
+            if not a:
+                continue
+            if not any(z["code"] == "extinction" for z in tr.anomalies):
+                tr.anomalies = tr.anomalies + [a]
+            if "extinction" not in self._anomalies_dites.get(tr.num, ()):
+                self._anomalies_dites.setdefault(tr.num, set()).add("extinction")
+                self.log("warn", "%s — %s : %s" % (tr.num, a["libelle"], a["detail"]))
 
     def _impacts(self):
         for c in list(self.world.values()):
@@ -338,7 +410,13 @@ class Engine:
                 "aff": tr.aff, "qual": round(tr.quality, 2),
                 "ell": [round(ex / NM, 4), round(ey / NM, 4)],
                 "src": sorted(tr.sources), "emitter": tr.emitter,
-                "iff": tr.iff, "ident": tr.ident, "ais": tr.ais,
+                "iff": tr.iff, "ident": tr.ident,
+                # La déclaration AIS est renvoyée sans sa position : la
+                # console affiche des pistes, pas des déclarations. L'écart
+                # entre les deux est déjà résumé par l'anomalie.
+                "ais": {k: v for k, v in tr.ais.items()
+                        if k not in ("x", "y", "sog", "cog")},
+                "anomalies": tr.anomalies,
                 "score": round(ev["score"], 3), "fact": ev["facteurs"],
                 "cpa": round(ev["cpa"] / NM, 2),
                 "tcpa": round(ev["tcpa"], 0) if ev["tcpa"] > 0 else -1,
@@ -379,5 +457,15 @@ class Engine:
             "doctrine": dict(self.doctrine),
             "tirs": [{"tgt": s.tgt, "ef": s.ef, "eta": round(s.eta, 1)}
                      for s in self.shots if not s.assessed],
+            # Déclarations AIS sans écho radar en face. Un petit mobile
+            # s'entend plus loin qu'il ne se voit, donc ce n'est pas une
+            # anomalie — mais un opérateur doit savoir que quelque chose se
+            # déclare là où son radar ne montre rien.
+            "ais_orphelins": [
+                {"x": round((o["x"] - self.own.x) / NM, 3),
+                 "y": round((o["y"] - self.own.y) / NM, 3),
+                 "nom": o.get("name", ""), "mmsi": o.get("mmsi", ""),
+                 "type": o.get("type", "")}
+                for o in self.ais_orphelins[:40]],
             "events": self.events[:14],
         }

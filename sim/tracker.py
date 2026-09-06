@@ -73,6 +73,8 @@ class Track:
         self.iff = ""
         self.ident = ""                 # nom AIS
         self.ais = {}                   # message AIS corrélé, tel que reçu
+        self.ais_vu = 0.0               # dernière réception AIS, s
+        self.anomalies = []             # doutes de vraisemblance en cours
         self.aff = "unknown"            # affiliation retenue par l'opérateur
         self.classified_by = ""
         self.history = []
@@ -166,6 +168,18 @@ class Track:
         Une piste qu'on ne voit plus se dégrade toute seule."""
         sig = math.sqrt(max(self.P[0][0] + self.P[2][2], 1.0))
         return max(0.0, min(1.0, 1.0 - (sig - 30.0) / 900.0))
+
+    @property
+    def vel_sigma(self):
+        """Incertitude sur le vecteur vitesse, m/s.
+
+        Distincte de `quality`, qui ne parle que de la position. Une piste
+        peut être parfaitement localisée et sa vitesse encore inconnue —
+        c'est même l'état normal des premiers tours d'antenne, et confondre
+        les deux fait comparer une vitesse déclarée à une estimation qui
+        n'existe pas encore.
+        """
+        return math.sqrt(max(self.P[1][1] + self.P[3][3], 0.0))
 
     def ellipse(self):
         """Demi-axes 1 sigma en x et y, pour l'affichage de l'incertitude."""
