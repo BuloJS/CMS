@@ -41,6 +41,7 @@ from sim.entities import Contact                            # noqa: E402
 from sim.geo import KT, NM                                  # noqa: E402
 
 BASE = "https://meri.digitraffic.fi/api/ais/v1"
+AIS_DEFAUT = "fixtures/ais-golfe-finlande.json"
 # Digitraffic demande que chaque client s'identifie. Ce n'est pas une clé,
 # c'est une politesse d'exploitation : elle leur permet de joindre l'auteur
 # d'un trafic anormal plutôt que de bloquer une plage d'adresses.
@@ -57,15 +58,49 @@ COG_INDISPO = 360.0
 # Lecture de la source
 # --------------------------------------------------------------------- #
 
-def _get(url, timeout=12.0):
+# Le point de position rend du GeoJSON, dont le type enregistré est
+# `application/geo+json` et non `application/json`. Demander strictement le
+# second fait répondre 406 « Not Acceptable » à un serveur qui négocie
+# sérieusement — c'est-à-dire un refus applicatif, alors que tout va bien par
+# ailleurs. On accepte donc les deux, et le reste par défaut : de toute façon
+# la réponse est analysée comme du JSON quoi qu'elle annonce.
+ACCEPT = "application/geo+json, application/json;q=0.9, */*;q=0.5"
+
+
+def _lire(reponse):
+    """Corps de réponse -> objet. Tolère une compression non demandée."""
+    brut = reponse.read()
+    codage = (reponse.headers.get("Content-Encoding") or "").lower()
+    if "gzip" in codage:
+        import gzip
+        brut = gzip.decompress(brut)
+    elif "deflate" in codage:
+        import zlib
+        try:
+            brut = zlib.decompress(brut)
+        except zlib.error:
+            brut = zlib.decompress(brut, -zlib.MAX_WBITS)
+    return json.loads(brut.decode("utf-8"))
+
+
+def _get(url, timeout=12.0, accept=ACCEPT):
     req = urllib.request.Request(url, headers={
-        "Accept": "application/json",
+        "Accept": accept,
+        # urllib ne décompresse pas tout seul ; on demande donc du brut, et
+        # `_lire` rattrape le cas où le serveur compresse quand même.
         "Accept-Encoding": "identity",
         "Digitraffic-User": UA,
         "User-Agent": UA,
     })
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return _lire(r)
+    except urllib.error.HTTPError as e:
+        # 406 : la négociation de contenu a échoué. Plutôt que d'abandonner
+        # sur un désaccord d'en-tête, on redemande sans rien exiger.
+        if e.code == 406 and accept != "*/*":
+            return _get(url, timeout, accept="*/*")
+        raise
 
 
 def _features(doc):
@@ -92,8 +127,13 @@ def _flatten(rec):
     out = {}
     if not isinstance(rec, dict):
         return out
+    # `type` est ambigu : en GeoJSON c'est l'enveloppe ("Feature"), dans les
+    # métadonnées AIS c'est le type de navire (un entier). Retirer les deux
+    # ferait disparaître le type de tous les navires du flux réel — et cela
+    # ne se voit pas sur un instantané dont le statique est déjà décodé.
     out.update({k: v for k, v in rec.items()
-                if k not in ("geometry", "properties", "type")})
+                if k not in ("geometry", "properties")
+                and not (k == "type" and isinstance(v, str))})
     props = rec.get("properties")
     if isinstance(props, dict):
         out.update(props)
@@ -413,8 +453,28 @@ def main():
     a = ap.parse_args()
 
     src = Fichier(a.fichier) if a.fichier else Digitraffic()
-    src.rafraichir_statique()
-    pos = src.positions(a.lat, a.lon, a.rayon)
+    try:
+        src.rafraichir_statique()
+        pos = src.positions(a.lat, a.lon, a.rayon)
+    except urllib.error.HTTPError as e:
+        # Une trace Python ne dit rien à qui essaie simplement de brancher un
+        # flux. Le code de statut, lui, dit presque toujours quoi faire.
+        raisons = {
+            406: "le serveur refuse les en-têtes Accept envoyés",
+            403: "accès refusé — un proxy d'entreprise s'interpose peut-être",
+            404: "l'adresse du point d'entrée a changé",
+            429: "trop de requêtes — espacer les interrogations",
+        }
+        print("Digitraffic répond HTTP %d (%s)." % (e.code, e.reason))
+        if e.code in raisons:
+            print("  %s" % raisons[e.code])
+        print("  Le serveur est donc joignable : ce n'est pas un problème réseau.")
+        print("  Repli hors ligne : python3 services/ais.py --fichier %s" % AIS_DEFAUT)
+        return 1
+    except urllib.error.URLError as e:
+        print("Digitraffic injoignable : %s" % e.reason)
+        print("  Repli hors ligne : python3 services/ais.py --fichier %s" % AIS_DEFAUT)
+        return 1
     print("%d positions, %d navires au statique connu" % (len(pos), len(src.statique)))
 
     from sim.geo import Projection
@@ -436,7 +496,8 @@ def main():
              "ref": [a.lat, a.lon], "rayon_nm": a.rayon},
             ensure_ascii=False), encoding="utf-8")
         print("\ninstantané -> %s" % a.capture)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -269,7 +269,11 @@ d'environnement l'emporte toujours sur la déclaration du scénario.
 
 Source par défaut : **Digitraffic** (Fintraffic), eaux finlandaises, sans clé
 ni inscription, en JSON sur HTTPS — donc `urllib` suffit et la règle
-zéro-dépendance tient. Le pont suit le même contrat que le pont Modbus : sans
+zéro-dépendance tient. Le point de position rend du GeoJSON, dont le type
+enregistré est `application/geo+json` : demander strictement
+`application/json` fait répondre **406 Not Acceptable**. Le client accepte
+donc les deux, redemande sans rien exiger si on lui oppose quand même un 406,
+et décompresse une réponse gzippée qu'il n'avait pas demandée. Le pont suit le même contrat que le pont Modbus : sans
 flux joignable, rien ne casse, la console affiche l'état de la source, et un
 retour du réseau reprend sans redémarrage. Il est éteint par défaut, et n'agit
 que sur un scénario portant une `[origine]`.

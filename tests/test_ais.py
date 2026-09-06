@@ -8,17 +8,19 @@ piste construite.
 
     python3 -m unittest discover -s tests
 """
+import gzip
 import json
 import sys
 import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from services.ais import (AisBridge, Fichier, en_contact,      # noqa: E402
-                          _features, _flatten, normalise)
+from services.ais import (AisBridge, Digitraffic, Fichier,      # noqa: E402
+                          en_contact, _features, _flatten, normalise)
 from sim.ais import (decode, nav_status_label, rcs_from_length,  # noqa: E402
                      ship_type_label)
 from sim.geo import KT, NM, Projection                          # noqa: E402
@@ -144,6 +146,84 @@ class TestNormalisation(unittest.TestCase):
                       "geometry": {"type": "Point", "coordinates": [24.5, 59.5]}})
         self.assertEqual((r["mmsi"], r["sog"], r["lat"], r["lon"]),
                          (3, 9.0, 59.5, 24.5))
+
+
+class TestFlattenType(unittest.TestCase):
+    """`type` veut dire deux choses selon le message, et les confondre fait
+    disparaître le type de tous les navires du flux réel — sans que cela se
+    voie sur un instantané dont le statique est déjà décodé."""
+
+    def test_enveloppe_geojson_retiree(self):
+        r = _flatten({"mmsi": 1, "type": "Feature",
+                      "geometry": {"type": "Point", "coordinates": [25.0, 60.0]}})
+        self.assertNotIn("type", r)
+
+    def test_type_de_navire_conserve(self):
+        r = _flatten({"mmsi": 1, "type": 70, "name": "X"})
+        self.assertEqual(r["type"], 70)
+        self.assertEqual(decode(r)["type"], "Cargo")
+
+
+class _Strict(BaseHTTPRequestHandler):
+    """Imite un serveur qui négocie sérieusement le type de contenu, et qui
+    compresse sans qu'on le lui demande."""
+    ACCEPTE = "geo+json"
+    CORPS = {"type": "FeatureCollection", "features": [
+        {"mmsi": 230982000, "type": "Feature",
+         "geometry": {"type": "Point", "coordinates": [25.10, 59.95]},
+         "properties": {"sog": 12.5, "cog": 88.0, "navStat": 0}}]}
+
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        acc = self.headers.get("Accept", "")
+        if self.ACCEPTE not in acc and "*/*" not in acc:
+            self.send_response(406)
+            self.end_headers()
+            return
+        body = gzip.compress(json.dumps(self.CORPS).encode())
+        self.send_response(200)
+        self.send_header("Content-Type", "application/geo+json")
+        self.send_header("Content-Encoding", "gzip")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+class _JsonSeulement(_Strict):
+    """Cas plus dur : même `application/geo+json` est refusé."""
+    ACCEPTE = "\x00rien"
+
+
+class TestNegociation(unittest.TestCase):
+    """Le flux public a répondu 406 sur le premier jet de ce client :
+    l'endpoint rend du GeoJSON, dont le type est `application/geo+json`, et
+    demander strictement `application/json` se fait refuser."""
+
+    def _servir(self, handler):
+        srv = HTTPServer(("127.0.0.1", 0), handler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.shutdown)
+        return "http://127.0.0.1:%d/api/ais/v1" % srv.server_address[1]
+
+    def test_geojson_accepte_du_premier_coup(self):
+        d = Digitraffic(base=self._servir(_Strict))
+        self.assertEqual(len(d.positions(59.95, 25.10, 60)), 1)
+
+    def test_repli_sur_406(self):
+        """Un désaccord d'en-tête ne doit pas coûter le flux : on redemande
+        sans rien exiger plutôt que d'abandonner."""
+        d = Digitraffic(base=self._servir(_JsonSeulement))
+        self.assertEqual(len(d.positions(59.95, 25.10, 60)), 1)
+
+    def test_compression_non_demandee(self):
+        """urllib ne décompresse pas seul. Un serveur qui gzippe quand même
+        rendrait des octets illisibles au lieu d'un JSON."""
+        d = Digitraffic(base=self._servir(_Strict))
+        p = d.positions(59.95, 25.10, 60)[0]
+        self.assertEqual(p["mmsi"], "230982000")
+        self.assertAlmostEqual(p["sog"], 12.5)
 
 
 class TestContact(unittest.TestCase):
