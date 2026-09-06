@@ -68,7 +68,11 @@ ACCEPT = "application/geo+json, application/json;q=0.9, */*;q=0.5"
 
 
 def _lire(reponse):
-    """Corps de réponse -> objet. Tolère une compression non demandée."""
+    """Corps de réponse -> objet, compressé ou non.
+
+    `urllib` ne décompresse jamais tout seul : c'est à l'appelant de le
+    faire, sans quoi on analyse des octets gzip comme du texte.
+    """
     brut = reponse.read()
     codage = (reponse.headers.get("Content-Encoding") or "").lower()
     if "gzip" in codage:
@@ -86,9 +90,12 @@ def _lire(reponse):
 def _get(url, timeout=12.0, accept=ACCEPT):
     req = urllib.request.Request(url, headers={
         "Accept": accept,
-        # urllib ne décompresse pas tout seul ; on demande donc du brut, et
-        # `_lire` rattrape le cas où le serveur compresse quand même.
-        "Accept-Encoding": "identity",
+        # La compression est **obligatoire** chez Digitraffic : un client qui
+        # demande `identity` reçoit 406, quels que soient ses autres en-têtes.
+        # C'est documenté, et c'est défendable — les données sont très
+        # compressibles et le service en sert beaucoup. Le coût pour nous est
+        # une ligne de décompression dans `_lire`, pas une dépendance.
+        "Accept-Encoding": "gzip",
         "Digitraffic-User": UA,
         "User-Agent": UA,
     })
@@ -460,7 +467,7 @@ def main():
         # Une trace Python ne dit rien à qui essaie simplement de brancher un
         # flux. Le code de statut, lui, dit presque toujours quoi faire.
         raisons = {
-            406: "le serveur refuse les en-têtes Accept envoyés",
+            406: "en-têtes refusés — Digitraffic impose Accept-Encoding: gzip",
             403: "accès refusé — un proxy d'entreprise s'interpose peut-être",
             404: "l'adresse du point d'entrée a changé",
             429: "trop de requêtes — espacer les interrogations",

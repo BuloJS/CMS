@@ -196,6 +196,22 @@ class _JsonSeulement(_Strict):
     ACCEPTE = "\x00rien"
 
 
+class _CompressionObligatoire(_Strict):
+    """La règle réelle de Digitraffic : sans Accept-Encoding: gzip, 406.
+
+    C'est ce qui a fait échouer le premier branchement au flux public. Le
+    client demandait `identity` — délibérément, pour n'avoir rien à
+    décompresser — ce qui est précisément ce que le service interdit.
+    """
+
+    def do_GET(self):
+        if "gzip" not in (self.headers.get("Accept-Encoding") or ""):
+            self.send_response(406)
+            self.end_headers()
+            return
+        _Strict.do_GET(self)
+
+
 class TestNegociation(unittest.TestCase):
     """Le flux public a répondu 406 sur le premier jet de ce client :
     l'endpoint rend du GeoJSON, dont le type est `application/geo+json`, et
@@ -215,6 +231,13 @@ class TestNegociation(unittest.TestCase):
         """Un désaccord d'en-tête ne doit pas coûter le flux : on redemande
         sans rien exiger plutôt que d'abandonner."""
         d = Digitraffic(base=self._servir(_JsonSeulement))
+        self.assertEqual(len(d.positions(59.95, 25.10, 60)), 1)
+
+    def test_compression_obligatoire(self):
+        """Digitraffic impose la compression sur toutes ses interfaces.
+        Demander `identity` fait répondre 406 quels que soient les autres
+        en-têtes — c'est la panne qu'a rencontrée le premier branchement."""
+        d = Digitraffic(base=self._servir(_CompressionObligatoire))
         self.assertEqual(len(d.positions(59.95, 25.10, 60)), 1)
 
     def test_compression_non_demandee(self):
