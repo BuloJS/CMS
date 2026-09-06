@@ -258,14 +258,15 @@ class AisBridge(threading.Thread):
     """
     daemon = True
 
-    def __init__(self, sim, source, rayon_nm=60.0, periode=6.0, oubli=600.0):
+    def __init__(self, sim, source=None, rayon_nm=60.0, periode=6.0, oubli=600.0):
         super().__init__()
         self.sim = sim
         self.source = source
+        self.cfg = None             # configuration en vigueur, suivie du scénario
         self.rayon_nm = rayon_nm
         self.periode = periode
         self.oubli = oubli          # s sans nouvelle -> le navire sort du monde
-        self.etat = "démarrage"
+        self.etat = "éteint" if source is None else "démarrage"
         self.n = 0
         self.vus = {}               # uid -> horodatage de simulation
         # Dernier message effectivement appliqué, par navire. Sans lui, un
@@ -280,6 +281,38 @@ class AisBridge(threading.Thread):
     def _proj(self):
         with self.sim.lock:
             return self.sim.engine.proj
+
+    def _suivre_scenario(self):
+        """Aligne la source sur ce que demande le scénario courant.
+
+        Un changement de scénario depuis la console doit suffire : c'est le
+        scénario qui sait s'il a besoin du flux, pas l'exploitant qui doit
+        s'en souvenir au lancement. Rend False quand aucune source n'est
+        demandée — le pont dort alors sans rien consommer.
+        """
+        cfg = getattr(self.sim, "ais_cfg", None)
+        if cfg == self.cfg:
+            return self.source is not None
+        self.cfg, self.source = cfg, None
+        self.vus, self.applique, self.n = {}, {}, 0
+        if not cfg:
+            self.etat = "éteint"
+            return False
+        try:
+            if cfg["source"] == "fichier":
+                chemin = Path(cfg["fichier"])
+                self.source = Fichier(chemin if chemin.is_absolute()
+                                      else ROOT / chemin)
+            else:
+                self.source = Digitraffic()
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            self.etat = "source illisible (%s)" % type(e).__name__
+            return False
+        self.rayon_nm = cfg["rayon_nm"]
+        self.periode = cfg["periode"]
+        self.etat = "démarrage"
+        self._statique_le = 0.0
+        return True
 
     def _cycle(self):
         proj = self._proj()
@@ -331,12 +364,15 @@ class AisBridge(threading.Thread):
             "AIS RÉEL" if not isinstance(self.source, Fichier) else "AIS FICHIER", self.n)
 
     def run(self):
-        dernier_statique = 0.0
+        self._statique_le = 0.0
         while True:
+            if not self._suivre_scenario():
+                time.sleep(2.0)
+                continue
             try:
-                if time.monotonic() - dernier_statique > 300.0:
+                if time.monotonic() - self._statique_le > 300.0:
                     self.source.rafraichir_statique()
-                    dernier_statique = time.monotonic()
+                    self._statique_le = time.monotonic()
                 self._cycle()
                 attente = self.periode
             except (urllib.error.URLError, urllib.error.HTTPError, OSError,

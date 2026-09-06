@@ -69,6 +69,10 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 .rangepad button[aria-pressed="true"]{background:var(--phos);color:#03101f;font-weight:600}
 .rangepad button:hover{color:#e8f4ff}
 .rangepad button[aria-pressed="true"]:hover{color:#03101f}
+.vide{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);text-align:center;
+  pointer-events:none;max-width:34ch}
+.vide b{display:block;font-family:var(--f-disp);font-size:13px;letter-spacing:.2em;color:var(--dim)}
+.vide span{display:block;margin-top:5px;font-family:var(--f-mono);font-size:10.5px;line-height:1.5;color:var(--dimmest)}
 .brief{position:absolute;left:12px;bottom:44px;max-width:min(46ch,52%);font-family:var(--f-sans);font-size:11.5px;line-height:1.45;color:var(--dim);background:rgba(5,16,32,.72);border-left:2px solid var(--line);padding:7px 10px;border-radius:0 3px 3px 0}
 .brief b{display:block;font-family:var(--f-disp);letter-spacing:.14em;font-size:11px;color:var(--phos);margin-bottom:3px}
 
@@ -226,6 +230,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       <div class="ov tl">VEILLE AIR/SURFACE<br><u id="sweep-lbl">ROTATION 15 tr/min</u>MOUVEMENT RELATIF</div>
       <div class="ov tr" id="cursor-ro">GIS —— · DIST ——</div>
       <div class="ov bl">NORD HAUT<br><span id="ring-lbl">ANNEAUX 6.25 NM</span></div>
+      <div class="vide" id="vide" hidden></div>
       <div class="brief" id="brief"></div>
       <div class="rangepad" role="group" aria-label="Échelle de portée">
         <button data-r="5">5</button><button data-r="10">10</button>
@@ -740,6 +745,35 @@ function renderEvents(){
   $("ev-count").textContent = F.events.length + " entrées";
 }
 
+/* Un scope vide est une information, pas un écran raté — encore faut-il
+   dire laquelle. Le cas qui a motivé ceci : un scénario dont tout le trafic
+   vient du flux AIS, ouvert avec le flux éteint. Rien à l'écran ne
+   l'expliquait, et on cherche la panne dans le radar.
+
+   Rien pendant les trente premières secondes : une veille qui n'a pas
+   encore accroché est le cas normal, pas une anomalie à signaler. */
+function renderVide(){
+  const box = $("vide");
+  if(!F || F.tracks.length || F.t < 30){ box.hidden = true; return; }
+  const af = F.ais_feed;
+  let quoi;
+  if(!af || af.etat === "éteint"){
+    quoi = "Source AIS éteinte, et aucun contact scripté détecté. " +
+           "Un scénario de veille en trafic réel réclame sa source lui-même ; " +
+           "pour le flux public, lancer avec AIS_SOURCE=digitraffic.";
+  } else if(/indisponible|illisible|origine/.test(af.etat)){
+    quoi = "Source AIS : " + af.etat + ".";
+  } else if(!af.n){
+    quoi = "Flux AIS actif, aucun navire dans le rayon d'ingestion.";
+  } else {
+    quoi = "Flux AIS actif — " + af.n + " navire" + (af.n>1?"s":"") +
+           " reçus, aucun encore détecté au radar. Hors horizon, " +
+           "ou trop faible surface équivalente à cette distance.";
+  }
+  box.innerHTML = "<b>AUCUNE PISTE</b><span>" + quoi + "</span>";
+  box.hidden = false;
+}
+
 function renderTop(){
   const m = Math.floor(F.t/60), s = Math.floor(F.t%60);
   $("clk").textContent = String(m).padStart(3,"0")+":"+String(s).padStart(2,"0");
@@ -760,6 +794,7 @@ function renderTop(){
     $("brief").innerHTML = "<b>"+F.meta.scenario+"</b>"+F.meta.brief.replace(/\n/g," ");
   }
   $("ring-lbl").textContent = "ANNEAUX " + (range/4).toFixed(2) + " NM";
+  renderVide();
   if(F.meta && F.meta.fichier && $("sel-sc").options.length > 1
      && $("sel-sc").value !== F.meta.fichier
      && [...$("sel-sc").options].some(o => o.value === F.meta.fichier)){

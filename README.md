@@ -234,10 +234,27 @@ qu'un scénario écrit à la main** : même équation radar, même horizon, mêm
 pistage. La physique déjà écrite devient un filtre sur du trafic réel.
 
 ```bash
-AIS_SOURCE=fichier python3 services/server.py       # instantané rejoué, sans réseau
+python3 services/server.py                          # puis choisir 04 dans le menu
 AIS_SOURCE=digitraffic python3 services/server.py   # flux public réel
 python3 services/ais.py --capture mon-instantane.json
 ```
+
+**Un scénario déclare sa source.** Un scénario sans contact scripté n'a rien
+à montrer sans le flux ; il doit donc le réclamer lui-même, sinon il s'ouvre
+sur un scope vide et rien n'explique pourquoi. Le pont suit le scénario
+courant : basculer sur `04` depuis le menu de la console allume la source
+toute seule, sans relancer quoi que ce soit.
+
+```toml
+[ais]
+source = "fichier"      # l'instantané embarqué ; hors ligne, toujours disponible
+rayon_nm = 60
+```
+
+Un scénario ne peut réclamer que la source hors ligne. Aller chercher le
+réseau reste un acte explicite de l'exploitant — ouvrir un fichier de
+scénario ne doit pas déclencher de trafic sortant. La variable
+d'environnement l'emporte toujours sur la déclaration du scénario.
 
 Source par défaut : **Digitraffic** (Fintraffic), eaux finlandaises, sans clé
 ni inscription, en JSON sur HTTPS — donc `urllib` suffit et la règle
@@ -283,7 +300,7 @@ Voir [`plc/modbus-map.md`](plc/modbus-map.md).
 | `01-detroit-approche` | Trafic marchand dense, deux vedettes non coopératives | Identification. Celle qui illumine en conduite de tir bascule hostile → **artillerie**, pas SAM |
 | `02-saturation-asm` | Six missiles rasants en quatre secondes | Détection à l'horizon, SAM sur la butée, CIWS en ultime, leurres |
 | `03-avarie-refroidissement` | Même attaque, pompe arrêtée à 60 s | Détection tardive, décrochage de pistes — la bonne réaction est côté IPMS autant que côté CMS |
-| `04-veille-trafic-reel` | Aucun contact scripté : le trafic AIS réel au large d'Helsinki | Les grands navires sortent à l'horizon, les petits mobiles de près. La corrélation AIS renseigne les coopératifs |
+| `04-veille-trafic-reel` | Aucun contact scripté : le trafic AIS, au milieu du golfe de Finlande | Les grands navires sortent à l'horizon, les petits mobiles de près. La corrélation AIS renseigne les coopératifs |
 | `05-identite-douteuse` | Rail marchand dense, quatre contacts atypiques : un muet, une extinction, une position falsifiée, un MMSI inexistant | Chacun détecté pour ce qu'il est, aucun classé hostile, le trafic honnête indemne |
 
 Les scénarios sont en TOML, en unités du domaine (milles nautiques, nœuds,

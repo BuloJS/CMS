@@ -67,6 +67,7 @@ class Sim:
         self.name = ""
         self.meta = {}
         self.ais = None
+        self.ais_cfg = None
         self.load(DEFAULT_SC)
 
     def load(self, fname):
@@ -80,7 +81,32 @@ class Sim:
             self.name = path.name
             self.meta = {"scenario": sc["name"], "brief": sc["brief"],
                          "attendu": sc["attendu"], "fichier": path.name}
+            self.ais_cfg = self._resoudre_ais(sc)
         return True
+
+    @staticmethod
+    def _resoudre_ais(sc):
+        """Quelle source AIS pour ce scénario, et avec quels réglages.
+
+        La variable d'environnement l'emporte : c'est l'exploitant qui parle.
+        À défaut, le scénario décide — un scénario sans contact scripté a
+        besoin du flux pour montrer quoi que ce soit, et doit pouvoir le dire
+        lui-même plutôt que d'attendre qu'on devine.
+
+        Un scénario ne peut demander que la source hors ligne. Aller chercher
+        le réseau reste un acte explicite de l'exploitant : ouvrir un fichier
+        de scénario ne doit pas déclencher de trafic sortant.
+        """
+        bloc = sc.get("ais") or {}
+        source = AIS_SOURCE or bloc.get("source", "")
+        if source == "digitraffic" and not AIS_SOURCE:
+            source = "fichier"
+        if source not in ("digitraffic", "fichier"):
+            return None
+        return {"source": source,
+                "fichier": bloc.get("fichier", AIS_FILE),
+                "rayon_nm": float(bloc.get("rayon_nm", AIS_RAYON)),
+                "periode": float(bloc.get("periode", AIS_PERIODE))}
 
     def command(self, c):
         k = c.get("cmd")
@@ -192,17 +218,16 @@ class PlcBridge(threading.Thread):
 
 
 def demarrer_ais(sim):
-    """Monte le pont AIS si l'exploitant l'a demandé. Une source injoignable
-    n'empêche pas le lab de démarrer : on le dit et on continue."""
-    if AIS_SOURCE not in ("digitraffic", "fichier"):
-        return None
-    from services.ais import AisBridge, Digitraffic, Fichier
-    try:
-        src = (Fichier(ROOT / AIS_FILE) if AIS_SOURCE == "fichier" else Digitraffic())
-    except OSError as e:
-        print("AIS : source illisible (%s) — le lab démarre sans" % e, flush=True)
-        return None
-    pont = AisBridge(sim, src, rayon_nm=AIS_RAYON, periode=AIS_PERIODE)
+    """Monte le pont AIS, qui suivra ensuite le scénario courant.
+
+    Le pont est toujours démarré : il coûte un fil endormi, et il permet à
+    un changement de scénario depuis la console d'allumer la source toute
+    seule. Sans cela, choisir « veille en trafic réel » dans le menu
+    donnerait un scope vide jusqu'à ce qu'on pense à relancer le serveur
+    avec la bonne variable d'environnement.
+    """
+    from services.ais import AisBridge
+    pont = AisBridge(sim)
     sim.ais = pont
     pont.start()
     return pont

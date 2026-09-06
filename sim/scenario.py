@@ -33,6 +33,10 @@ def load(path):
         # reste purement relatif — ce qui suffisait tant que rien de réel
         # n'entrait dans le système.
         "origine": data.get("origine", {}),
+        # Un scénario dont tout le contenu vient du flux AIS doit le dire.
+        # Sans cela il s'ouvre sur un scope vide, et rien à l'écran
+        # n'explique pourquoi — c'est un piège, pas une configuration.
+        "ais": data.get("ais", {}),
         "events": sorted(data.get("event", []), key=lambda e: e.get("at", 0)),
         "contacts": [],
     }

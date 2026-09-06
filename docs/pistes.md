@@ -13,7 +13,9 @@ on rouvre un projet trois semaines plus tard.
 - **Décodage AIS normalisé** (`sim/ais.py`) : types de navire, statuts de
   navigation, dimensions, tirant d'eau, surface équivalente radar estimée.
 - **Ingestion de trafic réel** (`services/ais.py`) : Digitraffic ou instantané
-  rejoué, dégradation propre, scénario `04-veille-trafic-reel`.
+  rejoué, dégradation propre, scénario `04-veille-trafic-reel`. Le scénario
+  déclare sa source par un bloc `[ais]` et le pont suit le scénario courant,
+  donc basculer depuis le menu de la console suffit.
 - **Console adaptée aux données réelles** : échelle 100 NM, position
   géographique du curseur, bloc AIS dans le panneau de piste, marquage des
   contacts de surface qui n'émettent pas, état de la source dans le bandeau.

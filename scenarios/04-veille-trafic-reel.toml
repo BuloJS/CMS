@@ -25,4 +25,15 @@ course = 90
 speed_kt = 10
 mast_m = 30
 
-# Aucun contact scripté : tout ce qui apparaîtra vient du flux.
+# Aucun contact scripté : tout ce qui apparaîtra vient du flux AIS. Le
+# scénario doit donc réclamer lui-même sa source de données, sinon il s'ouvre
+# sur un scope vide sans que rien explique pourquoi.
+#
+# Il ne peut demander que l'instantané hors ligne : ouvrir un fichier de
+# scénario ne doit pas déclencher de trafic réseau. Pour le flux public réel,
+# c'est un acte explicite de l'exploitant :
+#
+#     AIS_SOURCE=digitraffic python3 services/server.py
+[ais]
+source = "fichier"
+rayon_nm = 60
