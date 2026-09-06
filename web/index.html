@@ -195,6 +195,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       <div class="stat"><i>SAM</i><b id="n-sam">--</b></div>
       <div class="stat"><i>LEURRES</i><b id="n-dec">--</b></div>
       <div class="stat"><i>IPMS</i><b id="ipms-src">—</b></div>
+      <div class="stat" id="stat-ais" hidden><i>AIS</i><b id="ais-src">—</b></div>
       <div class="stat"><i>PUISS. RADAR</i><b id="radpwr">---<small>%</small></b></div>
     </div>
     <div class="posture"><span class="dot" id="pdot"></span><span id="posture">VEILLE</span></div>
@@ -697,6 +698,23 @@ function renderTop(){
     $("brief").innerHTML = "<b>"+F.meta.scenario+"</b>"+F.meta.brief.replace(/\n/g," ");
   }
   $("ring-lbl").textContent = "ANNEAUX " + (range/4).toFixed(2) + " NM";
+  if(F.meta && F.meta.fichier && $("sel-sc").options.length > 1
+     && $("sel-sc").value !== F.meta.fichier
+     && [...$("sel-sc").options].some(o => o.value === F.meta.fichier)){
+    $("sel-sc").value = F.meta.fichier;
+  }
+
+  /* L'état de la source AIS suit la même règle que l'IPMS : on ne le montre
+     que s'il y a quelque chose à dire. Un lab qui tourne sur scénario seul
+     n'a pas besoin d'un indicateur permanent à « éteint ». */
+  const af = F.ais_feed;
+  $("stat-ais").hidden = !af;
+  if(af){
+    const ko = /indisponible|illisible|sans \[origine\]/.test(af.etat);
+    $("ais-src").textContent = ko ? "HORS SERVICE" : String(af.n);
+    $("ais-src").style.color = ko ? "var(--crit)" : "";
+    $("stat-ais").title = af.etat;
+  }
 }
 
 /* ---------------- boucle ---------------- */
@@ -782,6 +800,9 @@ document.addEventListener("keydown", e=>{
 if(SRC.kind === "LIVE"){
   fetch("/api/scenarios").then(r=>r.json()).then(l=>{
     $("sel-sc").innerHTML = l.map(s=>'<option value="'+s.fichier+'">'+s.nom+'</option>').join("");
+    /* Le sélecteur doit refléter ce qui tourne, pas le premier de la liste :
+       le serveur démarre sur CMS_SCENARIO, qui n'est pas forcément celui-là. */
+    if(F && F.meta && F.meta.fichier) $("sel-sc").value = F.meta.fichier;
   }).catch(()=>{});
 } else {
   $("sel-sc").innerHTML = '<option>enregistrement embarqué</option>';

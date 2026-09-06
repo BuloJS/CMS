@@ -93,6 +93,15 @@ tours sans plot, fusion des détections en gisement seul. Écrit à la main en
 4×4 ; la matrice d'observation ne retient que la position, donc la covariance
 d'innovation est 2×2 et s'inverse en une ligne.
 
+Le bruit de manœuvre s'indexe sur la vitesse estimée. Une valeur unique ne
+peut pas servir à la fois un missile et un caboteur : à l'ancien réglage, le
+filtre s'autorisait à croire qu'un porte-conteneurs change de vitesse de sept
+nœuds à chaque tour d'antenne, suivait donc le bruit de mesure au lieu de le
+moyenner, et rendait **une vitesse fausse de moitié sur une position juste**.
+C'est le genre de panne qui ne se voit pas à l'écran — mais le TEWA en tire un
+temps avant CPA et une butée de tir également faux. La borne haute reste la
+valeur historique, donc les scénarios antinavires sont inchangés.
+
 **La console n'affiche jamais la vérité terrain.** Elle affiche le produit du
 pistage, avec son ellipse d'incertitude et sa qualité de piste — qui se
 dégrade toute seule quand les plots manquent.
@@ -147,6 +156,47 @@ curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/ge
 python3 tools/coastline.py ne_10m_coastline.geojson --lat 59.85 --lon 24.85 --rayon 120 -o web/coastline.json
 ```
 
+### Trafic maritime réel
+
+![console sur trafic AIS réel](docs/console-trafic-reel.png)
+
+`services/ais.py` va chercher des messages AIS et en fabrique des `Contact`.
+Une fois entrés dans le monde, ces navires sont **indiscernables de ceux
+qu'un scénario écrit à la main** : même équation radar, même horizon, même
+pistage. La physique déjà écrite devient un filtre sur du trafic réel.
+
+```bash
+AIS_SOURCE=fichier python3 services/server.py       # instantané rejoué, sans réseau
+AIS_SOURCE=digitraffic python3 services/server.py   # flux public réel
+python3 services/ais.py --capture mon-instantane.json
+```
+
+Source par défaut : **Digitraffic** (Fintraffic), eaux finlandaises, sans clé
+ni inscription, en JSON sur HTTPS — donc `urllib` suffit et la règle
+zéro-dépendance tient. Le pont suit le même contrat que le pont Modbus : sans
+flux joignable, rien ne casse, la console affiche l'état de la source, et un
+retour du réseau reprend sans redémarrage. Il est éteint par défaut, et n'agit
+que sur un scénario portant une `[origine]`.
+
+Deux points valent d'être connus, parce qu'ils ne se devinent pas :
+
+**La surface équivalente radar est estimée, pas reçue.** L'AIS diffuse des
+dimensions. La formule empirique de Skolnik donnerait près d'un million de m²
+pour un cargo de 180 m — une valeur de travers, connue pour majorer, et deux
+ordres de grandeur au-dessus de l'échelle de ce simulateur. La loi retenue est
+donc étalonnée sur les valeurs écrites à la main dans les scénarios (25 m →
+38 m², 180 m → 9 000 m²), parce que **c'est la cohérence interne qui compte** :
+un navire réel doit être exactement aussi détectable qu'un navire inventé de
+même taille. Au-delà d'un millier de m², la détection est de toute façon
+limitée par l'horizon, pas par le bilan de liaison.
+
+**Un message inchangé ne recale pas le contact.** Digitraffic rend la dernière
+position connue de chaque navire ; pour un navire lent, c'est le même message
+pendant trois minutes. Le réappliquer à chaque interrogation replacerait le
+navire où il était, et le filtre lirait une vitesse divisée par deux. Entre
+deux messages neufs, le contact continue donc sur sa dernière route connue —
+ce que fait tout système qui reçoit des positions espacées.
+
 ### Plateforme
 
 `sim/platform.py` modélise la production d'eau glacée qui refroidit les baies
@@ -165,6 +215,7 @@ Voir [`plc/modbus-map.md`](plc/modbus-map.md).
 | `01-detroit-approche` | Trafic marchand dense, deux vedettes non coopératives | Identification. Celle qui illumine en conduite de tir bascule hostile → **artillerie**, pas SAM |
 | `02-saturation-asm` | Six missiles rasants en quatre secondes | Détection à l'horizon, SAM sur la butée, CIWS en ultime, leurres |
 | `03-avarie-refroidissement` | Même attaque, pompe arrêtée à 60 s | Détection tardive, décrochage de pistes — la bonne réaction est côté IPMS autant que côté CMS |
+| `04-veille-trafic-reel` | Aucun contact scripté : le trafic AIS réel au large d'Helsinki | Les grands navires sortent à l'horizon, les petits mobiles de près. La corrélation AIS renseigne les coopératifs |
 
 Les scénarios sont en TOML, en unités du domaine (milles nautiques, nœuds,
 pieds), convertis en SI à l'entrée. Une graine fixée les rend reproductibles
@@ -192,10 +243,12 @@ arrivées à quelques secondes, augmenter leur nombre, ou revoir le Pk du CIWS
 python3 -m unittest discover -s tests
 ```
 
-Volontairement courts, et sans dépendance. Ils portent sur ce qui casse en
-silence : la projection géographique, l'horizon radio, la décroissance du SNR
-en R⁴, le CPA et le temps d'interception. Une constante mal placée dans l'une
-de ces formules ne lève aucune exception — elle décale simplement tout.
+Sans dépendance, et cadrés sur ce qui casse en silence : la projection
+géographique, l'horizon radio, la décroissance du SNR en R⁴, le CPA, le temps
+d'interception, la convergence du filtre dans les deux régimes (missile à
+300 m/s et caboteur à 13 nœuds), et le décodage AIS — dont les champs « non
+disponible » de la norme, qui produisent des navires à cent nœuds au pôle Nord
+si on les laisse passer.
 
 ## Aperçu hors ligne
 
@@ -241,6 +294,10 @@ Symbologie : cercle = ami, losange = hostile, carré = neutre, quatre-feuilles
 - Le trait de côte est réel (Natural Earth 10 m) mais ne masque rien : pas
   de zone d'ombre, pas de diffraction, un contact derrière une île reste
   visible.
+- La surface équivalente radar déduite de l'AIS est étalonnée sur l'échelle
+  interne du simulateur, pas sur des mesures. Elle est cohérente, pas exacte.
+- Le flux AIS n'a pas de contrôle de vraisemblance : une position aberrante
+  ou une identité usurpée entre telle quelle. C'est la piste suivante.
 
 ## Sécurité
 

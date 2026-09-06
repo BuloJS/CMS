@@ -11,66 +11,73 @@ on rouvre un projet trois semaines plus tard.
 - **Projection géographique** (`sim/geo.Projection`) et ancrage des scénarios
   par un bloc `[origine]`. Les scénarios sans ancrage restent relatifs.
 - **Décodage AIS normalisé** (`sim/ais.py`) : types de navire, statuts de
-  navigation, dimensions, tirant d'eau. Porté jusqu'à la console.
+  navigation, dimensions, tirant d'eau, surface équivalente radar estimée.
+- **Ingestion de trafic réel** (`services/ais.py`) : Digitraffic ou instantané
+  rejoué, dégradation propre, scénario `04-veille-trafic-reel`.
 - **Console adaptée aux données réelles** : échelle 100 NM, position
-  géographique du curseur, bloc AIS dans le panneau de piste, marquage
-  explicite des contacts de surface qui n'émettent pas.
+  géographique du curseur, bloc AIS dans le panneau de piste, marquage des
+  contacts de surface qui n'émettent pas, état de la source dans le bandeau.
 - **Trait de côte réel**, Natural Earth 10 m découpé par `tools/coastline.py`.
-- **Garde-fou de tests** sur la projection et les deux lois de senseur.
+- **Bruit de manœuvre adaptatif** dans le filtre — voir ci-dessous.
+- **44 tests** : projection, senseurs, convergence du filtre, décodage AIS,
+  pont d'ingestion.
 
 ---
 
-## 1. Le flux AIS réel — l'étape suivante
+## Ce que le trafic réel a révélé
 
-**Une soirée. Tout le raccord est déjà en place.**
+Ça valait la peine d'être noté, parce que c'est exactement ce pour quoi on
+branche des données réelles.
 
-Le format est le bon, le décodage est écrit, la console sait l'afficher. Il
-manque le service qui va chercher les messages et fabrique des `Contact`.
+Le pistage était réglé pour des missiles. Bruit de manœuvre `q = 3 m²/s³` :
+en un tour d'antenne de quatre secondes, cela autorise sept nœuds d'écart-type
+sur la vitesse. Pour un missile qui encaisse plusieurs g, c'est juste. Pour un
+porte-conteneurs, le filtre suivait le bruit de mesure au lieu de le moyenner
+et rendait **une vitesse fausse de moitié sur une position parfaitement
+juste** — erreurs mesurées de +50 à +120 % sur du trafic marchand.
 
-- **Digitraffic (Fintraffic)**, sans clé ni inscription, eaux finlandaises :
-  `https://meri.digitraffic.fi/api/ais/v1/locations` et `/api/ais/v1/vessels`,
-  du JSON sur HTTPS — donc `urllib` suffit et la règle zéro-dépendance tient.
-  Un flux MQTT existe (`wss://meri.digitraffic.fi:443/mqtt`) mais imposerait
-  une bibliothèque.
-- **Kystverket (Norvège)**, TCP brut sur `153.44.253.27:5631`, sans
-  inscription, 40 à 60 NM des côtes, licence NLOD. Trames AIVDM : il faut
-  écrire le désarmurage ASCII 6 bits et le réassemblage multi-trames, une
-  centaine de lignes très agréables à écrire.
+Invisible à l'écran : la position était bonne, la piste bien formée, la
+qualité à 0,98. Mais le TEWA en tire le temps avant CPA et la butée de tir.
 
-**Par où commencer** — un `services/ais.py` qui interroge Digitraffic et
-fabrique des `Contact(kind="surf", ais=True, ais_static=decode(...))`. Deux
-points à traiter :
-
-- **La surface équivalente radar.** L'AIS donne les dimensions, pas la RCS.
-  Le déplacement s'estime par `L × B × tirant d'eau × coefficient de bloc`,
-  et la formule empirique de Skolnik (`σ ≈ 52 √f D^1,5`, f en MHz, D en
-  kilotonnes) donne un ordre de grandeur — connu pour majorer, et donné au
-  travers du navire. À calibrer contre les RCS des scénarios écrits à la
-  main (9 000 m² pour un cargo de 180 m) plutôt qu'à croire sur parole.
-- **La cadence.** Un navire au mouillage émet toutes les trois minutes, un
-  navire rapide toutes les deux secondes. Le pistage attend des plots
-  réguliers ; il faudra soit extrapoler entre deux messages, soit accepter
-  des pistes qui se dégradent — et c'est probablement plus intéressant de
-  les laisser se dégrader.
-
-Garder les contacts simulés injectables par-dessus le trafic réel : le front
-ne fait pas la différence, `src` distingue déjà l'origine. **C'est là que le
-sujet devient vraiment naval** — une vedette simulée sans AIS au milieu d'un
-rail marchand réel, et le problème d'identification se pose tout seul.
+`Track._adapte_q` indexe désormais `q` sur la vitesse estimée, borné par
+l'ancienne valeur en haut. Erreurs ramenées à ±10 %, Monte-Carlo du scénario
+antinavire strictement inchangé (25,0 %). Le test `test_caboteur` échoue si on
+revient en arrière.
 
 ---
+
+## 1. Contrôle de vraisemblance AIS — l'étape suivante
+
+**C'est le vrai sujet naval, et il est maintenant à portée.**
+
+Le flux entre sans aucun contrôle. Or l'AIS est **déclaratif** : un navire
+diffuse ce qu'il veut, et rien n'oblige ce qu'il dit à correspondre à ce que
+le radar voit. Un CMS qui gobe l'AIS n'est pas un CMS, c'est un afficheur.
+
+Ce qui se détecte avec ce qui est déjà là :
+
+- **Écart AIS / radar.** Le plot radar et la position AIS déclarée divergent
+  au-delà de l'ellipse d'incertitude. La corrélation par proximité de
+  `engine._passive()` fait déjà le rapprochement — il suffit de mesurer le
+  résidu au lieu de le jeter.
+- **Saut de position.** Une position qui bouge plus vite que le navire ne
+  peut aller. Une vitesse implicite incompatible avec le `sog` déclaré.
+- **Extinction.** Un contact radar tenu qui perd son AIS sans sortir de
+  portée VHF. C'est le cas le plus intéressant et le plus simple à écrire.
+- **Identité douteuse.** MMSI hors plage MID valide, dimensions
+  incompatibles avec le type déclaré, deux navires au même MMSI.
+
+Aucune de ces règles ne prouve une intention hostile, et la console ne doit
+pas prétendre le contraire : elles produisent un **doute qualifié**, un
+facteur de plus dans `tewa.evaluate()` à côté de la géométrie et de l'IFF.
 
 ## 2. Compléter les tests
 
 **Le socle est posé, il manque deux morceaux.**
 
-`tests/test_geo.py` couvre la projection, l'horizon radio, la loi en R⁴, le
-CPA et l'interception. Restent :
-
-- `sim/tracker.py` — convergence sur une trajectoire connue. Fait à la main
-  pendant le développement (301 m/s estimés pour 300 réels) ; ce contrôle
-  devrait être un test, pas un souvenir.
-- `sim/tewa.py` — `salvo_for()`, le rejet hors enveloppe, le signe de la butée.
+Projection, senseurs, convergence du filtre et décodage AIS sont couverts.
+Reste `sim/tewa.py` : `salvo_for()`, le rejet hors enveloppe, le signe de la
+butée. C'est la dernière couche qui produit un chiffre affiché sans filet.
 
 ---
 
@@ -201,6 +208,12 @@ jamais publié.
 ```bash
 python3 services/server.py                      # tester, sans rien installer
 python3 -m unittest discover -s tests           # le garde-fou
+
+# Trafic réel
+AIS_SOURCE=fichier python3 services/server.py                  # sans réseau
+CMS_SCENARIO=04-veille-trafic-reel.toml AIS_SOURCE=digitraffic python3 services/server.py
+python3 services/ais.py --capture fixtures/ais-golfe-finlande.json
+python3 services/ais.py --fichier fixtures/ais-golfe-finlande.json   # inspecter
 docker compose up --build                       # la stack conteneurisée
 python3 tools/montecarlo.py scenarios/X.toml -n 24
 python3 tools/record.py scenarios/X.toml -o fixtures/X.jsonl --hz 1 --slim

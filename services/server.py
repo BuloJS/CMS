@@ -8,11 +8,20 @@ Le cœur ne connaît ni le réseau ni l'écran. Ce service lui donne les deux :
     ordinaire, sans dépendance, là où un WebSocket imposerait soit une
     bibliothèque, soit cent lignes de trame à écrire à la main ;
   * il accepte les ordres de l'opérateur en POST ;
-  * il sert la console statique.
+  * il sert la console statique ;
+  * il peut injecter du trafic maritime réel par AIS.
 
 Le pont Modbus tourne dans un autre fil et dégrade proprement : sans
 automate joignable, l'IPMS bascule sur son modèle logiciel et la console
 l'affiche. La stack complète démarre donc sans OpenPLC.
+
+Le pont AIS suit exactement le même contrat, et il est éteint par défaut :
+
+    AIS_SOURCE=digitraffic python3 services/server.py    # flux public réel
+    AIS_SOURCE=fichier python3 services/server.py        # instantané rejoué
+
+Il n'agit que sur un scénario portant un bloc [origine] — sans point de
+référence géographique, une position AIS n'a nulle part où aller.
 """
 import json
 import os
@@ -37,6 +46,10 @@ PORT = int(os.environ.get("CMS_PORT", "8000"))
 PLC_HOST = os.environ.get("PLC_HOST", "")
 PLC_PORT = int(os.environ.get("PLC_PORT", "502"))
 DEFAULT_SC = os.environ.get("CMS_SCENARIO", "02-saturation-asm.toml")
+AIS_SOURCE = os.environ.get("AIS_SOURCE", "").lower()
+AIS_FILE = os.environ.get("AIS_FILE", "fixtures/ais-golfe-finlande.json")
+AIS_RAYON = float(os.environ.get("AIS_RAYON_NM", "60"))
+AIS_PERIODE = float(os.environ.get("AIS_PERIODE", "6"))
 
 
 class Sim:
@@ -53,6 +66,7 @@ class Sim:
         self.engine = None
         self.name = ""
         self.meta = {}
+        self.ais = None
         self.load(DEFAULT_SC)
 
     def load(self, fname):
@@ -129,6 +143,8 @@ class Sim:
                     f = self.engine.snapshot()
                     f["meta"] = self.meta
                     f["rate"] = self.rate
+                    f["ais_feed"] = ({"etat": self.ais.etat, "n": self.ais.n}
+                                     if self.ais else None)
                 with self.cv:
                     self.frame, self.rev = f, self.rev + 1
                     self.cv.notify_all()
@@ -173,6 +189,23 @@ class PlcBridge(threading.Thread):
                 time.sleep(3.0)
                 continue
             time.sleep(0.2)
+
+
+def demarrer_ais(sim):
+    """Monte le pont AIS si l'exploitant l'a demandé. Une source injoignable
+    n'empêche pas le lab de démarrer : on le dit et on continue."""
+    if AIS_SOURCE not in ("digitraffic", "fichier"):
+        return None
+    from services.ais import AisBridge, Digitraffic, Fichier
+    try:
+        src = (Fichier(ROOT / AIS_FILE) if AIS_SOURCE == "fichier" else Digitraffic())
+    except OSError as e:
+        print("AIS : source illisible (%s) — le lab démarre sans" % e, flush=True)
+        return None
+    pont = AisBridge(sim, src, rayon_nm=AIS_RAYON, periode=AIS_PERIODE)
+    sim.ais = pont
+    pont.start()
+    return pont
 
 
 SIM = Sim()
@@ -245,9 +278,12 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     threading.Thread(target=SIM.run, daemon=True).start()
     PlcBridge(SIM).start()
+    demarrer_ais(SIM)
     srv = ThreadingHTTPServer((HOST, PORT), Handler)
-    print("CMS-Lab sur http://%s:%d  (scénario %s, IPMS %s)"
-          % (HOST, PORT, DEFAULT_SC, "Modbus " + PLC_HOST if PLC_HOST else "simulé"),
+    print("CMS-Lab sur http://%s:%d  (scénario %s, IPMS %s, AIS %s)"
+          % (HOST, PORT, DEFAULT_SC,
+             "Modbus " + PLC_HOST if PLC_HOST else "simulé",
+             AIS_SOURCE or "éteint"),
           flush=True)
     try:
         srv.serve_forever()

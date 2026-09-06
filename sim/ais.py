@@ -168,3 +168,61 @@ def decode(msg):
         except (TypeError, ValueError):
             pass
     return out
+
+
+# --------------------------------------------------------------------- #
+# Surface équivalente radar estimée
+# --------------------------------------------------------------------- #
+
+# L'AIS diffuse des dimensions, jamais une surface équivalente radar. Il
+# faut donc en fabriquer une, et le choix de la loi mérite d'être expliqué.
+#
+# La référence physique usuelle est la formule empirique de Skolnik,
+# sigma ≈ 52 √f · D^1,5 (f en MHz, D en kilotonnes de déplacement). En bande
+# X elle donne près d'un million de m² pour un cargo de 180 m — une valeur
+# de travers, connue pour majorer, et deux ordres de grandeur au-dessus de
+# l'échelle que ce simulateur utilise depuis le début.
+#
+# On calibre donc sur les valeurs écrites à la main dans les scénarios,
+# parce que c'est la cohérence interne qui compte ici : un navire réel doit
+# être exactement aussi détectable qu'un navire inventé de même taille,
+# sinon le trafic réel et les scénarios ne se comportent pas pareil sur le
+# même scope. La loi ci-dessous passe par deux de ces points :
+#
+#     embarcation rapide  25 m -> 38 m²    (scénario : 40)
+#     cargo              180 m -> 8 990 m² (scénario : 9 000)
+#
+# Elle donne 21 000 m² pour un pétrolier de 245 m là où le scénario écrit
+# 12 000. L'écart est sans conséquence : au-delà d'un millier de m², la
+# détection est limitée par l'horizon radio, pas par le bilan de liaison.
+# C'est en bas de l'échelle que la précision compte, et c'est là que la loi
+# est ancrée.
+RCS_K = 0.0051
+RCS_EXP = 2.77
+
+# Coques en composite, faible franc-bord : un voilier ou un bateau de
+# plaisance rend nettement moins qu'un navire de travail de même longueur.
+_RCS_FACTOR = {36: 0.35, 37: 0.35}
+
+
+def rcs_from_length(loa, type_code=None):
+    """Longueur hors tout (m) -> surface équivalente radar estimée (m²).
+
+    Rend None si la longueur est inexploitable : mieux vaut laisser
+    l'appelant choisir sa valeur par défaut que d'en inventer une ici.
+    """
+    try:
+        loa = float(loa)
+    except (TypeError, ValueError):
+        return None
+    if loa <= 0:
+        return None
+    # Au-delà de 400 m on est hors du domaine d'étalonnage (le plus grand
+    # navire en service en fait 400). On borne plutôt que d'extrapoler.
+    loa = min(loa, 400.0)
+    sigma = RCS_K * loa ** RCS_EXP
+    try:
+        sigma *= _RCS_FACTOR.get(int(type_code), 1.0)
+    except (TypeError, ValueError):
+        pass
+    return round(max(sigma, 0.5), 1)

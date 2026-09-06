@@ -12,6 +12,14 @@ import math
 
 from .geo import NM, bearing, rng
 
+# Bruit de manœuvre, m²/s³. Une seule valeur ne peut pas servir à la fois
+# un missile et un caboteur : voir `Track._adapte_q`. La borne haute est
+# la valeur historique, celle sur laquelle les scénarios antinavires ont
+# été réglés — les pistes rapides ne changent donc pas de comportement.
+Q_MAX = 3.0
+Q_MIN = 0.02
+V_AGILE = 150.0          # m/s à partir de quoi on suppose un mobile agile
+
 TRACK_INIT_HITS = 3      # M plots...
 TRACK_INIT_SCANS = 5     # ...sur N tours d'antenne
 TRACK_DROP_MISSES = 4    # tours sans plot avant suppression
@@ -53,7 +61,7 @@ class Track:
         # suivant. Sigma initial 350 m/s.
         self.P = [[400.0, 0, 0, 0], [0, 122500.0, 0, 0],
                   [0, 0, 400.0, 0], [0, 0, 0, 122500.0]]
-        self.q = 3.0                    # bruit de manœuvre, m²/s³
+        self.q = Q_MAX                  # bruit de manœuvre, m²/s³
         self.hits = 1
         self.misses = 0
         self.scans = 1
@@ -69,10 +77,36 @@ class Track:
         self.classified_by = ""
         self.history = []
 
+    def _adapte_q(self):
+        """Ajuste le bruit de manœuvre à la cinématique observée.
+
+        Une seule valeur ne peut pas convenir à la fois à un missile et à un
+        cargo. À `q` = 3, la variance de vitesse ajoutée en un tour
+        d'antenne de quatre secondes vaut 12 m²/s², soit près de sept nœuds
+        d'écart-type : le filtre s'autorise à croire qu'un porte-conteneurs
+        change de vitesse de sept nœuds toutes les quatre secondes. Il suit
+        alors le bruit de mesure au lieu de le moyenner, et rend une vitesse
+        fausse de moitié sur une position pourtant juste.
+
+        Le réglage se lit dans le monde physique : ce qu'un mobile peut
+        changer à son vecteur vitesse est à peu près proportionnel à ce
+        vecteur. Un missile à 270 m/s encaisse plusieurs g, un cargo à
+        7 m/s pratiquement rien. On indexe donc `q` sur la vitesse estimée,
+        borné aux deux bouts — la borne haute est l'ancienne valeur, donc
+        les pistes rapides se comportent exactement comme avant.
+
+        Contrepartie assumée : une vedette lente qui accélère brutalement
+        sera suivie avec un tour de retard, le temps que sa vitesse estimée
+        monte et desserre le filtre.
+        """
+        v = math.hypot(self.s[1], self.s[3])
+        self.q = min(Q_MAX, max(Q_MIN, Q_MAX * (v / V_AGILE) ** 2))
+
     # -- prédiction ------------------------------------------------------
     def predict(self, dt):
         F = [[1, dt, 0, 0], [0, 1, 0, 0], [0, 0, 1, dt], [0, 0, 0, 1]]
         self.s = [sum(F[i][j] * self.s[j] for j in range(4)) for i in range(4)]
+        self._adapte_q()
         q, d2, d3 = self.q, dt * dt, dt * dt * dt
         Q = [[q * d3 / 3, q * d2 / 2, 0, 0], [q * d2 / 2, q * dt, 0, 0],
              [0, 0, q * d3 / 3, q * d2 / 2], [0, 0, q * d2 / 2, q * dt]]

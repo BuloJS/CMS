@@ -1,0 +1,714 @@
+{
+ "note": "Instantané SYNTHÉTIQUE, écrit à la main au format Digitraffic. Il n'a pas été capturé sur le flux réel — il sert à faire tourner et à tester le service sans réseau. Pour le remplacer par une vraie capture : python3 services/ais.py --capture fixtures/ais-golfe-finlande.json",
+ "source": "synthétique — golfe de Finlande, trafic plausible",
+ "ref": [
+  60.1,
+  24.9
+ ],
+ "rayon_nm": 60,
+ "positions": [
+  {
+   "mmsi": 636092811,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.343782,
+     59.986683
+    ]
+   },
+   "properties": {
+    "sog": 10.6,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000008912,
+    "cog": 88.2,
+    "heading": 88
+   }
+  },
+  {
+   "mmsi": 538007744,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     25.866014,
+     60.006203
+    ]
+   },
+   "properties": {
+    "sog": 13.7,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000005349,
+    "cog": 267.5,
+    "heading": 267
+   }
+  },
+  {
+   "mmsi": 276019200,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.789927,
+     59.91176
+    ]
+   },
+   "properties": {
+    "sog": 12.2,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000003347,
+    "cog": 94.2,
+    "heading": 94
+   }
+  },
+  {
+   "mmsi": 273412500,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     25.430492,
+     59.950998
+    ]
+   },
+   "properties": {
+    "sog": 13.4,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000004320,
+    "cog": 269.2,
+    "heading": 269
+   }
+  },
+  {
+   "mmsi": 356214000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     25.177284,
+     59.992453
+    ]
+   },
+   "properties": {
+    "sog": 14.4,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000005987,
+    "cog": 93.8,
+    "heading": 93
+   }
+  },
+  {
+   "mmsi": 232008811,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     25.13434,
+     59.968896
+    ]
+   },
+   "properties": {
+    "sog": 16.1,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000003159,
+    "cog": 268.4,
+    "heading": 268
+   }
+  },
+  {
+   "mmsi": 219018300,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     25.724048,
+     59.995492
+    ]
+   },
+   "properties": {
+    "sog": 14.7,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000008646,
+    "cog": 89.5,
+    "heading": 89
+   }
+  },
+  {
+   "mmsi": 265512000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.63503,
+     59.970236
+    ]
+   },
+   "properties": {
+    "sog": 16.4,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000005648,
+    "cog": 268.8,
+    "heading": 268
+   }
+  },
+  {
+   "mmsi": 230982000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.707047,
+     59.88
+    ]
+   },
+   "properties": {
+    "sog": 26.4,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000003444,
+    "cog": 175,
+    "heading": 175
+   }
+  },
+  {
+   "mmsi": 276812000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.757863,
+     60.02
+    ]
+   },
+   "properties": {
+    "sog": 25.1,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000005133,
+    "cog": 355,
+    "heading": 355
+   }
+  },
+  {
+   "mmsi": 230629000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.795815,
+     59.72
+    ]
+   },
+   "properties": {
+    "sog": 21.8,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000008256,
+    "cog": 178,
+    "heading": 178
+   }
+  },
+  {
+   "mmsi": 355901000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     25.016777,
+     60.13026
+    ]
+   },
+   "properties": {
+    "sog": 0.1,
+    "navStat": 1,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000004967,
+    "cog": 360.0,
+    "heading": 511
+   }
+  },
+  {
+   "mmsi": 477998100,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     25.008354,
+     60.105995
+    ]
+   },
+   "properties": {
+    "sog": 0.1,
+    "navStat": 1,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000005391,
+    "cog": 360.0,
+    "heading": 511
+   }
+  },
+  {
+   "mmsi": 230411000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.95,
+     60.14
+    ]
+   },
+   "properties": {
+    "sog": 12.2,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000006702,
+    "cog": 210,
+    "heading": 210
+   }
+  },
+  {
+   "mmsi": 230655000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.97,
+     60.16
+    ]
+   },
+   "properties": {
+    "sog": 6.5,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000001206,
+    "cog": 45,
+    "heading": 45
+   }
+  },
+  {
+   "mmsi": 230877000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.62,
+     59.99
+    ]
+   },
+   "properties": {
+    "sog": 18.4,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000006281,
+    "cog": 285,
+    "heading": 285
+   }
+  },
+  {
+   "mmsi": 230201400,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     25.35,
+     60.05
+    ]
+   },
+   "properties": {
+    "sog": 4.2,
+    "navStat": 7,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000004072,
+    "cog": 120,
+    "heading": 120
+   }
+  },
+  {
+   "mmsi": 230744100,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.72,
+     60.08
+    ]
+   },
+   "properties": {
+    "sog": 6.8,
+    "navStat": 8,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000008972,
+    "cog": 240,
+    "heading": 240
+   }
+  },
+  {
+   "mmsi": 230119900,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     25.12,
+     59.93
+    ]
+   },
+   "properties": {
+    "sog": 15.0,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000007430,
+    "cog": 95,
+    "heading": 95
+   }
+  },
+  {
+   "mmsi": 276444000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     24.99,
+     59.9
+    ]
+   },
+   "properties": {
+    "sog": 2.1,
+    "navStat": 3,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000004584,
+    "cog": 45,
+    "heading": 45
+   }
+  },
+  {
+   "mmsi": 265998000,
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     21.4,
+     59.2
+    ]
+   },
+   "properties": {
+    "sog": 14.0,
+    "navStat": 0,
+    "rot": 0,
+    "posAcc": true,
+    "raim": false,
+    "timestampExternal": 1757000008264,
+    "cog": 260,
+    "heading": 260
+   }
+  }
+ ],
+ "statique": {
+  "636092811": {
+   "name": "NORDIC ASTER",
+   "mmsi": "636092811",
+   "callsign": "D5QW4",
+   "imo": "9456712",
+   "dest": "KOTKA",
+   "type": "Cargo",
+   "type_code": 70,
+   "notable": false,
+   "loa": 183,
+   "beam": 27,
+   "draught": 8.8
+  },
+  "538007744": {
+   "name": "BALTIC TRADER",
+   "mmsi": "538007744",
+   "callsign": "V7XK9",
+   "imo": "9512034",
+   "dest": "HAMINA",
+   "type": "Cargo",
+   "type_code": 70,
+   "notable": false,
+   "loa": 142,
+   "beam": 22,
+   "draught": 7.1
+  },
+  "276019200": {
+   "name": "TALLINN CARRIER",
+   "mmsi": "276019200",
+   "callsign": "ESAB4",
+   "imo": "9388120",
+   "dest": "MUUGA",
+   "type": "Cargo",
+   "type_code": 70,
+   "notable": false,
+   "loa": 158,
+   "beam": 25,
+   "draught": 7.9
+  },
+  "273412500": {
+   "name": "VOLGA STAR",
+   "mmsi": "273412500",
+   "callsign": "UBRX2",
+   "imo": "9301884",
+   "dest": "PRIMORSK",
+   "type": "Pétrolier / chimiquier",
+   "type_code": 80,
+   "notable": false,
+   "loa": 228,
+   "beam": 32,
+   "draught": 12.1
+  },
+  "356214000": {
+   "name": "OCEAN MERIDIAN",
+   "mmsi": "356214000",
+   "callsign": "3FQP8",
+   "imo": "9601445",
+   "dest": "PORVOO",
+   "type": "Pétrolier / chimiquier",
+   "type_code": 80,
+   "notable": false,
+   "loa": 245,
+   "beam": 42,
+   "draught": 12.8
+  },
+  "232008811": {
+   "name": "CLYDE FORTUNE",
+   "mmsi": "232008811",
+   "callsign": "MDPZ5",
+   "imo": "9277341",
+   "dest": "HELSINKI",
+   "type": "Cargo",
+   "type_code": 70,
+   "notable": false,
+   "loa": 120,
+   "beam": 19,
+   "draught": 6.4
+  },
+  "219018300": {
+   "name": "DANA SIRIUS",
+   "mmsi": "219018300",
+   "callsign": "OWQC7",
+   "imo": "9455011",
+   "dest": "KOTKA",
+   "type": "Cargo",
+   "type_code": 70,
+   "notable": false,
+   "loa": 168,
+   "beam": 26,
+   "draught": 8.4
+  },
+  "265512000": {
+   "name": "GOTLAND SPIRIT",
+   "mmsi": "265512000",
+   "callsign": "SBFT3",
+   "imo": "9330217",
+   "dest": "SKOLDVIK",
+   "type": "Pétrolier / chimiquier",
+   "type_code": 80,
+   "notable": false,
+   "loa": 183,
+   "beam": 32,
+   "draught": 10.2
+  },
+  "230982000": {
+   "name": "STAR HELSINKI",
+   "mmsi": "230982000",
+   "callsign": "OJKL",
+   "imo": "9364722",
+   "dest": "TALLINN",
+   "type": "Navire à passagers",
+   "type_code": 60,
+   "notable": false,
+   "loa": 212,
+   "beam": 30,
+   "draught": 6.8
+  },
+  "276812000": {
+   "name": "MEGASTAR TLN",
+   "mmsi": "276812000",
+   "callsign": "ESJP",
+   "imo": "9773064",
+   "dest": "HELSINKI",
+   "type": "Navire à passagers",
+   "type_code": 60,
+   "notable": false,
+   "loa": 212,
+   "beam": 30,
+   "draught": 6.8
+  },
+  "230629000": {
+   "name": "FINLANDIA II",
+   "mmsi": "230629000",
+   "callsign": "OJXR",
+   "imo": "9214379",
+   "dest": "TALLINN",
+   "type": "Navire à passagers",
+   "type_code": 60,
+   "notable": false,
+   "loa": 212,
+   "beam": 30,
+   "draught": 6.8
+  },
+  "355901000": {
+   "name": "PACIFIC EMBER",
+   "mmsi": "355901000",
+   "callsign": "3EWQ2",
+   "imo": "9188214",
+   "dest": "ATTENTE",
+   "type": "Cargo",
+   "type_code": 70,
+   "notable": false,
+   "loa": 190,
+   "beam": 30,
+   "draught": 9.6
+  },
+  "477998100": {
+   "name": "HONG KONG PEARL",
+   "mmsi": "477998100",
+   "callsign": "VRQK8",
+   "imo": "9522377",
+   "dest": "ATTENTE",
+   "type": "Cargo",
+   "type_code": 70,
+   "notable": false,
+   "loa": 225,
+   "beam": 30,
+   "draught": 9.6
+  },
+  "230411000": {
+   "name": "PILOT HELSINKI",
+   "mmsi": "230411000",
+   "callsign": "OJPL",
+   "type": "Pilote",
+   "type_code": 50,
+   "notable": false,
+   "loa": 18,
+   "beam": 6,
+   "draught": 1.8
+  },
+  "230655000": {
+   "name": "TUG NEPTUN",
+   "mmsi": "230655000",
+   "callsign": "OJTG",
+   "type": "Remorqueur",
+   "type_code": 52,
+   "notable": false,
+   "loa": 32,
+   "beam": 11,
+   "draught": 4.2
+  },
+  "230877000": {
+   "name": "MERIVARTIO 12",
+   "mmsi": "230877000",
+   "callsign": "OJMV",
+   "type": "Police / autorité",
+   "type_code": 55,
+   "notable": true,
+   "loa": 48,
+   "beam": 9,
+   "draught": 2.8
+  },
+  "230201400": {
+   "name": "KALA III",
+   "mmsi": "230201400",
+   "callsign": "OJKA",
+   "type": "Pêche",
+   "type_code": 30,
+   "notable": false,
+   "loa": 22,
+   "beam": 7,
+   "draught": 2.5
+  },
+  "230744100": {
+   "name": "S/Y VEGA",
+   "mmsi": "230744100",
+   "callsign": "OJVG",
+   "type": "Voilier",
+   "type_code": 36,
+   "notable": false,
+   "loa": 14,
+   "beam": 4,
+   "draught": 2.2
+  },
+  "230119900": {
+   "name": "UUSIMAA",
+   "mmsi": "230119900",
+   "callsign": "OJUU",
+   "type": "Bâtiment militaire",
+   "type_code": 35,
+   "notable": true,
+   "loa": 72,
+   "beam": 11
+  },
+  "276444000": {
+   "name": "DREDGER MUUGA",
+   "mmsi": "276444000",
+   "callsign": "ESDM",
+   "imo": "9142006",
+   "dest": "MUUGA",
+   "type": "Drague / travaux sous-marins",
+   "type_code": 33,
+   "notable": false,
+   "loa": 86,
+   "beam": 18,
+   "draught": 5.2
+  },
+  "265998000": {
+   "name": "FAR AWAY",
+   "mmsi": "265998000",
+   "callsign": "SBZZ9",
+   "imo": "9111222",
+   "dest": "STOCKHOLM",
+   "type": "Cargo",
+   "type_code": 70,
+   "notable": false,
+   "loa": 150,
+   "beam": 24,
+   "draught": 8.0
+  }
+ }
+}
