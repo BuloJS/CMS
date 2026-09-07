@@ -29,14 +29,6 @@ RUN ./install.sh linux
 # sans échec s'il n'y a pas de requirements.txt à cet emplacement.
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt \
         2>/dev/null || true
-# Le Flask embarqué par OpenPLC_v3 est ancien et fait encore
-# `from jinja2 import Markup, escape` — un ré-export que Jinja2 a retiré
-# en 3.1.0 (mars 2023). requirements.txt ne plafonne pas Jinja2, donc pip
-# installe la dernière version et casse cet import au démarrage du serveur
-# web : ImportError: cannot import name 'Markup' from 'jinja2'. Vérifié :
-# 3.0.3 fonctionne, 3.1.x échoue. On force donc la dernière version
-# compatible plutôt que la dernière tout court.
-RUN pip3 install --no-cache-dir --break-system-packages "jinja2<3.1"
 
 # Le programme de conduite du refroidissement. À charger depuis l'interface
 # web (Programs -> Upload) puis à compiler : OpenPLC attend un fichier .st
