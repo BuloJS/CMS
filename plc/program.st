@@ -16,6 +16,13 @@
 *)
 
 PROGRAM ipms
+  (* matiec exige que les variables localisées (AT) et les variables
+     internes soient déclarées dans des blocs VAR distincts : dès qu'une
+     ligne sans AT suit une ligne avec AT dans le même bloc, son analyseur
+     continue d'exiger AT et rejette la suite avec « invalid located
+     variable declaration », puis en cascade toutes les instructions qui
+     utilisent ces variables plus loin dans le programme. Vérifié en
+     compilant avec le iec2c réellement utilisé par OpenPLC_v3. *)
   VAR
     (* --- entrées terrain, lues par l'automate maître --- *)
     temp_brute   AT %IW100  : INT;     (* dixièmes de °C   *)
@@ -33,7 +40,9 @@ PROGRAM ipms
     cms_pompe    AT %QX0.1  : BOOL;
     cms_al_temp  AT %QX0.2  : BOOL;
     cms_al_trip  AT %QX0.3  : BOOL;
+  END_VAR
 
+  VAR
     (* --- interne --- *)
     seuil_haut   : BOOL;
     tempo_alarme : TON;
