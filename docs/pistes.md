@@ -263,3 +263,16 @@ Le build Docker n'a jamais été exécuté — pas de démon disponible au momen
 l'écriture. Le Dockerfile ne fait que copier des fichiers dans
 `python:3.11-slim` sans installation, mais c'est à vérifier au premier
 lancement.
+
+**Confirmé en pratique** : `plc/Dockerfile`, qui construit OpenPLC depuis les
+sources, plantait au démarrage avec `ModuleNotFoundError: No module named
+'serial'`. Cause probable : sur Debian bookworm, `pip3 install` sans
+`--break-system-packages` échoue (PEP 668, environnement « externally
+managed ») ; `install.sh` d'OpenPLC_v3 installe ses dépendances Python par
+pip sans cette option et sans `set -e`, donc l'échec passe inaperçu au build
+et n'apparaît qu'au lancement du serveur web. Corrigé en installant
+`python3-serial` par `apt` (contourne pip entièrement pour ce module) et en
+rejouant `pip3 install --break-system-packages -r requirements.txt` en
+filet de sécurité pour le reste. **Non vérifié par une construction réelle
+ici** — toujours pas de démon Docker disponible ; à confirmer au premier
+`docker compose --profile plc up --build` de quelqu'un qui en a un.
