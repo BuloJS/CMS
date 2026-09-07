@@ -273,6 +273,20 @@ pip sans cette option et sans `set -e`, donc l'échec passe inaperçu au build
 et n'apparaît qu'au lancement du serveur web. Corrigé en installant
 `python3-serial` par `apt` (contourne pip entièrement pour ce module) et en
 rejouant `pip3 install --break-system-packages -r requirements.txt` en
-filet de sécurité pour le reste. **Non vérifié par une construction réelle
-ici** — toujours pas de démon Docker disponible ; à confirmer au premier
-`docker compose --profile plc up --build` de quelqu'un qui en a un.
+filet de sécurité pour le reste. Confirmé fonctionnel côté build par
+quelqu'un ayant un démon Docker : l'image se construit.
+
+**Deuxième plantage rencontré au lancement, résolu** :
+`ImportError: cannot import name 'Markup' from 'jinja2'`. Même famille de
+cause que le premier — `requirements.txt` d'OpenPLC_v3 ne plafonne pas
+Jinja2, donc pip installe la dernière version (3.1.6 au moment de
+l'écriture) ; le Flask ancien embarqué par ce projet fait encore
+`from jinja2 import Markup, escape`, un ré-export retiré de Jinja2 en
+3.1.0 (mars 2023). Vérifié dans un environnement isolé ici (pas dans
+l'image OpenPLC elle-même, faute de démon Docker) : `jinja2==3.0.3` importe
+sans erreur, `3.1.6` échoue à l'identique de la trace observée. Corrigé en
+forçant `pip3 install "jinja2<3.1"` après le reste des installations, pour
+que la dernière version *compatible* l'emporte sur la dernière tout court.
+**Le correctif lui-même reste à confirmer par une reconstruction réelle**
+(`docker compose --profile plc build --no-cache openplc`) — la vérification
+n'a porté que sur la compatibilité Flask/Jinja2 en dehors de l'image.
