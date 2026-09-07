@@ -9,11 +9,20 @@ refroidit les baies radar. Si elle tombe, la température monte, l'émission
 est déclassée, le SNR chute — et l'horizon de détection rétrécit à l'écran.
 Un défaut d'automate réduit physiquement la capacité de veille.
 """
+import time
+
 from .geo import approach
 
 T_NOMINAL = 42.0
 T_DERATE = 70.0      # au-delà, déclassement progressif de l'émission
 T_TRIP = 88.0        # arrêt d'urgence de l'émetteur
+
+# Plafond du pas de temps appliqué à un ingest(). Sans lui, le premier appel
+# suivant une coupure Modbus verrait un dt énorme (le temps de la coupure),
+# et approach() — dont le facteur est min(1, dt/tau) — referait sauter la
+# valeur d'un coup. C'est exactement le saut qu'on cherche à éviter : le
+# plafond ramène ce premier pas à la taille d'un pas normal.
+_DT_MAX = 1.0
 
 
 class Platform:
@@ -24,6 +33,7 @@ class Platform:
         self.rpm = 15.0
         self.source = "SIMULÉ"
         self.tripped = False
+        self._last_ingest = None   # horodatage du dernier ingest() réussi
 
     def step(self, dt):
         if self.source != "SIMULÉ":
@@ -33,11 +43,35 @@ class Platform:
         self.press = approach(self.press, 4.2 if self.pump else 0.6, 12.0, dt)
 
     def ingest(self, regs, coils):
-        """Reprend l'état depuis les registres OpenPLC (voir plc/modbus-map.md)."""
+        """Reprend l'état depuis les registres OpenPLC (voir plc/modbus-map.md).
+
+        Les registres lus sont des CIBLES, pas des valeurs à recopier
+        telles quelles. Une affectation brute ferait sauter l'affichage
+        instantanément de la dernière valeur du modèle logiciel — parfois
+        une alarme au maximum, après une coupure prolongée — à la lecture
+        réelle, en contradiction directe avec le principe qui vaut pour tout
+        le reste du projet : une valeur qui saute d'un coup se repère
+        comme fausse, une valeur qui dérive lentement est crédible. On
+        applique donc la même inertie que le modèle logiciel (`step`), avec
+        les mêmes constantes de temps — la coupure et le mode dégradé ne
+        doivent pas se voir dans la manière dont la plateforme réagit,
+        seulement dans le bandeau de source.
+        """
+        now = time.monotonic()
+        dt = min(now - self._last_ingest, _DT_MAX) if self._last_ingest else 0.2
+        self._last_ingest = now
+
         self.source = "MODBUS"
-        self.temp = regs[0] / 10.0
-        self.press = regs[1] / 100.0
-        self.rpm = regs[2] / 10.0
+        cible_temp = regs[0] / 10.0
+        cible_press = regs[1] / 100.0
+        cible_rpm = regs[2] / 10.0
+        tau_temp = 55.0 if self.pump else 90.0
+        self.temp = approach(self.temp, cible_temp, tau_temp, dt)
+        self.press = approach(self.press, cible_press, 12.0, dt)
+        self.rpm = approach(self.rpm, cible_rpm, 3.0, dt)
+        # Le contacteur de pompe est un signal tout-ou-rien : rien à lisser,
+        # une pompe est en marche ou non, instantanément — comme un vrai
+        # relais. C'est délibérément la seule affectation brute qui reste.
         self.pump = bool(coils[1])
 
     @property

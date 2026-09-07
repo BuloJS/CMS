@@ -339,6 +339,15 @@ l'horizon de détection à l'écran**. Un défaut d'automate diminue physiquemen
 la capacité de veille. C'est le seul point de couplage entre conduite de
 plateforme et conduite du combat, et il est volontairement unique.
 
+**Les registres Modbus lus sont des cibles, pas des valeurs à recopier.**
+Une coupure prolongée en mode logiciel peut laisser la température au
+maximum ; quand l'automate revient, `ingest()` fait dériver la valeur
+affichée vers la lecture réelle avec la même inertie que le modèle logiciel
+(mêmes constantes de temps), au lieu de sauter dessus d'un coup — sans quoi
+le retour de l'automate se verrait comme un artefact plutôt que comme une
+plateforme qui refroidit. Seul le contacteur de pompe reste instantané :
+c'est un relais tout-ou-rien, pas une masse thermique.
+
 Voir [`plc/modbus-map.md`](plc/modbus-map.md).
 
 ## Scénarios
