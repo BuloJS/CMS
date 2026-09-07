@@ -404,8 +404,9 @@ duplication de code entre la version connectée et la version hors ligne.
 
 ### Langue
 
-La console bascule entre français et anglais par le bouton du bandeau, ou
-suit la langue du navigateur au premier chargement. Le choix est mémorisé.
+La console s'ouvre **en anglais** — c'est la langue de travail du domaine, et
+elle est faite pour être ouverte par n'importe qui. Le bouton du bandeau
+bascule en français ; le choix est mémorisé et survit au rechargement.
 
 Ce n'était pas qu'une affaire de dictionnaire. Le simulateur fabriquait des
 phrases françaises — journal, anomalies, types de navire — pour un écran

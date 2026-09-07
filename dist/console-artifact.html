@@ -731,8 +731,11 @@ const L = {
   },
 };
 
-let LANG = (localStorage.getItem("cms-lang")
-            || (navigator.language||"fr").slice(0,2)) === "en" ? "en" : "fr";
+/* Anglais par défaut, quelle que soit la langue du navigateur : la console
+   est faite pour être ouverte par n'importe qui, et l'anglais est la langue
+   de travail du domaine. Le choix explicite de l'opérateur l'emporte et
+   survit au rechargement. */
+let LANG = localStorage.getItem("cms-lang") === "fr" ? "fr" : "en";
 
 /* Le français est sa propre clé : un libellé non traduit se voit. */
 const t = s => (LANG === "en" && EN[s] !== undefined) ? EN[s] : s;
