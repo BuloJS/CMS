@@ -3,6 +3,15 @@
 # Modbus n'a ni authentification ni chiffrement : c'est une propriété du
 # protocole. Le bus reste donc sur le réseau interne du compose, et seule
 # l'interface web d'OpenPLC est publiée sur l'hôte.
+#
+# Port hôte de cette interface web configurable via OPENPLC_WEB_PORT (8080
+# par défaut) : une instance OpenPLC autonome tournant déjà sur 8080 sur la
+# machine ferait échouer le démarrage sur « port is already allocated »
+# sinon. Le port interne du conteneur ne change pas — seul le port hôte est
+# ajustable — donc rien d'autre à modifier.
+#
+#   OPENPLC_WEB_PORT=8081 docker compose -f docker-compose.yml \
+#     -f docker-compose.plc.yml --profile plc up --build
 services:
   cms:
     environment:
@@ -16,7 +25,7 @@ services:
     build: ./plc
     image: cms-lab/openplc
     ports:
-      - "8080:8080"          # interface web de l'automate (openplc / openplc)
+      - "${OPENPLC_WEB_PORT:-8080}:8080"   # interface web (openplc / openplc)
     expose:
       - "502"                # serveur Modbus : interne, jamais publié
     restart: unless-stopped

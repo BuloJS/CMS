@@ -47,6 +47,16 @@ Ajoute OpenPLC (interface web sur `:8080`, identifiants `openplc`/`openplc`,
 **à changer**) et les capteurs de terrain. Charger `plc/program.st` depuis
 l'interface, le compiler, démarrer l'automate.
 
+Si le port 8080 est déjà pris sur la machine hôte (une instance OpenPLC
+autonome par exemple), `docker compose` refuse de démarrer avec
+`port is already allocated`. Reporter l'interface web sur un autre port
+hôte, sans rien changer d'autre :
+
+```bash
+OPENPLC_WEB_PORT=8081 docker compose -f docker-compose.yml \
+  -f docker-compose.plc.yml --profile plc up --build
+```
+
 Si l'automate n'est pas joignable, **rien ne casse** : le pont dégrade, l'IPMS
 repasse sur son modèle logiciel et la console affiche `SIMULÉ` au lieu de
 `MODBUS`. La stack par défaut est donc utilisable immédiatement.
