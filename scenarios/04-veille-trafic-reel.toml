@@ -13,6 +13,24 @@ le bilan de liaison. Les petits mobiles — voiliers, pilotines, bateaux de pêc
 n'apparaissent que de près, et leurs pistes se dégradent dès qu'un plot manque.
 La corrélation AIS renseigne l'identité des coopératifs et laisse les autres en
 inconnu."""
+
+# Traduction anglaise, facultative : la console la sert aux
+# opérateurs qui ne lisent pas le français.
+name_en = "Watch in real traffic"
+brief_en = """No scripted contacts. Own ship keeps watch in the middle of the Gulf
+of Finland, on the Helsinki–Tallinn lane, and the console shows traffic received
+by AIS, passed through the sensor model: R⁴ radar equation, radio horizon,
+measurement noise, tracking. What is on screen is not AIS truth, it is what the
+ship perceives.
+
+The default source is the SYNTHETIC snapshot shipped with the repository, so the
+scenario runs without a network — the AIS strip says so in plain sight. For the
+real public feed: AIS_SOURCE=digitraffic python3 services/server.py"""
+attendu_en = """Large ships appear at the horizon, limited by it rather than by the
+link budget. Small craft — sailing boats, pilot vessels, fishing boats — only
+show up close, and their tracks degrade as soon as a plot is missed. AIS
+correlation identifies the cooperative ones and leaves the rest unknown."""
+
 seed = 1
 duration = 3600
 

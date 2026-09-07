@@ -82,7 +82,8 @@ class Sim:
             self.engine.doctrine["auto_id"] = True
             self.name = path.name
             self.meta = {"scenario": sc["name"], "brief": sc["brief"],
-                         "attendu": sc["attendu"], "fichier": path.name}
+                         "attendu": sc["attendu"], "fichier": path.name,
+                         "en": sc.get("en") or {}}
             self.ais_cfg = self._resoudre_ais(sc)
         return True
 
@@ -125,7 +126,8 @@ class Sim:
                 if tr:
                     tr.aff, tr.classified_by = c.get("aff", "unknown"), "opérateur"
                     e.log("info", "%s — classée %s par l'opérateur"
-                          % (tr.num, tr.aff.upper()))
+                          % (tr.num, tr.aff.upper()),
+                          code="classee_operateur", piste=tr.num, aff=tr.aff)
             elif k == "engage":
                 return {"ok": e.engage(c.get("piste"), c.get("effecteur"))}
             elif k == "decoys":
@@ -133,7 +135,9 @@ class Sim:
             elif k == "doctrine":
                 e.doctrine[c.get("cle")] = bool(c.get("valeur"))
                 e.log("info", "Doctrine %s : %s" % (c.get("cle"),
-                      "armée" if c.get("valeur") else "désarmée"))
+                      "armée" if c.get("valeur") else "désarmée"),
+                      code="doctrine", cle=c.get("cle"),
+                      armee=bool(c.get("valeur")))
             elif k == "order":
                 if "course" in c:
                     e.own.ordered_course = float(c["course"]) % 360
@@ -144,7 +148,8 @@ class Sim:
                 e.platform.pump = bool(c.get("valeur", True))
                 e.log("crit" if not e.platform.pump else "info",
                       "IPMS — pompe %s depuis le poste instructeur"
-                      % ("arrêtée" if not e.platform.pump else "relancée"))
+                      % ("arrêtée" if not e.platform.pump else "relancée"),
+                      code="pompe_instructeur", marche=bool(e.platform.pump))
             elif k == "ais_capture":
                 return self.lancer_capture()
             elif k == "rate":
@@ -192,10 +197,13 @@ class Sim:
                     if r["ok"]:
                         self.engine.log("info", "AIS — instantané capturé : "
                                         "%d positions, %d navires au statique"
-                                        % (r["n"], r["statique"]))
+                                        % (r["n"], r["statique"]),
+                                        code="capture_ok", n=r["n"],
+                                        statique=r["statique"])
                     else:
                         self.engine.log("warn", "AIS — capture impossible : %s"
-                                        % r["erreur"])
+                                        % r["erreur"],
+                                        code="capture_ko", erreur=r["erreur"])
             # Faire relire l'instantané au pont : sans cela la console
             # continuerait d'afficher l'ancien jusqu'au prochain changement
             # de scénario. Écrire cfg depuis ce fil est sans danger — au pire

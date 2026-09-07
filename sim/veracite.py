@@ -75,8 +75,47 @@ LOA_COMMERCE = 120.0            # m
 SILENCE_S = 120.0
 
 
-def _anomalie(code, libelle, detail, t):
-    return {"code": code, "libelle": libelle, "detail": detail, "depuis": round(t, 1)}
+# Rendu français des anomalies. Il vit ici parce que la ligne de commande et
+# le journal du moteur en ont besoin — mais ce n'est **pas** ce que la console
+# affiche : elle reçoit le code et les paramètres, et rend dans sa propre
+# langue. Le cœur ne doit pas fabriquer des phrases pour un écran qu'il ne
+# connaît pas.
+LIBELLES_FR = {
+    "ecart_position": "Position AIS incohérente",
+    "ecart_cinematique": "Cinématique AIS incohérente",
+    "statut_incoherent": "Statut de navigation contredit",
+    "gabarit_incoherent": "Gabarit incompatible avec la vitesse",
+    "mmsi_invalide": "MMSI hors plage attribuable",
+    "extinction": "Émission AIS interrompue",
+}
+
+DETAILS_FR = {
+    "ecart_position":
+        "%(d).0f m d'écart avec le plot radar, pour un seuil de %(seuil).0f m",
+    "ecart_cinematique":
+        "déclare %(sog).1f kt au %(cog)03.0f°, mesuré %(v).1f kt au %(crs)03.0f° "
+        "(%(dv).1f kt d'écart en vecteur, seuil %(seuil).1f kt)",
+    "statut_incoherent":
+        "se déclare « %(statut)s » et fait route à %(v).1f kt",
+    "gabarit_incoherent":
+        "déclare %(loa)d m de long et fait %(v).0f kt",
+    "mmsi_invalide":
+        "%(mmsi)s — indicatif de pays inexistant",
+    "extinction":
+        "silencieux depuis %(silence).0f s, toujours à %(dist).1f NM et tenu au radar",
+}
+
+
+def _anomalie(code, t, **params):
+    """Une anomalie porte son code et ses chiffres, pas une phrase.
+
+    Le libellé et le détail français sont rendus ici pour le journal et la
+    ligne de commande ; la console, elle, reformate à partir de `params`
+    dans la langue de son opérateur.
+    """
+    return {"code": code, "depuis": round(t, 1), "params": params,
+            "libelle": LIBELLES_FR.get(code, code),
+            "detail": DETAILS_FR[code] % params if code in DETAILS_FR else ""}
 
 
 def mmsi_valide(mmsi):
@@ -112,10 +151,8 @@ def controler(tr, rec, t):
         seuil = max(ECART_SIGMA * math.hypot(ex, ey), ECART_PLANCHER)
         d = math.hypot(rec["x"] - tx, rec["y"] - ty)
         if d > seuil:
-            out.append(_anomalie(
-                "ecart_position", "Position AIS incohérente",
-                "%.0f m d'écart avec le plot radar, pour un seuil de %.0f m"
-                % (d, seuil), t))
+            out.append(_anomalie("ecart_position", t,
+                                 d=round(d), seuil=round(seuil)))
 
     # Aucune accusation fondée sur la vitesse tant que la vitesse n'est pas
     # connue. C'est la seule garde qui compte ici, et `quality` ne la donne
@@ -132,33 +169,28 @@ def controler(tr, rec, t):
         seuil = max(DV_SIGMA * tr.vel_sigma, DV_PLANCHER)
         if dv > seuil:
             out.append(_anomalie(
-                "ecart_cinematique", "Cinématique AIS incohérente",
-                "déclare %.1f kt au %03.0f°, mesuré %.1f kt au %03.0f° "
-                "(%.1f kt d'écart en vecteur, seuil %.1f kt)"
-                % (float(sog), float(cog), tr.speed / KT, tr.course,
-                   dv / KT, seuil / KT), t))
+                "ecart_cinematique", t,
+                sog=round(float(sog), 1), cog=round(float(cog)),
+                v=round(tr.speed / KT, 1), crs=round(tr.course),
+                dv=round(dv / KT, 1), seuil=round(seuil / KT, 1)))
 
     # -- la déclaration se contredit elle-même ---------------------------
     ns = rec.get("navstat_code")
     if vitesse_sue and ns in STATUTS_IMMOBILES and tr.speed > VITESSE_IMMOBILE:
         out.append(_anomalie(
-            "statut_incoherent", "Statut de navigation contredit",
-            "se déclare « %s » et fait route à %.1f kt"
-            % (rec.get("navstat", "immobile"), tr.speed / KT), t))
+            "statut_incoherent", t, statut=rec.get("navstat", "immobile"),
+            statut_code=ns, v=round(tr.speed / KT, 1)))
 
     loa = rec.get("loa")
     if vitesse_sue and loa and loa >= LOA_COMMERCE \
             and tr.speed > VITESSE_MAX_COMMERCE:
-        out.append(_anomalie(
-            "gabarit_incoherent", "Gabarit incompatible avec la vitesse",
-            "déclare %d m de long et fait %.0f kt" % (loa, tr.speed / KT), t))
+        out.append(_anomalie("gabarit_incoherent", t,
+                             loa=int(loa), v=round(tr.speed / KT)))
 
     # -- identité ---------------------------------------------------------
     mmsi = rec.get("mmsi")
     if mmsi and not mmsi_valide(mmsi):
-        out.append(_anomalie(
-            "mmsi_invalide", "MMSI hors plage attribuable",
-            "%s — indicatif de pays inexistant" % mmsi, t))
+        out.append(_anomalie("mmsi_invalide", t, mmsi=str(mmsi)))
 
     return out
 
@@ -176,10 +208,8 @@ def extinction(tr, t, portee_vhf_m, distance_m):
     silence = t - tr.ais_vu
     if silence < SILENCE_S:
         return None
-    return _anomalie(
-        "extinction", "Émission AIS interrompue",
-        "silencieux depuis %.0f s, toujours à %.1f NM et tenu au radar"
-        % (silence, distance_m / NM), t)
+    return _anomalie("extinction", t, silence=round(silence),
+                     dist=round(distance_m / NM, 1))
 
 
 def gravite(anomalies):

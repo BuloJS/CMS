@@ -7,6 +7,19 @@ attendu = """Interrogation IFF, corrélation AIS, classement en neutre du trafic
 marchand. La vedette qui persiste après manœuvre d'évitement et qui illumine en
 conduite de tir bascule hostile : la solution proposée est l'ARTILLERIE 76 mm,
 pas le SAM — cible de surface, courte distance, effet gradué."""
+
+# Traduction anglaise, facultative : la console la sert aux
+# opérateurs qui ne lisent pas le français.
+name_en = "Strait — non-cooperative approach"
+brief_en = """Reduced-speed transit in a narrow traffic lane, dense and cooperative
+merchant traffic. Two unidentified fast craft leave the coast and close on own
+ship. The issue is not opening fire: it is identification in an environment
+where a mistake is paid for."""
+attendu_en = """IFF interrogation, AIS correlation, merchant traffic classified
+neutral. The craft that persists after the avoidance manoeuvre and illuminates
+with fire control turns hostile: the proposed solution is the 76 mm GUN, not the
+SAM — surface target, short range, graduated effect."""
+
 seed = 7314
 duration = 600
 

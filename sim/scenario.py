@@ -26,6 +26,11 @@ def load(path):
         "name": data.get("name", Path(path).stem),
         "brief": data.get("brief", ""),
         "attendu": data.get("attendu", ""),
+        # Traduction facultative. Un scénario sans elle s'affiche en
+        # français quelle que soit la langue de la console — mieux vaut du
+        # texte dans la mauvaise langue qu'un cadre vide.
+        "en": {k[:-3]: v for k, v in data.items()
+               if k.endswith("_en") and isinstance(v, str)},
         "seed": int(data.get("seed", 1)),
         "duration": float(data.get("duration", 900)),
         "ownship": data.get("ownship", {}),

@@ -11,6 +11,22 @@ contact toujours tenu au radar et à portée VHF. La position falsifiée produit
 un écart au-delà de trois sigma de la piste, et la déclaration cesse de valoir
 classement en neutre — un fraudeur n'obtient pas gratuitement le statut que sa
 fraude vise. Le TEWA en fait un facteur de doute, jamais une preuve."""
+
+# Traduction anglaise, facultative : la console la sert aux
+# opérateurs qui ne lisent pas le français.
+name_en = "Doubtful identity in a merchant lane"
+brief_en = """Narrow Gulf of Finland lane, dense merchant traffic. Three contacts do
+not behave like the others: one that has never transmitted, one that switches off
+its transponder mid-transit, and one whose declared position does not fall where
+the radar sees it. None is hostile in itself. The issue is telling them apart
+from honest traffic without turning a tired GPS into a threat."""
+attendu_en = """The silent contact stays UNKNOWN: nothing classifies it, and that is
+correct. The switch-off is established after two minutes of silence on a contact
+still held on radar and within VHF range. The falsified position produces an
+error beyond five sigma of the track, and the declaration stops being worth a
+neutral classification — a spoofer does not get the status its spoofing aims for.
+TEWA makes it a factor of doubt, never a proof."""
+
 seed = 4021
 duration = 900
 

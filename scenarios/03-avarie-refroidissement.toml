@@ -8,6 +8,17 @@ réduit physiquement la capacité de veille. La détection des missiles se fait 
 tard, la butée de tir SAM peut passer en négatif, et la défense se joue au CIWS
 et aux leurres. La bonne réaction est côté IPMS — relancer la pompe — autant que
 côté CMS."""
+
+# Traduction anglaise, facultative : la console la sert aux
+# opérateurs qui ne lisent pas le français.
+name_en = "Cooling failure under attack"
+brief_en = """Same attack as the saturation scenario, but the chilled-water pump
+stops at 60 s. Guide temperature rises, transmission is derated, SNR drops — and
+the detection horizon shrinks on screen."""
+attendu_en = """Late detection, tracks dropping out. The right reaction is as much
+on the platform side as on the combat side: the fault physically reduces the
+watch capability."""
+
 seed = 4212
 duration = 560
 

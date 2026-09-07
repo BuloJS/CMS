@@ -43,6 +43,8 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 .stat i{font-style:normal;font-size:9.5px;letter-spacing:.15em;color:var(--dimmest);font-family:var(--f-disp)}
 .stat b{font-family:var(--f-mono);font-size:14px;font-weight:500;color:#e8f4ff;font-variant-numeric:tabular-nums}
 .stat b small{font-size:9.5px;color:var(--dim);margin-left:1px}
+.lang{align-self:center;margin-right:10px;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;padding:4px 9px;border:1px solid var(--line);border-radius:2px;background:transparent;color:var(--dim);cursor:pointer}
+.lang:hover{color:#e8f4ff;border-color:var(--phos)}
 .posture{display:flex;align-items:center;padding:0 14px;gap:9px;background:var(--panel-2)}
 .posture .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px currentColor}
 .posture span{font-family:var(--f-disp);font-size:13px;letter-spacing:.18em}
@@ -196,43 +198,44 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
   <div class="topbar">
     <div class="brand">
       <div class="mark"></div>
-      <div><b>MFCL</b><span>CONSOLE TACTIQUE</span></div>
+      <div><b>MFCL</b><span data-i18n>CONSOLE TACTIQUE</span></div>
       <span class="tag rejeu" id="srctag">CONNEXION…</span>
     </div>
     <div class="statestrip">
-      <div class="stat"><i>TEMPS SIM</i><b id="clk">000:00</b></div>
-      <div class="stat"><i>PORTEUR — ROUTE</i><b id="own-crs">---<small>°</small></b></div>
-      <div class="stat"><i>VITESSE</i><b id="own-spd">--<small>kt</small></b></div>
-      <div class="stat"><i>PISTES</i><b id="n-trk">0</b></div>
+      <div class="stat"><i data-i18n>TEMPS SIM</i><b id="clk">000:00</b></div>
+      <div class="stat"><i data-i18n>PORTEUR — ROUTE</i><b id="own-crs">---<small>°</small></b></div>
+      <div class="stat"><i data-i18n>VITESSE</i><b id="own-spd">--<small>kt</small></b></div>
+      <div class="stat"><i data-i18n>PISTES</i><b id="n-trk">0</b></div>
       <div class="stat"><i>SAM</i><b id="n-sam">--</b></div>
-      <div class="stat"><i>LEURRES</i><b id="n-dec">--</b></div>
+      <div class="stat"><i data-i18n>LEURRES</i><b id="n-dec">--</b></div>
       <div class="stat"><i>IPMS</i><b id="ipms-src">—</b></div>
       <div class="stat" id="stat-ais" hidden><i>AIS</i><b id="ais-src">—</b></div>
-      <div class="stat"><i>PUISS. RADAR</i><b id="radpwr">---<small>%</small></b></div>
+      <div class="stat"><i data-i18n>PUISS. RADAR</i><b id="radpwr">---<small>%</small></b></div>
     </div>
+    <button class="lang" id="lang" title="Langue / Language">EN</button>
     <div class="posture"><span class="dot" id="pdot"></span><span id="posture">VEILLE</span></div>
   </div>
 
   <div class="main">
     <div class="rail">
       <section class="pane grow">
-        <header>Menaces <em id="thr-count">—</em></header>
+        <header><span data-i18n>Menaces</span> <em id="thr-count">—</em></header>
         <div class="body" id="threats"></div>
       </section>
       <section class="pane grow">
-        <header>Solutions d'engagement <em id="sol-count">—</em></header>
+        <header><span data-i18n>Solutions d'engagement</span> <em id="sol-count">—</em></header>
         <div class="body" id="solutions"></div>
       </section>
     </div>
 
     <div class="scopewrap">
       <canvas id="scope"></canvas>
-      <div class="ov tl">VEILLE AIR/SURFACE<br><u id="sweep-lbl">ROTATION 15 tr/min</u>MOUVEMENT RELATIF</div>
-      <div class="ov tr" id="cursor-ro">GIS —— · DIST ——</div>
-      <div class="ov bl">NORD HAUT<br><span id="ring-lbl">ANNEAUX 6.25 NM</span></div>
+      <div class="ov tl"><span data-i18n>VEILLE AIR/SURFACE</span><br><u id="sweep-lbl" data-i18n>ROTATION 15 tr/min</u><span data-i18n>MOUVEMENT RELATIF</span></div>
+      <div class="ov tr" id="cursor-ro"></div>
+      <div class="ov bl"><span data-i18n>NORD HAUT</span><br><span id="ring-lbl">ANNEAUX 6.25 NM</span></div>
       <div class="vide" id="vide" hidden></div>
       <div class="brief" id="brief"></div>
-      <div class="rangepad" role="group" aria-label="Échelle de portée">
+      <div class="rangepad" role="group" aria-label="Échelle de portée" data-i18n-label>
         <button data-r="5">5</button><button data-r="10">10</button>
         <button data-r="25" aria-pressed="true">25</button><button data-r="50">50</button><button data-r="100">100</button>
       </div>
@@ -240,36 +243,36 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 
     <div class="rail">
       <section class="pane">
-        <header>Piste accrochée <em id="hook-q">—</em></header>
+        <header><span data-i18n>Piste accrochée</span> <em id="hook-q">—</em></header>
         <div id="hook-body" class="empty">AUCUNE PISTE ACCROCHÉE<br>CLIQUER UN PLOT OU UNE MENACE</div>
       </section>
       <section class="pane">
-        <header>IPMS — plateforme <em id="ipms-em">—</em></header>
+        <header><span data-i18n>IPMS — plateforme</span> <em id="ipms-em">—</em></header>
         <div class="sensors" id="sensors"></div>
       </section>
       <section class="pane grow">
-        <header>Journal <em id="ev-count">—</em></header>
+        <header><span data-i18n>Journal</span> <em id="ev-count">—</em></header>
         <div class="body" id="events"></div>
       </section>
     </div>
   </div>
 
   <div class="softkeys">
-    <button class="sk" id="sk-hook" disabled><u>F1</u><span>DÉCROCHER</span></button>
+    <button class="sk" id="sk-hook" disabled><u>F1</u><span data-i18n>DÉCROCHER</span></button>
     <button class="sk" id="sk-ebl"><u>F5</u><span>EBL / VRM</span></button>
-    <button class="sk" id="sk-trails" aria-pressed="true"><u>F6</u><span>TRACES</span></button>
-    <button class="sk" id="sk-ell" aria-pressed="true"><u>F7</u><span>INCERTITUDE</span></button>
-    <button class="sk" id="sk-decoy"><u>F8</u><span>LEURRES</span></button>
-    <button class="sk" id="sk-autosam"><u>F9</u><span>SAM AUTO</span></button>
+    <button class="sk" id="sk-trails" aria-pressed="true"><u>F6</u><span data-i18n>TRACES</span></button>
+    <button class="sk" id="sk-ell" aria-pressed="true"><u>F7</u><span data-i18n>INCERTITUDE</span></button>
+    <button class="sk" id="sk-decoy"><u>F8</u><span data-i18n>LEURRES</span></button>
+    <button class="sk" id="sk-autosam"><u>F9</u><span data-i18n>SAM AUTO</span></button>
     <button class="sk sim" id="sk-pump"><u>F10</u><span>ARRÊT POMPE</span></button>
     <button class="sk sim" id="sk-capture"><u>F2</u><span>CAPTURE AIS</span></button>
     <div class="foot-sel">
-      <label for="sel-sc">SCÉNARIO</label>
+      <label for="sel-sc" data-i18n>SCÉNARIO</label>
       <select id="sel-sc"></select>
-      <button class="act" id="sk-restart">REJOUER</button>
-      <label for="sel-rate">VITESSE</label>
+      <button class="act" id="sk-restart" data-i18n>REJOUER</button>
+      <label for="sel-rate" data-i18n>VITESSE</label>
       <select id="sel-rate">
-        <option value="0">pause</option><option value="1" selected>x1</option>
+        <option value="0" data-i18n>pause</option><option value="1" selected>x1</option>
         <option value="4">x4</option><option value="10">x10</option>
       </select>
     </div>
@@ -282,6 +285,222 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const AFF = {friend:{c:"#5fb8ff",l:"AMI"}, hostile:{c:"#ff5566",l:"HOSTILE"},
              neutral:{c:"#43d98a",l:"NEUTRE"}, unknown:{c:"#ffd24d",l:"INCONNU"}};
+
+/* ------------------------------------------------------------------ *
+ * Langue.
+ *
+ * Le français est la langue source : chaque chaîne est sa propre clé, et
+ * une clé absente du dictionnaire retombe sur elle-même. Un oubli donne
+ * donc du français au milieu de l'anglais — visible, réparable, et jamais
+ * un trou dans l'écran.
+ *
+ * Le cœur de simulation, lui, n'envoie plus de phrases : le journal porte
+ * un code et des paramètres, les anomalies aussi, les types de navire et
+ * les statuts de navigation arrivent en codes normalisés. C'est la console
+ * qui met en mots — ce qui est sa place, et ce qui rend la traduction
+ * possible sans toucher au simulateur.
+ * ------------------------------------------------------------------ */
+const EN = {
+  // -- bandeau et cadres
+  "CONSOLE TACTIQUE":"TACTICAL CONSOLE", "TEMPS SIM":"SIM TIME",
+  "PORTEUR — ROUTE":"OWN SHIP — COURSE", "VITESSE":"SPEED", "PISTES":"TRACKS",
+  "LEURRES":"DECOYS", "PUISS. RADAR":"RADAR PWR", "Menaces":"Threats",
+  "Solutions d'engagement":"Engagement solutions", "Piste accrochée":"Hooked track",
+  "IPMS — plateforme":"IPMS — platform", "Journal":"Log",
+  "VEILLE AIR/SURFACE":"AIR/SURFACE SEARCH", "MOUVEMENT RELATIF":"RELATIVE MOTION",
+  "NORD HAUT":"NORTH UP", "Échelle de portée":"Range scale",
+  "VEILLE":"WATCH", "ENGAGEMENT":"ENGAGEMENT", "PLATEFORME DÉGRADÉE":"PLATFORM DEGRADED",
+  "SIMULATION EN DIRECT":"LIVE SIMULATION", "REJEU — ENREGISTREMENT":"REPLAY — RECORDING",
+  "FLUX INTERROMPU":"FEED LOST", "CONNEXION…":"CONNECTING…",
+  // -- touches
+  "DÉCROCHER":"UNHOOK", "TRACES":"TRAILS", "INCERTITUDE":"UNCERTAINTY",
+  "SAM AUTO":"AUTO SAM", "ARRÊT POMPE":"STOP PUMP", "RELANCER POMPE":"RESTART PUMP",
+  "CAPTURE AIS":"AIS CAPTURE", "CAPTURE…":"CAPTURING…", "CAPTURE KO":"CAPTURE FAILED",
+  "CAPTURÉ":"CAPTURED", "SCÉNARIO":"SCENARIO", "REJOUER":"REPLAY", "pause":"pause",
+  // -- affiliations et champs de piste
+  "AMI":"FRIEND", "HOSTILE":"HOSTILE", "NEUTRE":"NEUTRAL", "INCONNU":"UNKNOWN",
+  "GISEMENT":"BEARING", "DISTANCE":"RANGE", "ROUTE":"COURSE", "CPA":"CPA",
+  "TCPA":"TCPA", "IFF":"IFF", "ESM":"ESM", "QUALITÉ":"QUALITY",
+  "SANS RÉP.":"NO REPLY", "s'ouvre":"opening", "aucun facteur significatif":"no significant factor",
+  "AUCUNE PISTE ACCROCHÉE":"NO TRACK HOOKED",
+  "CLIQUER UN PLOT OU UNE MENACE":"CLICK A PLOT OR A THREAT",
+  // -- solutions d'engagement
+  "SALVE":"SALVO", "PK CUMUL":"CUM. PK", "TEMPS DE VOL":"TIME OF FLIGHT",
+  "INTERCEPT.":"INTERCEPT", "BUTÉE":"DEADLINE", "ENGAGER":"ENGAGE",
+  "défense":"defence", "attaque":"attack", "recommandé":"recommended",
+  "hors enveloppe":"out of envelope", "munitions insuffisantes":"insufficient rounds",
+  "canal occupé":"channel busy", "butée dépassée":"deadline passed",
+  "AUCUNE":"NONE", "proposées":"proposed", "LECTURE SEULE":"READ ONLY",
+  "AUCUNE PISTE CLASSÉE HOSTILE":"NO TRACK CLASSIFIED HOSTILE",
+  "LE SYSTÈME NE PROPOSE RIEN SANS IDENTIFICATION":
+    "THE SYSTEM PROPOSES NOTHING WITHOUT IDENTIFICATION",
+  // -- IPMS
+  "TEMP. GUIDE":"GUIDE TEMP.", "PRESS. REFR.":"COOLANT PRESS.",
+  "PUISS. ÉMIS.":"TX POWER", "POMPE OK":"PUMP OK", "POMPE DÉFAUT":"PUMP FAULT",
+  "AUCUN DÉFAUT":"NO FAULT", "POMPE REFR.":"COOLANT PUMP",
+  "ÉMISSION COUPÉE":"TX SHUT DOWN", "SIMULÉ":"SIMULATED", "MODBUS":"MODBUS",
+  // -- AIS
+  "AIS — DÉCLARÉ PAR LE NAVIRE":"AIS — DECLARED BY THE SHIP",
+  "AIS — MANŒUVRE CONTRAINTE":"AIS — MANOEUVRE CONSTRAINED",
+  "AIS — BÂTIMENT NON MARCHAND":"AIS — NON-MERCHANT VESSEL",
+  "AIS — POSITION SEULE":"AIS — POSITION ONLY",
+  "MMSI":"MMSI", "INDICATIF":"CALL SIGN", "TYPE":"TYPE", "STATUT":"STATUS",
+  "DIMENSIONS":"DIMENSIONS", "TIRANT D'EAU":"DRAUGHT", "OMI":"IMO",
+  "DESTINATION":"DESTINATION", "AUCUNE ÉMISSION AIS":"NO AIS TRANSMISSION",
+  "RÉEL":"LIVE", "synthétique":"synthetic", "capture":"capture",
+  "HORS SERVICE":"OFF SERVICE", "AIS ?":"AIS ?", "AUCUNE PISTE":"NO TRACK",
+  "(sans écho)":"(no echo)", "entrées":"entries", "enregistrement embarqué":"embedded recording",
+  // -- vraisemblance
+  "éteint":"off", "ÉTEINT":"OFF", "GIS":"BRG", "DIST":"RNG",
+  "ANNEAUX":"RINGS", "ROTATION 15 tr/min":"15 rpm SWEEP", "OUVR.":"OPENING",
+  "SAM courte portée":"Short-range SAM", "Artillerie 76 mm":"76 mm gun",
+  "Missile antinavire":"Anti-ship missile", "CIWS":"CIWS",
+  "VRAISEMBLANCE":"PLAUSIBILITY", "INCOHÉRENCE":"INCONSISTENCY",
+  "INCOHÉRENCES":"INCONSISTENCIES",
+  "Une incohérence n'est pas une intention. Elle demande un regard, pas un classement.":
+    "An inconsistency is not an intent. It calls for a look, not a classification.",
+  "Mobile de surface non coopératif : hors zone VHF, transpondeur éteint, ou navire non soumis à obligation. À corréler par IFF et par ESM.":
+    "Non-cooperative surface contact: outside VHF range, transponder switched off, or a vessel under no obligation to carry AIS. To be correlated by IFF and ESM.",
+};
+
+/* Libellés fabriqués à partir des codes envoyés par le simulateur. */
+const L = {
+  fr: {
+    facteurs:{route:"route",temps:"temps",vitesse:"vitesse",profil:"profil",
+              iff:"iff",esm:"esm",ident:"ident",veracite:"véracité"},
+    types:{20:"Aéroglisseur",30:"Pêche",31:"Remorquage",32:"Remorquage lourd",
+           33:"Drague / travaux sous-marins",34:"Plongée",35:"Bâtiment militaire",
+           36:"Voilier",37:"Navire de plaisance",40:"Navire à grande vitesse",
+           50:"Pilote",51:"Recherche et sauvetage",52:"Remorqueur",
+           53:"Servitude portuaire",54:"Lutte antipollution",55:"Police / autorité",
+           58:"Transport sanitaire",59:"Navire non combattant",60:"Navire à passagers",
+           70:"Cargo",80:"Pétrolier / chimiquier",90:"Autre"},
+    statuts:{0:"En route au moteur",1:"Au mouillage",2:"Non maître de sa manœuvre",
+             3:"Capacité de manœuvre restreinte",4:"Contraint par son tirant d'eau",
+             5:"À quai",6:"Échoué",7:"En pêche",8:"En route à la voile",
+             9:"Réservé (NGV)",10:"Réservé (aéroglisseur)",11:"Remorquage arrière",
+             12:"Poussage / remorquage à couple",13:"Réservé",14:"Balise de détresse active"},
+    anomalies:{ecart_position:"Position AIS incohérente",
+               ecart_cinematique:"Cinématique AIS incohérente",
+               statut_incoherent:"Statut de navigation contredit",
+               gabarit_incoherent:"Gabarit incompatible avec la vitesse",
+               mmsi_invalide:"MMSI hors plage attribuable",
+               extinction:"Émission AIS interrompue"},
+    detail:{
+      ecart_position:p=>p.d+" m d'écart avec le plot radar, pour un seuil de "+p.seuil+" m",
+      ecart_cinematique:p=>"déclare "+p.sog+" kt au "+pad(p.cog,3,0)+"°, mesuré "+p.v+
+        " kt au "+pad(p.crs,3,0)+"° ("+p.dv+" kt d'écart en vecteur, seuil "+p.seuil+" kt)",
+      statut_incoherent:p=>"se déclare « "+statutAis(p.statut_code,p.statut)+
+        " » et fait route à "+p.v+" kt",
+      gabarit_incoherent:p=>"déclare "+p.loa+" m de long et fait "+p.v+" kt",
+      mmsi_invalide:p=>p.mmsi+" — indicatif de pays inexistant",
+      extinction:p=>"silencieux depuis "+p.silence+" s, toujours à "+p.dist+
+        " NM et tenu au radar"},
+    journal:{
+      pompe:p=>"IPMS — pompe de refroidissement "+(p.marche?"rétablie":"à l'arrêt"),
+      pompe_instructeur:p=>"IPMS — pompe "+(p.marche?"relancée":"arrêtée")+
+        " depuis le poste instructeur",
+      manoeuvre:()=>"Manœuvre du porteur ordonnée",
+      depart_missile:p=>"Départ missile détecté par ESM — origine "+p.src,
+      illumination:p=>p.piste+" — illumination conduite de tir",
+      impact:p=>"IMPACT sur le porteur — "+p.nom,
+      tir:p=>efLabel(p.ef)+" — tir x"+p.n+" sur "+p.piste+(p.auto?" (doctrine)":""),
+      piste_perdue:p=>p.piste+" — piste perdue avant interception",
+      plus_de_cible:p=>p.piste+" — plus de cible à l'interception",
+      destruction:p=>p.piste+" — destruction confirmée ("+efLabel(p.ef).toUpperCase()+")",
+      echec_interception:p=>p.piste+" — échec d'interception, réengagement à évaluer",
+      leurres:p=>"Leurres largués — "+p.n+" missile(s) séduit(s)",
+      classee_doctrine:p=>p.piste+" — classée HOSTILE par doctrine ("+
+        (p.raison==="fc"?"illumination conduite de tir":"convergent rapide sans réponse IFF")+")",
+      classee_operateur:p=>p.piste+" — classée "+t(AFF[p.aff].l)+" par l'opérateur",
+      doctrine:p=>"Doctrine "+p.cle+" : "+(p.armee?"armée":"désarmée"),
+      anomalie:p=>p.piste+" — "+anoLibelle(p.anomalie)+" : "+anoDetail(p.anomalie,p),
+      capture_ok:p=>"AIS — instantané capturé : "+p.n+" positions, "+p.statique+
+        " navires au statique",
+      capture_ko:p=>"AIS — capture impossible : "+p.erreur},
+    effecteurs:{sam:"SAM courte portée",ciws:"CIWS",gun:"Artillerie 76 mm",
+                ssm:"Missile antinavire"},
+  },
+  en: {
+    facteurs:{route:"course",temps:"time",vitesse:"speed",profil:"profile",
+              iff:"iff",esm:"esm",ident:"ident",veracite:"veracity"},
+    types:{20:"Wing-in-ground craft",30:"Fishing",31:"Towing",32:"Heavy towing",
+           33:"Dredging / underwater ops",34:"Diving ops",35:"Military vessel",
+           36:"Sailing vessel",37:"Pleasure craft",40:"High-speed craft",
+           50:"Pilot vessel",51:"Search and rescue",52:"Tug",
+           53:"Port tender",54:"Anti-pollution",55:"Law enforcement",
+           58:"Medical transport",59:"Non-combatant vessel",60:"Passenger ship",
+           70:"Cargo",80:"Tanker / chemical carrier",90:"Other"},
+    statuts:{0:"Under way using engine",1:"At anchor",2:"Not under command",
+             3:"Restricted manoeuvrability",4:"Constrained by draught",
+             5:"Moored",6:"Aground",7:"Engaged in fishing",8:"Under way sailing",
+             9:"Reserved (HSC)",10:"Reserved (WIG)",11:"Towing astern",
+             12:"Pushing ahead / towing alongside",13:"Reserved",14:"Distress beacon active"},
+    anomalies:{ecart_position:"Inconsistent AIS position",
+               ecart_cinematique:"Inconsistent AIS kinematics",
+               statut_incoherent:"Navigation status contradicted",
+               gabarit_incoherent:"Size incompatible with speed",
+               mmsi_invalide:"MMSI outside assignable range",
+               extinction:"AIS transmission stopped"},
+    detail:{
+      ecart_position:p=>p.d+" m from the radar plot, against a "+p.seuil+" m threshold",
+      ecart_cinematique:p=>"declares "+p.sog+" kt at "+pad(p.cog,3,0)+"°, measured "+p.v+
+        " kt at "+pad(p.crs,3,0)+"° ("+p.dv+" kt vector difference, threshold "+p.seuil+" kt)",
+      statut_incoherent:p=>"declares itself \u201c"+statutAis(p.statut_code,p.statut)+
+        "\u201d while making "+p.v+" kt",
+      gabarit_incoherent:p=>"declares "+p.loa+" m in length while making "+p.v+" kt",
+      mmsi_invalide:p=>p.mmsi+" — no such country prefix",
+      extinction:p=>"silent for "+p.silence+" s, still at "+p.dist+
+        " NM and held on radar"},
+    journal:{
+      pompe:p=>"IPMS — cooling pump "+(p.marche?"restored":"stopped"),
+      pompe_instructeur:p=>"IPMS — pump "+(p.marche?"restarted":"stopped")+
+        " from the instructor station",
+      manoeuvre:()=>"Own ship manoeuvre ordered",
+      depart_missile:p=>"Missile launch detected by ESM — origin "+p.src,
+      illumination:p=>p.piste+" — fire-control illumination",
+      impact:p=>"IMPACT on own ship — "+p.nom,
+      tir:p=>efLabel(p.ef)+" — fired x"+p.n+" at "+p.piste+(p.auto?" (doctrine)":""),
+      piste_perdue:p=>p.piste+" — track lost before intercept",
+      plus_de_cible:p=>p.piste+" — no target left at intercept",
+      destruction:p=>p.piste+" — kill confirmed ("+efLabel(p.ef).toUpperCase()+")",
+      echec_interception:p=>p.piste+" — intercept failed, re-engagement to assess",
+      leurres:p=>"Decoys launched — "+p.n+" missile(s) seduced",
+      classee_doctrine:p=>p.piste+" — classified HOSTILE by doctrine ("+
+        (p.raison==="fc"?"fire-control illumination":"fast closing, no IFF reply")+")",
+      classee_operateur:p=>p.piste+" — classified "+t(AFF[p.aff].l)+" by the operator",
+      doctrine:p=>"Doctrine "+p.cle+" : "+(p.armee?"armed":"safe"),
+      anomalie:p=>p.piste+" — "+anoLibelle(p.anomalie)+" : "+anoDetail(p.anomalie,p),
+      capture_ok:p=>"AIS — snapshot captured: "+p.n+" positions, "+p.statique+
+        " vessels with static data",
+      capture_ko:p=>"AIS — capture failed: "+p.erreur},
+    effecteurs:{sam:"Short-range SAM",ciws:"CIWS",gun:"76 mm gun",
+                ssm:"Anti-ship missile"},
+  },
+};
+
+let LANG = (localStorage.getItem("cms-lang")
+            || (navigator.language||"fr").slice(0,2)) === "en" ? "en" : "fr";
+
+/* Le français est sa propre clé : un libellé non traduit se voit. */
+const t = s => (LANG === "en" && EN[s] !== undefined) ? EN[s] : s;
+/* Les fonctions de rendu nomment leur piste `t`, ce qui masque le
+   traducteur. `t2` est le même, sous un nom qui reste disponible. */
+const t2 = t;
+const lex = () => L[LANG];
+const efLabel = k => lex().effecteurs[k] || k;
+const anoLibelle = c => lex().anomalies[c] || c;
+const anoDetail = (c, p) => { const f = lex().detail[c]; return f ? f(p) : ""; };
+/* Les familles AIS se lisent à la dizaine : 7x est du fret, 8x du pétrolier. */
+const typeAis = (code, secours) => code == null ? (secours||"")
+  : (lex().types[code] || lex().types[Math.floor(code/10)*10] || secours || "");
+const statutAis = (code, secours) => code == null ? (secours||"")
+  : (code === 15 ? "" : (lex().statuts[code] !== undefined ? lex().statuts[code]
+                                                           : (secours||"")));
+function evLibelle(e){
+  const f = e.code && lex().journal[e.code];
+  return f ? f(e.p || {}) : e.txt;      // repli : le rendu français du moteur
+}
 const $ = id => document.getElementById(id);
 const pad = (n,w,d) => Number(n).toFixed(d).padStart(w,"0");
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
@@ -297,7 +516,7 @@ class LiveSource {
     this.cb = cb;
     const es = new EventSource("/stream");
     es.onmessage = e => cb(JSON.parse(e.data));
-    es.onerror = () => { $("srctag").textContent = "FLUX INTERROMPU"; };
+    es.onerror = () => { $("srctag").textContent = t("FLUX INTERROMPU"); };
   }
   send(c){ return fetch("/cmd", {method:"POST", body:JSON.stringify(c)}); }
 }
@@ -575,7 +794,8 @@ function renderThreats(){
     const c = AFF[t.aff].c, sc = t.score;
     const col = sc>0.7 ? "var(--crit)" : sc>0.4 ? "var(--warn)" : "var(--dim)";
     const fk = Object.entries(t.fact||{}).filter(([,v])=>v>0.02)
-      .sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>k+" "+v.toFixed(2)).join(" · ");
+      .sort((a,b)=>b[1]-a[1]).slice(0,3)
+      .map(([k,v])=>(lex().facteurs[k]||k)+" "+v.toFixed(2)).join(" · ");
     return '<div class="threat" data-id="'+t.id+'" tabindex="0" aria-selected="'+(t.id===hooked)+'">'+
       '<div class="tid" style="color:'+c+'">'+t.id+
         ((t.anomalies&&t.anomalies.length) ? '<span class="dflag" title="'+
@@ -583,19 +803,22 @@ function renderThreats(){
       '<div class="tmeta">'+t.rng.toFixed(1)+' NM · '+pad(t.brg,3,0)+'° · '+t.spd.toFixed(0)+' kt</div>'+
       '<div class="tmeta" style="color:'+col+'">'+(sc*100).toFixed(0)+'</div>'+
       '<div class="sbar"><i style="width:'+(sc*100)+'%;background:'+col+'"></i></div>'+
-      '<div class="tfact">'+(fk||'aucun facteur significatif')+
-        (t.tcpa>0 ? ' · cpa '+t.cpa.toFixed(1)+' NM / '+Math.round(t.tcpa)+' s' : ' · s\'ouvre')+'</div></div>';
+      '<div class="tfact">'+(fk||t2('aucun facteur significatif'))+
+        (t.tcpa>0 ? ' · cpa '+t.cpa.toFixed(1)+' NM / '+Math.round(t.tcpa)+' s'
+                  : ' · '+t2('s\'ouvre'))+'</div></div>';
   }).join("");
-  $("thr-count").textContent = F.tracks.length + " pistes";
+  $("thr-count").textContent = F.tracks.length + " " + t("PISTES").toLowerCase();
 }
 
 function renderSolutions(){
   const S = F.solutions;
-  $("sol-count").textContent = (S.length ? S.length + " proposées" : "aucune")
-    + (PILOTABLE ? "" : " · lecture seule");
+  $("sol-count").textContent = (S.length ? S.length + " " + t("proposées")
+                                         : t("AUCUNE").toLowerCase())
+    + (PILOTABLE ? "" : " · " + t("LECTURE SEULE").toLowerCase());
   if(!S.length){
-    $("solutions").innerHTML = '<div class="empty">AUCUNE PISTE CLASSÉE HOSTILE<br>'+
-      'LE SYSTÈME NE PROPOSE RIEN SANS IDENTIFICATION</div>';
+    $("solutions").innerHTML = '<div class="empty">'+
+      t("AUCUNE PISTE CLASSÉE HOSTILE")+'<br>'+
+      t("LE SYSTÈME NE PROPOSE RIEN SANS IDENTIFICATION")+'</div>';
     return;
   }
   $("solutions").innerHTML = S.map((s,i)=>{
@@ -604,18 +827,20 @@ function renderSolutions(){
     const stc = s.statut==="recommandé" ? "st-recommande"
               : s.statut==="butée dépassée" ? "st-butee" : "st-autre";
     return '<div class="sol">'+
-      '<div class="sol-h"><b>'+s.piste+'</b><span>'+s.label+'</span>'+
-        '<span class="role '+(s.role==="défense"?"defense":"attaque")+'">'+s.role.toUpperCase()+'</span></div>'+
+      '<div class="sol-h"><b>'+s.piste+'</b><span>'+efLabel(s.effecteur)+'</span>'+
+        '<span class="role '+(s.role==="défense"?"defense":"attaque")+'">'+
+          t(s.role).toUpperCase()+'</span></div>'+
       '<div class="sol-g">'+
-        '<div><i>SALVE</i><b>x'+s.salve+'</b></div>'+
-        '<div><i>PK CUMUL</i><b>'+(s.pk*100).toFixed(0)+'<small>%</small></b></div>'+
-        '<div><i>TEMPS DE VOL</i><b>'+s.tof.toFixed(0)+'<small>s</small></b></div>'+
-        '<div><i>INTERCEPT.</i><b>'+s.r_int.toFixed(1)+'<small>NM</small></b></div>'+
+        '<div><i>'+t("SALVE")+'</i><b>x'+s.salve+'</b></div>'+
+        '<div><i>'+t("PK CUMUL")+'</i><b>'+(s.pk*100).toFixed(0)+'<small>%</small></b></div>'+
+        '<div><i>'+t("TEMPS DE VOL")+'</i><b>'+s.tof.toFixed(0)+'<small>s</small></b></div>'+
+        '<div><i>'+t("INTERCEPT.")+'</i><b>'+s.r_int.toFixed(1)+'<small>NM</small></b></div>'+
       '</div>'+
-      '<div class="sol-a"><span class="chipst '+stc+'">'+s.statut.toUpperCase()+'</span>'+
-        (b!==null && b<9e7 ? '<span class="butee'+(hot?' hot':'')+'" data-butee="'+b+'" data-t="'+F.t+'">BUTÉE '+Math.max(0,b).toFixed(0)+'s</span>' : '')+
+      '<div class="sol-a"><span class="chipst '+stc+'">'+t(s.statut).toUpperCase()+'</span>'+
+        (b!==null && b<9e7 ? '<span class="butee'+(hot?' hot':'')+'" data-butee="'+b+'" data-t="'+F.t+'">'+
+          t("BUTÉE")+' '+Math.max(0,b).toFixed(0)+'s</span>' : '')+
         '<button class="act'+(s.role==="attaque"?" danger":"")+'" data-eng="'+s.piste+'" data-ef="'+s.effecteur+'"'+
-          (s.statut==="recommandé" && PILOTABLE ? "" : " disabled")+'>ENGAGER</button></div></div>';
+          (s.statut==="recommandé" && PILOTABLE ? "" : " disabled")+'>'+t("ENGAGER")+'</button></div></div>';
   }).join("");
 }
 
@@ -624,31 +849,38 @@ function renderSolutions(){
    dit à correspondre à ce que le radar voit — c'est exactement pour cela
    que les deux sont affichés côte à côte plutôt que fusionnés. */
 function renderAis(a){
-  const ro = (l,v,wide) => v ? '<div class="ro'+(wide?" wide":"")+'"><i>'+l+'</i><b>'+v+'</b></div>' : '';
+  const ro = (l,v,wide) => v ? '<div class="ro'+(wide?" wide":"")+'"><i>'+t2(l)+'</i><b>'+v+'</b></div>' : '';
   const dims = a.loa ? a.loa+" × "+(a.beam||"?")+" m" : "";
   const flag = a.notable || a.contraint;
-  let head = "AIS — DÉCLARÉ PAR LE NAVIRE";
-  if(a.contraint) head = "AIS — MANŒUVRE CONTRAINTE";
-  else if(a.notable) head = "AIS — BÂTIMENT NON MARCHAND";
+  /* Type et statut se rendent à partir des codes normalisés, pas du libellé
+     français que le simulateur envoyait autrefois. */
+  const typ = typeAis(a.type_code, a.type), stat = statutAis(a.navstat_code, a.navstat);
+  let head = t2("AIS — DÉCLARÉ PAR LE NAVIRE");
+  if(a.contraint) head = t2("AIS — MANŒUVRE CONTRAINTE");
+  else if(a.notable) head = t2("AIS — BÂTIMENT NON MARCHAND");
 
   /* Un navire diffuse sa position toutes les deux à dix secondes, mais son
      statique (nom, type, dimensions, destination) seulement toutes les six
      minutes. Recevoir l'un sans l'autre est le cas normal, pas une panne :
      il faut le dire plutôt que d'afficher un panneau vide. */
-  const statique = a.mmsi || a.callsign || a.type || a.navstat || a.loa ||
+  const statique = a.mmsi || a.callsign || typ || stat || a.loa ||
                    a.draught || a.imo || a.dest;
   if(!statique){
-    return '<div class="aisbox"><header>AIS — POSITION SEULE</header>'+
-      '<div class="attente">Identité reçue' + (a.name ? ' (' + a.name + ')' : '') +
-      '. Le message statique — type, dimensions, destination — n\'a pas encore '+
-      'été diffusé : il ne l\'est que toutes les six minutes.</div></div>';
+    const nom = a.name ? ' (' + a.name + ')' : '';
+    const txt = LANG === "en"
+      ? "Identity received" + nom + ". The static message — type, dimensions, "+
+        "destination — has not been broadcast yet: it only goes out every six minutes."
+      : "Identité reçue" + nom + ". Le message statique — type, dimensions, "+
+        "destination — n'a pas encore été diffusé : il ne l'est que toutes les six minutes.";
+    return '<div class="aisbox"><header>'+t2("AIS — POSITION SEULE")+'</header>'+
+      '<div class="attente">'+txt+'</div></div>';
   }
 
   return '<div class="aisbox'+(flag?" flag":"")+'"><header>'+head+'</header>'+
     '<div class="readouts">'+
       ro("MMSI", a.mmsi) + ro("INDICATIF", a.callsign) +
-      ro("TYPE", a.type, true) +
-      ro("STATUT", a.navstat, true) +
+      ro("TYPE", typ, true) +
+      ro("STATUT", stat, true) +
       ro("DIMENSIONS", dims) +
       ro("TIRANT D'EAU", a.draught ? a.draught.toFixed(1)+" m" : "") +
       ro("OMI", a.imo) + ro("DESTINATION", a.dest) +
@@ -662,9 +894,9 @@ function renderAis(a){
    une piste aérienne d'une piste de surface. */
 function renderSansAis(t){
   if(t.spd > 60) return "";
-  return '<div class="silent"><b>AUCUNE ÉMISSION AIS</b>'+
-    'Mobile de surface non coopératif : hors zone VHF, transpondeur éteint, '+
-    'ou navire non soumis à obligation. À corréler par IFF et par ESM.</div>';
+  return '<div class="silent"><b>'+t2("AUCUNE ÉMISSION AIS")+'</b>'+
+    t2("Mobile de surface non coopératif : hors zone VHF, transpondeur éteint, "+
+       "ou navire non soumis à obligation. À corréler par IFF et par ESM.")+'</div>';
 }
 
 /* Les doutes de vraisemblance. Le pavé se termine toujours par le même
@@ -674,11 +906,13 @@ function renderSansAis(t){
    fabrique des hostiles à partir de pannes. */
 function renderDoutes(an){
   if(!an || !an.length) return "";
-  return '<div class="doutes"><header>VRAISEMBLANCE — ' + an.length +
-    (an.length > 1 ? ' INCOHÉRENCES' : ' INCOHÉRENCE') + '</header>' +
-    an.map(a => '<div class="dt"><b>'+a.libelle+'</b><span>'+a.detail+'</span></div>').join("") +
-    '<div class="caveat">Une incohérence n\'est pas une intention. Elle demande '+
-    'un regard, pas un classement.</div></div>';
+  return '<div class="doutes"><header>'+t2("VRAISEMBLANCE")+' — ' + an.length + ' ' +
+    t2(an.length > 1 ? 'INCOHÉRENCES' : 'INCOHÉRENCE') + '</header>' +
+    an.map(a => '<div class="dt"><b>'+anoLibelle(a.code)+'</b><span>'+
+                anoDetail(a.code, a.params||{})+'</span></div>').join("") +
+    '<div class="caveat">'+
+    t2("Une incohérence n'est pas une intention. Elle demande un regard, pas un classement.")+
+    '</div></div>';
 }
 
 function renderHook(){
@@ -686,23 +920,24 @@ function renderHook(){
   $("sk-hook").disabled = !t;
   if(!t){
     $("hook-body").className="empty";
-    $("hook-body").innerHTML="AUCUNE PISTE ACCROCHÉE<br>CLIQUER UN PLOT OU UNE MENACE";
+    $("hook-body").innerHTML=t2("AUCUNE PISTE ACCROCHÉE")+"<br>"+
+                              t2("CLIQUER UN PLOT OU UNE MENACE");
     $("hook-q").textContent="—"; return;
   }
   const c = AFF[t.aff];
-  $("hook-q").textContent = "QUALITÉ " + (t.qual*100).toFixed(0) + "%";
+  $("hook-q").textContent = t2("QUALITÉ") + " " + (t.qual*100).toFixed(0) + "%";
   $("hook-body").className="hook";
-  const ro=(l,v,u,al)=>'<div class="ro'+(al?" alert":"")+'"><i>'+l+'</i><b>'+v+(u?'<small>'+u+'</small>':'')+'</b></div>';
+  const ro=(l,v,u,al)=>'<div class="ro'+(al?" alert":"")+'"><i>'+t2(l)+'</i><b>'+v+(u?'<small>'+u+'</small>':'')+'</b></div>';
   $("hook-body").innerHTML =
     '<div class="hook-id"><b>'+t.id+'</b>'+
-      '<span class="aff" style="color:'+c.c+'">'+c.l+'</span>'+
+      '<span class="aff" style="color:'+c.c+'">'+t2(c.l)+'</span>'+
       '<span class="src">'+(t.src||[]).join("+")+(t.ident?" · "+t.ident:"")+'</span></div>'+
     '<div class="readouts">'+
       ro("GISEMENT", pad(t.brg,3,0), "°") + ro("DISTANCE", t.rng.toFixed(1), "NM") +
       ro("ROUTE", pad(t.crs,3,0), "°") + ro("VITESSE", t.spd.toFixed(0), "kt") +
       ro("CPA", t.tcpa>0?t.cpa.toFixed(1):"—", t.tcpa>0?"NM":"", t.tcpa>0&&t.cpa<3) +
-      ro("TCPA", t.tcpa>0?Math.round(t.tcpa):"OUVR.", t.tcpa>0?"s":"", t.tcpa>0&&t.tcpa<90) +
-      ro("IFF", t.iff==="ami"?"AMI":t.iff?"SANS RÉP.":"—", "") +
+      ro("TCPA", t.tcpa>0?Math.round(t.tcpa):t2("OUVR."), t.tcpa>0?"s":"", t.tcpa>0&&t.tcpa<90) +
+      ro("IFF", t.iff==="ami"?t2("AMI"):t.iff?t2("SANS RÉP."):"—", "") +
       ro("ESM", t.emitter?t.emitter.toUpperCase():"—", "", t.emitter==="fc") +
     '</div>'+
     ((t.src||[]).indexOf("AIS") >= 0 ? renderAis(t.ais||{}) : renderSansAis(t)) +
@@ -710,7 +945,7 @@ function renderHook(){
     '<div class="idrow">'+
       ["friend","hostile","neutral","unknown"].map((a,i)=>
         '<button class="'+["f","h","n","u"][i]+'" data-id-aff="'+a+'"'+
-        (PILOTABLE?"":" disabled")+'>'+AFF[a].l+'</button>').join("")+
+        (PILOTABLE?"":" disabled")+'>'+t2(AFF[a].l)+'</button>').join("")+
     '</div>';
 }
 
@@ -723,16 +958,17 @@ function renderPlatform(){
   ];
   $("sensors").innerHTML = rows.map(([l,v,mn,mx,u,st])=>{
     const pct = clamp((v-mn)/(mx-mn)*100,0,100);
-    return '<div class="srow"><i>'+l+'</i><div class="bar '+st+'"><span style="width:'+pct.toFixed(1)+'%"></span></div>'+
+    return '<div class="srow"><i>'+t(l)+'</i><div class="bar '+st+'"><span style="width:'+pct.toFixed(1)+'%"></span></div>'+
       '<div class="sval">'+Number(v).toFixed(1)+' '+u+'</div></div>';
   }).join("") + '<div class="chips">'+
-    '<span class="chip '+(p.pompe?"ok":"ko")+'">POMPE '+(p.pompe?"OK":"DÉFAUT")+'</span>'+
-    (p.defauts.length ? p.defauts.map(f=>'<span class="chip ko">'+f+'</span>').join("")
-                      : '<span class="chip ok">AUCUN DÉFAUT</span>')+'</div>';
-  $("ipms-em").textContent = p.source;
-  $("ipms-src").textContent = p.source;
+    '<span class="chip '+(p.pompe?"ok":"ko")+'">'+
+      t(p.pompe?"POMPE OK":"POMPE DÉFAUT")+'</span>'+
+    (p.defauts.length ? p.defauts.map(f=>'<span class="chip ko">'+t(f)+'</span>').join("")
+                      : '<span class="chip ok">'+t("AUCUN DÉFAUT")+'</span>')+'</div>';
+  $("ipms-em").textContent = t(p.source);
+  $("ipms-src").textContent = t(p.source);
   $("radpwr").innerHTML = p.puissance + '<small>%</small>';
-  $("sk-pump").querySelector("span").textContent = p.pompe ? "ARRÊT POMPE" : "RELANCER POMPE";
+  $("sk-pump").querySelector("span").textContent = t(p.pompe ? "ARRÊT POMPE" : "RELANCER POMPE");
 }
 
 function renderEvents(){
@@ -741,9 +977,9 @@ function renderEvents(){
     const m = Math.floor(e.t/60), s = Math.floor(e.t%60);
     return '<div class="ev '+e.sev+'"><div class="sev" style="background:'+col+'"></div>'+
       '<time>'+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")+'</time>'+
-      '<p>'+e.txt+'</p></div>';
+      '<p>'+evLibelle(e)+'</p></div>';
   }).join("");
-  $("ev-count").textContent = F.events.length + " entrées";
+  $("ev-count").textContent = F.events.length + " " + t("entrées");
 }
 
 /* Un scope vide est une information, pas un écran raté — encore faut-il
@@ -771,26 +1007,26 @@ function renderVide(){
            " reçus, aucun encore détecté au radar. Hors horizon, " +
            "ou trop faible surface équivalente à cette distance.";
   }
-  box.innerHTML = "<b>AUCUNE PISTE</b><span>" + quoi + "</span>";
+  box.innerHTML = "<b>"+t("AUCUNE PISTE")+"</b><span>" + quoi + "</span>";
   box.hidden = false;
 }
 
 function renderCapture(){
   const c = F.capture, b = $("sk-capture");
   const lbl = b.querySelector("span");
-  if(!c){ lbl.textContent = "CAPTURE AIS"; b.disabled = !PILOTABLE;
+  if(!c){ lbl.textContent = t("CAPTURE AIS"); b.disabled = !PILOTABLE;
           b.removeAttribute("title"); return; }
   if(c.etat === "en cours"){
-    lbl.textContent = "CAPTURE…"; b.disabled = true;
+    lbl.textContent = t("CAPTURE…"); b.disabled = true;
     b.title = "interrogation du flux public"; return;
   }
   b.disabled = !PILOTABLE;
   if(c.ok){
-    lbl.textContent = "CAPTURÉ " + c.n;
+    lbl.textContent = t("CAPTURÉ") + " " + c.n;
     b.title = c.n + " positions, " + c.statique + " au statique — " +
               c.fichier + " (" + c.quand + ")";
   } else {
-    lbl.textContent = "CAPTURE KO";
+    lbl.textContent = t("CAPTURE KO");
     b.title = c.erreur || "échec";
   }
 }
@@ -806,15 +1042,20 @@ function renderTop(){
   $("n-dec").textContent = F.leurres;
   const hot = F.tracks.some(t=>t.aff==="hostile" && t.tcpa>0 && t.tcpa<120);
   const deg = F.platform.defauts.length>0;
-  $("posture").textContent = hot ? "ENGAGEMENT" : deg ? "PLATEFORME DÉGRADÉE" : "VEILLE";
+  $("posture").textContent = t(hot ? "ENGAGEMENT" : deg ? "PLATEFORME DÉGRADÉE" : "VEILLE");
   $("posture").style.color = hot ? "var(--crit)" : deg ? "var(--warn)" : "var(--ok)";
   $("pdot").style.background = hot ? "var(--crit)" : deg ? "var(--warn)" : "var(--ok)";
-  $("srctag").textContent = SRC.kind === "LIVE" ? "SIMULATION EN DIRECT" : "REJEU — ENREGISTREMENT";
+  $("srctag").textContent = t(SRC.kind === "LIVE" ? "SIMULATION EN DIRECT"
+                                                  : "REJEU — ENREGISTREMENT");
   $("srctag").className = "tag " + (SRC.kind === "LIVE" ? "live" : "rejeu");
   if(F.meta){
-    $("brief").innerHTML = "<b>"+F.meta.scenario+"</b>"+F.meta.brief.replace(/\n/g," ");
+    /* Le scénario porte sa traduction s'il en a une. Sinon il s'affiche en
+       français : mieux vaut du texte dans la mauvaise langue qu'un cadre vide. */
+    const m = (LANG === "en" && F.meta.en) ? F.meta.en : {};
+    $("brief").innerHTML = "<b>"+(m.name || F.meta.scenario)+"</b>"+
+                           (m.brief || F.meta.brief).replace(/\n/g," ");
   }
-  $("ring-lbl").textContent = "ANNEAUX " + (range/4).toFixed(2) + " NM";
+  $("ring-lbl").textContent = t2("ANNEAUX") + " " + (range/4).toFixed(2) + " NM";
   renderVide();
   renderCapture();
   if(F.meta && F.meta.fichier && $("sel-sc").options.length > 1
@@ -834,8 +1075,9 @@ function renderTop(){
        « c'est du réel ? » est la première question qu'on se pose devant ce
        scénario, et une réponse cachée n'en est pas une. */
     const nat = (af.source || "").replace("AIS ", "");
-    $("ais-src").innerHTML = ko ? "HORS SERVICE"
-      : af.n + '<small>' + (nat === "RÉEL" ? " RÉEL" : " " + nat.toLowerCase()) + '</small>';
+    $("ais-src").innerHTML = ko ? t("HORS SERVICE")
+      : af.n + '<small> ' + (nat === "RÉEL" ? t("RÉEL")
+                                          : t(nat.toLowerCase())) + '</small>';
     $("ais-src").style.color = ko ? "var(--crit)"
       : (nat === "RÉEL" ? "var(--ok)" : "var(--unknown)");
     $("stat-ais").title = af.etat;
@@ -882,8 +1124,8 @@ cv.addEventListener("mousemove", e=>{
   const r=cv.getBoundingClientRect();
   const dx=(e.clientX-r.left-cx)/R*range, dy=(cy-(e.clientY-r.top))/R*range;
   const b=(Math.atan2(dx,dy)*180/Math.PI+360)%360, d=Math.hypot(dx,dy);
-  if(d>range){ $("cursor-ro").textContent = "GIS —— · DIST ——"; return; }
-  let ro = "GIS "+pad(b,3,0)+"° · DIST "+d.toFixed(1)+" NM";
+  if(d>range){ $("cursor-ro").textContent = t("GIS")+" —— · "+t("DIST")+" ——"; return; }
+  let ro = t("GIS")+" "+pad(b,3,0)+"° · "+t("DIST")+" "+d.toFixed(1)+" NM";
   if(geoOk()){ const g2 = toLatLon(dx,dy); ro += " · " + fmtLatLon(g2[0], g2[1]); }
   $("cursor-ro").textContent = ro;
 });
@@ -936,11 +1178,43 @@ if(SRC.kind === "LIVE"){
     if(F && F.meta && F.meta.fichier) $("sel-sc").value = F.meta.fichier;
   }).catch(()=>{});
 } else {
-  $("sel-sc").innerHTML = '<option>enregistrement embarqué</option>';
+  $("sel-sc").innerHTML = '<option>'+t("enregistrement embarqué")+'</option>';
   $("sel-sc").disabled = true; $("sk-pump").disabled = true;
   $("sk-capture").disabled = true;
   $("sk-decoy").disabled = true; $("sk-autosam").disabled = true;
 }
+
+/* ------------------------------------------------------------------ *
+ * Bascule de langue.
+ *
+ * Le texte statique porte `data-i18n` et sa version française sert de clé,
+ * mémorisée au démarrage. Rien n'est rechargé : la trame suivante suffit à
+ * repeindre tout ce qui est dynamique, et le scope se redessine seul.
+ * ------------------------------------------------------------------ */
+document.querySelectorAll("[data-i18n]").forEach(
+  el => el.dataset.i18n = el.textContent.trim());
+document.querySelectorAll("[data-i18n-label]").forEach(
+  el => el.dataset.i18nLabel = el.getAttribute("aria-label"));
+
+function appliquerLangue(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i18n]").forEach(
+    el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll("[data-i18n-label]").forEach(
+    el => el.setAttribute("aria-label", t(el.dataset.i18nLabel)));
+  // Le bouton montre la langue vers laquelle on bascule, pas la courante.
+  $("lang").textContent = LANG === "fr" ? "EN" : "FR";
+  $("sk-capture").querySelector("span").textContent = t("CAPTURE AIS");
+  $("cursor-ro").textContent = t("GIS")+" —— · "+t("DIST")+" ——";
+  if(F){ renderTop(); renderThreats(); renderSolutions(); renderHook();
+         renderPlatform(); renderEvents(); }
+}
+$("lang").onclick = () => {
+  LANG = LANG === "fr" ? "en" : "fr";
+  try { localStorage.setItem("cms-lang", LANG); } catch(e) {}
+  appliquerLangue();
+};
+appliquerLangue();
 
 resize();
 requestAnimationFrame(loop);

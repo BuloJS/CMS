@@ -10,6 +10,18 @@ butée de tir le permet, CIWS en ultime recours sous 2 NM, leurres si une fuite
 passe. C'est un problème d'ordonnancement de canaux de conduite de tir, pas de
 stock de munitions : deux canaux SAM et un canal CIWS contre six arrivées
 groupées, la question est de savoir lesquelles on traite et dans quel ordre."""
+
+# Traduction anglaise, facultative : la console la sert aux
+# opérateurs qui ne lisent pas le français.
+name_en = "Anti-ship saturation"
+brief_en = """Two maritime patrol aircraft orbit at the edge of detection range.
+Their search radar is heard on ESM well before our own radar sees them — the
+passive path goes as R², the active one as R⁴. At 120 seconds they fire six
+sea-skimming anti-ship missiles within four seconds."""
+attendu_en = """Detection at the radio horizon, around 17 NM, leaving under two
+minutes. SAM on the firing deadline, CIWS as last resort, decoys. The scarce
+resource is fire-control channels, not rounds."""
+
 seed = 4212
 duration = 560
 

@@ -27,6 +27,10 @@ on rouvre un projet trois semaines plus tard.
   écart de cinématique, extinction de transpondeur, statut contredit, gabarit
   incompatible, MMSI hors plage. Corrélation refaite sur la position
   déclarée. Scénario `05-identite-douteuse`.
+- **Console bilingue** français / anglais, bouton dans le bandeau et
+  détection de la langue du navigateur. Le moteur n'envoie plus de phrases
+  mais des codes et des paramètres — le journal, les anomalies et les
+  libellés AIS se mettent en mots côté console.
 - **72 tests** : projection, senseurs, convergence du filtre, décodage AIS,
   pont d'ingestion, vraisemblance — dont un test d'intégration qui vérifie
   l'absence de fausse alarme sur du trafic honnête.

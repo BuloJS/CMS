@@ -402,6 +402,33 @@ duplication de code entre la version connectée et la version hors ligne.
 | `F10` | Arrêter la pompe (poste instructeur) |
 | `F2` | Capturer un instantané du flux AIS public |
 
+### Langue
+
+La console bascule entre français et anglais par le bouton du bandeau, ou
+suit la langue du navigateur au premier chargement. Le choix est mémorisé.
+
+Ce n'était pas qu'une affaire de dictionnaire. Le simulateur fabriquait des
+phrases françaises — journal, anomalies, types de navire — pour un écran
+qu'il n'est pas censé connaître. Il envoie désormais des **codes et des
+paramètres**, et c'est la console qui met en mots :
+
+```
+avant : "T006 — Position AIS incohérente : 717 m d'écart…"
+après : {"code":"anomalie", "p":{"piste":"T006", "anomalie":"ecart_position",
+                                 "d":717, "seuil":250}}
+```
+
+Le rendu français reste dans le moteur pour la ligne de commande et les
+enregistrements, mais la console ne s'en sert plus que comme filet. Les types
+de navire et statuts de navigation AIS voyageaient déjà en codes normalisés :
+il suffisait de cesser d'envoyer aussi le libellé.
+
+Un scénario porte sa traduction dans des champs `name_en`, `brief_en`,
+`attendu_en`, facultatifs — sans eux il s'affiche en français, parce que du
+texte dans la mauvaise langue vaut mieux qu'un cadre vide. Même règle dans le
+dictionnaire de la console : **le français est sa propre clé**, donc un
+libellé oublié se voit au lieu de laisser un trou.
+
 Échelles 5 / 10 / 25 / 50 / 100 NM. Le bandeau de curseur donne gisement,
 distance **et position géographique** en degrés et minutes décimales — la
 façon dont une position se dicte à la passerelle — dès que le scénario porte

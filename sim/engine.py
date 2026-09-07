@@ -71,10 +71,20 @@ class Engine:
         self._seq = 0
 
     # -- journal ---------------------------------------------------------
-    def log(self, sev, txt):
+    def log(self, sev, txt, code=None, **params):
+        """Consigne un événement.
+
+        `txt` est le rendu français, pour la ligne de commande et les
+        enregistrements. `code` et `params` sont ce que la console utilise :
+        elle reformate dans la langue de son opérateur. Le cœur ne fabrique
+        pas de phrases pour un écran qu'il ne connaît pas — il l'a fait
+        jusqu'ici par commodité, ce qui rendait toute traduction impossible.
+        """
         self._seq += 1
-        self.events.insert(0, {"n": self._seq, "t": round(self.t, 1),
-                               "sev": sev, "txt": txt})
+        ev = {"n": self._seq, "t": round(self.t, 1), "sev": sev, "txt": txt}
+        if code:
+            ev["code"], ev["p"] = code, params
+        self.events.insert(0, ev)
         del self.events[60:]
 
     # -- scénario --------------------------------------------------------
@@ -88,13 +98,14 @@ class Engine:
                 self.platform.pump = bool(e.get("pump", True))
                 self.log("crit" if not self.platform.pump else "info",
                          "IPMS — pompe de refroidissement "
-                         + ("à l'arrêt" if not self.platform.pump else "rétablie"))
+                         + ("à l'arrêt" if not self.platform.pump else "rétablie"),
+                         code="pompe", marche=bool(self.platform.pump))
             elif k == "order":
                 if "course" in e:
                     self.own.ordered_course = float(e["course"])
                 if "speed_kt" in e:
                     self.own.ordered_speed = float(e["speed_kt"]) * KT
-                self.log("info", "Manœuvre du porteur ordonnée")
+                self.log("info", "Manœuvre du porteur ordonnée", code="manoeuvre")
             elif k == "emitter":
                 c = self.world.get(e.get("from"))
                 if c:
@@ -137,7 +148,8 @@ class Engine:
                 x=sx, y=sy, alt=spec["alt"], course=brg,
                 speed=spec["speed"], rcs=spec["rcs"], intent="hostile",
                 target="OWN", launched_at=self.t)
-        self.log("crit", "Départ missile détecté par ESM — origine %s" % src.name)
+        self.log("crit", "Départ missile détecté par ESM — origine %s" % src.name,
+                 code="depart_missile", src=src.name)
 
     # -- tick ------------------------------------------------------------
     def step(self):
@@ -183,7 +195,8 @@ class Engine:
             if d:
                 tr = self.tracker.fuse_bearing(self.own, d[0], d[1])
                 if tr and d[1] == "fc" and tr.aff != "hostile":
-                    self.log("crit", "%s — illumination conduite de tir" % tr.num)
+                    self.log("crit", "%s — illumination conduite de tir" % tr.num,
+                             code="illumination", piste=tr.num)
             rec = self.ais.receive(self.own, c)
             if rec:
                 # Corrélation sur la position **déclarée**, pas sur la vérité
@@ -207,7 +220,9 @@ class Engine:
                     if a["code"] not in self._anomalies_dites.get(tr.num, ()):
                         self._anomalies_dites.setdefault(tr.num, set()).add(a["code"])
                         self.log("warn", "%s — %s : %s"
-                                 % (tr.num, a["libelle"], a["detail"]))
+                                 % (tr.num, a["libelle"], a["detail"]),
+                                 code="anomalie", piste=tr.num,
+                                 anomalie=a["code"], **a["params"])
                 # Une identité coopérative vaut classement en neutre — mais
                 # seulement si elle est crédible. Un fraudeur ne doit pas
                 # obtenir gratuitement le statut que sa fraude vise.
@@ -253,14 +268,17 @@ class Engine:
                 tr.anomalies = tr.anomalies + [a]
             if "extinction" not in self._anomalies_dites.get(tr.num, ()):
                 self._anomalies_dites.setdefault(tr.num, set()).add("extinction")
-                self.log("warn", "%s — %s : %s" % (tr.num, a["libelle"], a["detail"]))
+                self.log("warn", "%s — %s : %s" % (tr.num, a["libelle"], a["detail"]),
+                         code="anomalie", piste=tr.num, anomalie=a["code"],
+                         **a["params"])
 
     def _impacts(self):
         for c in list(self.world.values()):
             if c.kind == "missile" and c.alive:
                 if rng(c.x - self.own.x, c.y - self.own.y) < 120:
                     c.alive = False
-                    self.log("crit", "IMPACT sur le porteur — %s" % c.name)
+                    self.log("crit", "IMPACT sur le porteur — %s" % c.name,
+                             code="impact", nom=c.name)
 
     # -- effecteurs ------------------------------------------------------
     def _weapons(self, dt):
@@ -304,7 +322,8 @@ class Engine:
         self.shots.append(Interceptor(self.own.x, self.own.y, track_num, ef.v,
                                       1 - (1 - ef.pk) ** n, tof, ef.key, n))
         self.log("warn", "%s — %s x%d sur %s%s"
-                 % (ef.label, "tir", n, track_num, " (doctrine)" if auto else ""))
+                 % (ef.label, "tir", n, track_num, " (doctrine)" if auto else ""),
+                 code="tir", ef=ef.key, n=n, piste=track_num, auto=bool(auto))
         return True
 
     def _resolve(self, s):
@@ -313,7 +332,8 @@ class Engine:
             ef.busy = max(0, ef.busy - 1)
         tr = self.tracker.tracks.get(s.tgt)
         if not tr:
-            self.log("info", "%s — piste perdue avant interception" % s.tgt)
+            self.log("info", "%s — piste perdue avant interception" % s.tgt,
+                     code="piste_perdue", piste=s.tgt)
             return
         # Fenêtre d'évaluation du résultat : tant qu'aucun plot frais n'est
         # revenu sur la piste, on ne sait pas si elle est morte ou si elle a
@@ -326,12 +346,15 @@ class Engine:
             if c.alive and rng(c.x - x, c.y - y) < best:
                 victim, best = c, rng(c.x - x, c.y - y)
         if victim is None:
-            self.log("info", "%s — plus de cible à l'interception" % s.tgt)
+            self.log("info", "%s — plus de cible à l'interception" % s.tgt,
+                     code="plus_de_cible", piste=s.tgt)
         elif self.rand.random() < s.pk:
             victim.alive = False
-            self.log("info", "%s — destruction confirmée (%s)" % (s.tgt, s.ef.upper()))
+            self.log("info", "%s — destruction confirmée (%s)" % (s.tgt, s.ef.upper()),
+                     code="destruction", piste=s.tgt, ef=s.ef)
         else:
-            self.log("warn", "%s — échec d'interception, réengagement à évaluer" % s.tgt)
+            self.log("warn", "%s — échec d'interception, réengagement à évaluer" % s.tgt,
+                     code="echec_interception", piste=s.tgt)
 
     def deploy_decoys(self):
         if self.decoys < 2:
@@ -344,7 +367,8 @@ class Engine:
                     if self.rand.random() < 0.45:
                         c.seduced, n = True, n + 1
                         c.course = (c.course + self.rand.choice((-35, 35))) % 360
-        self.log("warn", "Leurres largués — %d missile(s) séduit(s)" % n)
+        self.log("warn", "Leurres largués — %d missile(s) séduit(s)" % n,
+                 code="leurres", n=n)
         return True
 
     # -- produit ---------------------------------------------------------
@@ -371,10 +395,12 @@ class Engine:
                 fast_closer = inbound and tr.speed > 150 and tr.iff == "pas de réponse"
                 if tr.emitter == "fc" or fast_closer:
                     tr.aff, tr.classified_by = "hostile", "doctrine"
+                    raison = "fc" if tr.emitter == "fc" else "convergent"
                     self.log("crit", "%s — classée HOSTILE par doctrine (%s)"
                              % (tr.num, "illumination conduite de tir"
-                                if tr.emitter == "fc"
-                                else "convergent rapide sans réponse IFF"))
+                                if raison == "fc"
+                                else "convergent rapide sans réponse IFF"),
+                             code="classee_doctrine", piste=tr.num, raison=raison)
         self.solutions = tewa.solutions(evals, self.own, self.effectors,
                                         self.t, self.doctrine)
         if self.doctrine.get("auto_sam"):

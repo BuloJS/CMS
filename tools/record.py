@@ -58,6 +58,9 @@ def main():
         # En-tête : tout ce qu'il faut pour rejouer sans le simulateur.
         fh.write(json.dumps({"meta": {
             "scenario": sc["name"], "brief": sc["brief"], "attendu": sc["attendu"],
+            # La traduction voyage avec l'enregistrement : l'artefact hors
+            # ligne doit pouvoir basculer de langue comme la console servie.
+            "en": sc.get("en") or {},
             "seed": sc["seed"], "hz": a.hz, "duration": end,
             "doctrine": {"auto_id": a.auto_id, "auto_sam": a.auto_sam},
         }}, ensure_ascii=False) + "\n")
