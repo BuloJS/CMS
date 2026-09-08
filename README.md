@@ -61,6 +61,73 @@ Si l'automate n'est pas joignable, **rien ne casse** : le pont dégrade, l'IPMS
 repasse sur son modèle logiciel et la console affiche `SIMULÉ` au lieu de
 `MODBUS`. La stack par défaut est donc utilisable immédiatement.
 
+### Procédure complète — automate OpenPLC réel, validée de bout en bout
+
+Le `plc/Dockerfile` du dépôt porte encore un défaut connu (Jinja2 trop récent
+casse l'import `Markup` de l'ancien Flask embarqué par OpenPLC_v3 — voir
+« Limites connues »). En attendant sa résolution, la procédure suivante,
+testée intégralement sur une machine séparée, construit OpenPLC depuis la
+source officielle et le fait tourner à côté de la stack du dépôt.
+
+**1. Construire OpenPLC (source officielle) et le réseau Docker :**
+
+```bash
+git clone https://github.com/thiagoralves/OpenPLC_v3.git ~/OpenPLC_v3
+cd ~/OpenPLC_v3 && docker build -t openplc:v3 .
+docker network create cms-lab
+docker run -d --name openplc-lab --network cms-lab -p 8080:8080 --privileged openplc:v3
+```
+
+**2. Construire et lancer `field-sim` et `cms`, reliés à cet automate :**
+
+```bash
+cd ~/CMS
+docker build -t cms-lab/cms .
+docker run -d --name field-sim --network cms-lab -e FIELD_PORT=5020 \
+  cms-lab/cms python3 services/field_sim.py
+docker run -d --name cms-1 --network cms-lab -p 8000:8000 \
+  -e CMS_SCENARIO=02-saturation-asm.toml \
+  -e PLC_HOST=openplc-lab -e PLC_PORT=502 -e FIELD_HOST=field-sim \
+  cms-lab/cms
+```
+
+`FIELD_HOST` est ce qui permet à la console de commander directement la
+pompe côté capteurs (voir F10 plus bas) — sans lui, la commande n'agit que
+sur l'affichage local et se fait écraser au sondage Modbus suivant.
+
+**3. Charger et démarrer le programme, sur `http://<ip-vm>:8080`
+(identifiants `openplc`/`openplc`) :**
+
+Menu *Programs* → upload `plc/program.st` → *Compile* → puis **Start PLC**
+sur le tableau de bord. Sans cette étape, les registres que le pont lit
+restent figés à zéro.
+
+**4. Déclarer le capteur de terrain, menu *Settings → Slave Devices → Add
+new device*, protocole Modbus TCP, IP de `field-sim`** (obtenue avec
+`docker exec openplc-lab getent hosts field-sim | awk '{print $1}'`), port
+`5020`. `field-sim` n'implémente que la lecture d'entrées TOR (fc2), la
+lecture de registres d'entrée (fc4) et l'écriture d'une seule bobine (fc5,
+adresse 1 — le point pompe). Toute tentative sur les fonctions qu'il ne
+gère pas revient en exception Modbus ; laisser une taille non nulle dessus
+fait échouer le device en boucle, à tort, comme s'il était injoignable.
+Renseigner exactement :
+
+| Section | Start Address | Size |
+| --- | --- | --- |
+| Discrete Inputs | 0 | 2 |
+| Coils | 0 | **0** |
+| Input Registers | 0 | 3 |
+| Holding Registers - Read | 0 | **0** |
+| Holding Registers - Write | 0 | **0** |
+
+**5. Tester la coupure de pompe (touche `F10` dans la console).** Avec
+`FIELD_HOST` correctement positionné, la commande écrit directement la
+bobine pompe de `field-sim` — elle reste donc active même en mode `MODBUS`,
+au lieu d'être écrasée au sondage suivant. La température doit dériver
+progressivement vers 96 °C, les défauts apparaître l'un après l'autre (pas
+tous d'un coup), et la puissance radar se déclasser en conséquence. `F10`
+à nouveau relance la pompe et inverse la dérive.
+
 ## Ce qui est modélisé
 
 ### Senseurs
@@ -479,6 +546,11 @@ Symbologie : cercle = ami, losange = hostile, carré = neutre, quatre-feuilles
   seuil à cinq sigma le rend insensible aux mensonges subtils, et c'est un
   choix assumé : en dessous, le bruit du filtre est indiscernable d'une
   déclaration fausse.
+- `plc/Dockerfile` (build OpenPLC depuis le dépôt) casse à l'import
+  (`ImportError: cannot import name 'Markup' from 'jinja2'`) : l'ancien
+  Flask embarqué par OpenPLC_v3 exige Jinja2 < 3.1, non épinglé pour
+  l'instant. Non résolu — voir la procédure de contournement (build depuis
+  la source officielle OpenPLC_v3) dans « Avec un vrai automate ».
 
 ## Sécurité
 
