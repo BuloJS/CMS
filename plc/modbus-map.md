@@ -34,6 +34,14 @@ Devices** : c'est elle qui fait foi, pas ce tableau.
 | `%IX100.0` | entrée TOR 0 | — | Contact de rotation antenne |
 | `%IX100.1` | entrée TOR 1 | — | Pompe en marche |
 
+Seule la bobine pompe (adresse 1) accepte l'écriture (fonction 5) : c'est le
+point que le F10 « ARRÊT POMPE » de la console commande directement, via
+`FIELD_HOST`, pour rejouer une avarie de refroidissement même avec un
+automate réel dans la boucle — sans quoi le pont réécrirait l'état lu sur
+l'automate à chaque sondage (0,2 s) et écraserait l'ordre. Tout le reste
+(température, pression, rotation) reste en lecture seule : ce sont des
+mesures, pas des ordres.
+
 ## Automate → CMS (OpenPLC esclave, pont client)
 
 | Automate | Modbus (openplc:502) | Unité | Description |
