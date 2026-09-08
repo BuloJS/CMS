@@ -45,6 +45,8 @@ HOST = os.environ.get("CMS_HOST", "0.0.0.0")
 PORT = int(os.environ.get("CMS_PORT", "8000"))
 PLC_HOST = os.environ.get("PLC_HOST", "")
 PLC_PORT = int(os.environ.get("PLC_PORT", "502"))
+FIELD_HOST = os.environ.get("FIELD_HOST", "")
+FIELD_PORT = int(os.environ.get("FIELD_PORT", "5020"))
 DEFAULT_SC = os.environ.get("CMS_SCENARIO", "02-saturation-asm.toml")
 AIS_SOURCE = os.environ.get("AIS_SOURCE", "").lower()
 AIS_FILE = os.environ.get("AIS_FILE", "fixtures/ais-golfe-finlande.json")
@@ -145,11 +147,19 @@ class Sim:
                     from sim.geo import KT
                     e.own.ordered_speed = float(c["speed_kt"]) * KT
             elif k == "pump":
-                e.platform.pump = bool(c.get("valeur", True))
-                e.log("crit" if not e.platform.pump else "info",
+                marche = bool(c.get("valeur", True))
+                e.platform.pump = marche
+                e.log("crit" if not marche else "info",
                       "IPMS — pompe %s depuis le poste instructeur"
-                      % ("arrêtée" if not e.platform.pump else "relancée"),
-                      code="pompe_instructeur", marche=bool(e.platform.pump))
+                      % ("arrêtée" if not marche else "relancée"),
+                      code="pompe_instructeur", marche=marche)
+                # En mode automate réel, le pont Modbus réécrit platform.pump
+                # à chaque sondage (0,2 s) depuis la bobine lue sur l'automate
+                # — l'affectation ci-dessus serait donc aussitôt écrasée. On
+                # commande le point réel côté capteurs de terrain, au même
+                # titre qu'un vrai contacteur ; l'écho revient ensuite par le
+                # chemin normal (terrain → automate → console).
+                self.commander_pompe_terrain(marche)
             elif k == "ais_capture":
                 return self.lancer_capture()
             elif k == "rate":
@@ -213,6 +223,29 @@ class Sim:
 
         threading.Thread(target=travail, daemon=True).start()
         return {"ok": True, "etat": "en cours"}
+
+    def commander_pompe_terrain(self, marche):
+        """Écrit la bobine pompe du capteur de terrain (fc5, adresse 1).
+
+        Sans FIELD_HOST, on est en mode purement logiciel : rien à écrire,
+        et l'affectation locale déjà faite dans command() suffit. Avec un
+        automate réel dans la boucle, c'est ce point-là — pas l'affichage —
+        qui fait foi ; on l'écrit dans un fil pour ne jamais bloquer la
+        boucle de simulation sur un réseau lent ou indisponible.
+        """
+        if not FIELD_HOST:
+            return
+
+        def travail():
+            cli = ModbusTcp(FIELD_HOST, FIELD_PORT, timeout=2.0)
+            try:
+                cli.write_coil(1, marche)
+            except Exception:
+                pass
+            finally:
+                cli.close()
+
+        threading.Thread(target=travail, daemon=True).start()
 
     def run(self):
         acc, last, pub = 0.0, time.monotonic(), 0.0

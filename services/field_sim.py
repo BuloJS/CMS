@@ -71,6 +71,15 @@ class Handler(socketserver.BaseRequestHandler):
                     if bits[addr + i]:
                         by[i // 8] |= 1 << (i % 8)
                 payload = struct.pack(">BB", unit, 2) + bytes([n]) + bytes(by)
+            elif fc == 5 and addr == 1:
+                # Écriture bobine unique sur l'adresse pompe : le seul point
+                # commandable de ce capteur, pour rejouer une avarie de
+                # refroidissement en direct sans relancer le conteneur. Le
+                # reste (temp/press/rpm/rot) reste en lecture seule — ce sont
+                # des mesures, pas des ordres.
+                with lock:
+                    state["pump"] = (count == 0xFF00)
+                payload = struct.pack(">BB", unit, 5) + body[2:6]  # écho requis
             else:
                 payload = struct.pack(">BBB", unit, fc | 0x80, 1)
             self.request.sendall(struct.pack(">HHH", tid, 0, len(payload)) + payload)
