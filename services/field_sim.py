@@ -20,7 +20,13 @@ import time
 
 HOST, PORT = "0.0.0.0", int(os.environ.get("FIELD_PORT", "5020"))
 
-state = {"temp": 420, "press": 420, "rpm": 150, "pump": True, "rot": True}
+# FIELD_PUMP permet de forcer la pompe à l'arrêt dès le démarrage du
+# capteur — pratique pour rejouer une avarie de refroidissement sans
+# toucher au reste de la chaîne (le contacteur n'a pas d'écriture Modbus
+# côté OpenPLC, ce n'est qu'une entrée lue par l'automate maître).
+_pump_defaut = os.environ.get("FIELD_PUMP", "1").strip().lower() not in ("0", "false", "off")
+
+state = {"temp": 420, "press": 420, "rpm": 150, "pump": _pump_defaut, "rot": True}
 lock = threading.Lock()
 
 
