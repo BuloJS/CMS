@@ -73,6 +73,7 @@ class Sim:
         self.ais_cfg = None
         self.capture = None          # compte rendu de la dernière capture
         self.capture_en_cours = False
+        self._pompe_seq_vu = 0
         self.load(DEFAULT_SC)
 
     def load(self, fname):
@@ -84,6 +85,7 @@ class Sim:
             self.engine = Engine(sc)
             self.engine.platform.timescale = FIELD_TIMESCALE
             self.engine.doctrine["auto_id"] = True
+            self._pompe_seq_vu = 0
             self.name = path.name
             self.meta = {"scenario": sc["name"], "brief": sc["brief"],
                          "attendu": sc["attendu"], "fichier": path.name,
@@ -261,6 +263,24 @@ class Sim:
                     self.engine.step()
                 acc -= DT
                 steps += 1
+            # Un événement de scénario ("pompe" coupée à t+60s, par exemple)
+            # fait la même affectation locale que la commande "pump" du
+            # poste instructeur — et se heurte au même piège en mode
+            # automate réel : le pont réécrit platform.pump à chaque
+            # sondage Modbus et l'écraserait aussitôt. On rejoue donc vers
+            # le capteur de terrain tout événement "pompe" du journal qu'on
+            # n'a pas encore vu, exactement comme le fait la commande F10.
+            with self.lock:
+                seq_max, marche = self._pompe_seq_vu, None
+                for ev in self.engine.events:
+                    if ev["n"] <= self._pompe_seq_vu:
+                        break
+                    seq_max = max(seq_max, ev["n"])
+                    if ev.get("code") == "pompe" and marche is None:
+                        marche = ev["p"]["marche"]
+                self._pompe_seq_vu = seq_max
+            if marche is not None:
+                self.commander_pompe_terrain(marche)
             if now - pub >= 0.1:
                 pub = now
                 with self.lock:
