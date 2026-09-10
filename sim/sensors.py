@@ -57,8 +57,11 @@ class Radar:
         if r_m < 1.0:
             return 99.0
         # Déclassement de puissance : -6 dB de SNR ramène la portée à 71 %.
+        # Le plancher n'est là que pour éviter log10(0) — pas pour limiter
+        # l'effet réel du déclassement, qui doit pouvoir aller jusqu'à une
+        # quasi-coupure (voir sim/platform.py P_TRIP).
         return (self.k_db + 10 * math.log10(max(rcs, 1e-3))
-                - 40 * math.log10(r_m) + 10 * math.log10(max(self.power, 0.02)))
+                - 40 * math.log10(r_m) + 10 * math.log10(max(self.power, 1e-6)))
 
     def detect(self, own, c, rand):
         """Retourne un plot (r, brg) bruité, ou None."""

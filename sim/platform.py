@@ -9,6 +9,7 @@ refroidit les baies radar. Si elle tombe, la température monte, l'émission
 est déclassée, le SNR chute — et l'horizon de détection rétrécit à l'écran.
 Un défaut d'automate réduit physiquement la capacité de veille.
 """
+import math
 import time
 
 from .geo import approach
@@ -16,6 +17,12 @@ from .geo import approach
 T_NOMINAL = 42.0
 T_DERATE = 70.0      # au-delà, déclassement progressif de l'émission
 T_TRIP = 88.0        # arrêt d'urgence de l'émetteur
+
+# Puissance plancher à la coupure : quasi nulle, pas juste réduite. Un
+# émetteur coupé ne détecte plus qu'à très courte distance, quel que soit
+# le gabarit de la cible — en radar, la puissance émise est un facteur
+# multiplicatif de la loi en R⁴, pas un simple confort de portée.
+P_TRIP = 3e-4
 
 # Plafond du pas de temps appliqué à un ingest(). Sans lui, le premier appel
 # suivant une coupure Modbus verrait un dt énorme (le temps de la coupure),
@@ -82,13 +89,21 @@ class Platform:
 
     @property
     def radar_power(self):
-        """Facteur 0..1 appliqué au SNR du radar."""
-        if self.temp >= T_TRIP:
-            return 0.02
+        """Facteur 0..1 appliqué au SNR du radar.
+
+        Interpolation en décades (donc linéaire en dB) entre 1,0 et
+        P_TRIP, pas en droite — c'est l'échelle sur laquelle le SNR lui
+        agit (`10·log10(power)`). Une droite laisserait 15% de puissance
+        jusqu'au dernier degré avant la coupure, ce qui ne rend pas compte
+        d'un déclassement qui doit se voir avant le seuil final : ici, le
+        recul de portée est déjà sensible à mi-chemin de la plage.
+        """
         if self.temp <= T_DERATE:
             return 1.0
+        if self.temp >= T_TRIP:
+            return P_TRIP
         span = (self.temp - T_DERATE) / (T_TRIP - T_DERATE)
-        return max(0.15, 1.0 - 0.85 * span)
+        return 10 ** (math.log10(P_TRIP) * span)
 
     def faults(self):
         f = []

@@ -319,7 +319,7 @@ const EN = {
   "CAPTURÉ":"CAPTURED", "SCÉNARIO":"SCENARIO", "REJOUER":"REPLAY", "pause":"pause",
   // -- affiliations et champs de piste
   "AMI":"FRIEND", "HOSTILE":"HOSTILE", "NEUTRE":"NEUTRAL", "INCONNU":"UNKNOWN",
-  "GISEMENT":"BEARING", "DISTANCE":"RANGE", "ROUTE":"COURSE", "CPA":"CPA",
+  "GISEMENT":"BEARING", "DISTANCE":"RANGE", "DIST. (M)":"RANGE (M)", "ROUTE":"COURSE", "CPA":"CPA",
   "TCPA":"TCPA", "IFF":"IFF", "ESM":"ESM", "QUALITÉ":"QUALITY",
   "SANS RÉP.":"NO REPLY", "s'ouvre":"opening", "aucun facteur significatif":"no significant factor",
   "AUCUNE PISTE ACCROCHÉE":"NO TRACK HOOKED",
@@ -945,6 +945,7 @@ function renderHook(){
       '<span class="src">'+(t.src||[]).join("+")+(t.ident?" · "+t.ident:"")+'</span></div>'+
     '<div class="readouts">'+
       ro("GISEMENT", pad(t.brg,3,0), "°") + ro("DISTANCE", t.rng.toFixed(1), "NM") +
+      ro("DIST. (M)", Math.round(t.rng*1852).toLocaleString(LANG==="en"?"en-US":"fr-FR"), "m") +
       ro("ROUTE", pad(t.crs,3,0), "°") + ro("VITESSE", t.spd.toFixed(0), "kt") +
       ro("CPA", t.tcpa>0?t.cpa.toFixed(1):"—", t.tcpa>0?"NM":"", t.tcpa>0&&t.cpa<3) +
       ro("TCPA", t.tcpa>0?Math.round(t.tcpa):t2("OUVR."), t.tcpa>0?"s":"", t.tcpa>0&&t.tcpa<90) +
