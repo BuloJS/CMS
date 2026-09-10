@@ -115,6 +115,25 @@ Les bobines de défaut (`%QX2.x`) ne sont câblées sur rien pour l'instant :
 c'est le point d'extension prévu pour un vrai interlock (porte de silo,
 sécurité…).
 
+**Rechargement automatique**, +1 munition à intervalle fixe tant que le
+magasin n'est pas plein, jamais au-delà de la dotation initiale — un délai
+par type d'arme, pas une valeur unique :
+
+| Effecteur | Délai de rechargement |
+| --- | --- |
+| CIWS | 5 s |
+| Artillerie 76 mm | 10 s |
+| SAM courte portée | 15 s |
+| SSM | 20 s |
+
+Un seul bloc `TON` par effecteur, qui se réarme lui-même sur le front de
+son propre passage à vrai (motif d'oscillateur classique, un seul appel du
+bloc par cycle — deux appels du même `TON` dans un même scan avec des `IN`
+différents fonctionnerait aussi mais complique la lecture pour rien).
+Vérifié scan par scan en rejouant la même logique en Python avant
+d'écrire le `.st` : le rythme est bien d'une munition toutes les *n*
+secondes, sans double-incrément ni dépassement du plafond.
+
 Bobines lues d'un seul bloc contigu, `read_coils(8, 12)` : indices 0-3
 = `%QX1.0-1.3` (prêt), 4-7 = padding inutilisé (`%QX1.4-1.7`), 8-11 =
 `%QX2.0-2.3` (défaut). Voir `sim/armement.Armement.ingest()`.

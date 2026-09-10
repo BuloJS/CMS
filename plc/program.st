@@ -131,8 +131,10 @@ PROGRAM armement
   END_VAR
 
   VAR
-    (* Dotations initiales — mêmes valeurs que sim/tewa.py Effector.rounds,
-       pour rester cohérent avec le modèle logiciel qu'on remplace ici. *)
+    (* Dotations initiales et maximales — mêmes valeurs que sim/tewa.py
+       Effector.rounds, pour rester cohérent avec le modèle logiciel qu'on
+       remplace ici. Le rechargement automatique ne dépasse jamais cette
+       borne : un magasin ne grossit pas tout seul. *)
     muni_sam   : INT := 16;
     muni_ciws  : INT := 999;
     muni_gun   : INT := 120;
@@ -149,6 +151,21 @@ PROGRAM armement
     front_ciws : R_TRIG;
     front_gun  : R_TRIG;
     front_ssm  : R_TRIG;
+
+    (* Rechargement automatique : un coup revient tout seul après un délai
+       qui dépend du type d'arme — un canon à chargeur (CIWS) recharge vite,
+       un missile antinavire (SSM) est le plus lourd à remettre en œuvre.
+       Un seul TON par effecteur, qui se réarme lui-même via le front de son
+       propre passage à vrai : le motif classique d'oscillateur à un seul
+       bloc fonction, pas deux appels du même bloc dans un même cycle. *)
+    tempo_rech_sam  : TON;
+    tempo_rech_ciws : TON;
+    tempo_rech_gun  : TON;
+    tempo_rech_ssm  : TON;
+    front_rech_sam  : R_TRIG;
+    front_rech_ciws : R_TRIG;
+    front_rech_gun  : R_TRIG;
+    front_rech_ssm  : R_TRIG;
   END_VAR
 
   front_sam(CLK := cmd_effecteur = 0);
@@ -156,6 +173,13 @@ PROGRAM armement
     muni_sam := muni_sam - 1;
   END_IF;
   tempo_sam(IN := front_sam.Q, PT := T#3S);
+
+  front_rech_sam(CLK := tempo_rech_sam.Q);
+  IF front_rech_sam.Q AND muni_sam < 16 THEN
+    muni_sam := muni_sam + 1;
+  END_IF;
+  tempo_rech_sam(IN := muni_sam < 16 AND NOT tempo_rech_sam.Q, PT := T#15S);
+
   pret_sam     := muni_sam > 0 AND NOT tempo_sam.Q;
   defaut_sam   := FALSE;
   out_muni_sam := muni_sam;
@@ -165,6 +189,13 @@ PROGRAM armement
     muni_ciws := muni_ciws - 1;
   END_IF;
   tempo_ciws(IN := front_ciws.Q, PT := T#1S);
+
+  front_rech_ciws(CLK := tempo_rech_ciws.Q);
+  IF front_rech_ciws.Q AND muni_ciws < 999 THEN
+    muni_ciws := muni_ciws + 1;
+  END_IF;
+  tempo_rech_ciws(IN := muni_ciws < 999 AND NOT tempo_rech_ciws.Q, PT := T#5S);
+
   pret_ciws     := muni_ciws > 0 AND NOT tempo_ciws.Q;
   defaut_ciws   := FALSE;
   out_muni_ciws := muni_ciws;
@@ -174,6 +205,13 @@ PROGRAM armement
     muni_gun := muni_gun - 1;
   END_IF;
   tempo_gun(IN := front_gun.Q, PT := T#2S);
+
+  front_rech_gun(CLK := tempo_rech_gun.Q);
+  IF front_rech_gun.Q AND muni_gun < 120 THEN
+    muni_gun := muni_gun + 1;
+  END_IF;
+  tempo_rech_gun(IN := muni_gun < 120 AND NOT tempo_rech_gun.Q, PT := T#10S);
+
   pret_gun     := muni_gun > 0 AND NOT tempo_gun.Q;
   defaut_gun   := FALSE;
   out_muni_gun := muni_gun;
@@ -183,6 +221,13 @@ PROGRAM armement
     muni_ssm := muni_ssm - 1;
   END_IF;
   tempo_ssm(IN := front_ssm.Q, PT := T#5S);
+
+  front_rech_ssm(CLK := tempo_rech_ssm.Q);
+  IF front_rech_ssm.Q AND muni_ssm < 8 THEN
+    muni_ssm := muni_ssm + 1;
+  END_IF;
+  tempo_rech_ssm(IN := muni_ssm < 8 AND NOT tempo_rech_ssm.Q, PT := T#20S);
+
   pret_ssm     := muni_ssm > 0 AND NOT tempo_ssm.Q;
   defaut_ssm   := FALSE;
   out_muni_ssm := muni_ssm;
