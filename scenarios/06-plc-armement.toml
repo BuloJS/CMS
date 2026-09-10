@@ -1,0 +1,29 @@
+name = "Atelier PLC — armement"
+brief = """Scénario vide, sans piste ni événement scripté. Il n'existe que pour
+tester un automate réel : lanceur, munitions, interlocks — construits pas à pas
+côté OpenPLC, observés côté console. Rien ne se passera tant que rien n'est
+branché."""
+attendu = """Pas de solution attendue : ce n'est pas un cas d'engagement, c'est un
+établi. La seule chose à vérifier est que ce que fait l'automate se voit
+correctement sur la console."""
+
+name_en = "PLC workbench — weapons"
+brief_en = """Empty scenario, no scripted track or event. It exists only to test a
+real automate: launcher, ammunition, interlocks — built step by step on the
+OpenPLC side, observed on the console. Nothing happens until something is
+wired up."""
+attendu_en = """No expected solution: this is not an engagement case, it's a
+workbench. The only thing to check is that what the automate does shows up
+correctly on the console."""
+
+seed = 1
+duration = 3600
+
+[origine]
+lat = 59.85
+lon = 24.85
+
+[ownship]
+course = 0
+speed_kt = 0
+mast_m = 30
