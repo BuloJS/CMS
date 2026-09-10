@@ -53,6 +53,7 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 .main{display:grid;grid-template-columns:344px minmax(0,1fr) 340px;gap:1px;min-height:0;background:var(--line-soft)}
 .rail{display:flex;flex-direction:column;gap:1px;background:var(--line-soft);min-height:0;overflow:hidden}
 .pane{background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.pane[hidden]{display:none}
 .pane.grow{flex:1}
 .pane > header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:6px 11px 5px;border-bottom:1px solid var(--line-soft);font-family:var(--f-disp);font-size:11.5px;letter-spacing:.19em;color:var(--dim);text-transform:uppercase;flex:none}
 .pane > header em{font-style:normal;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.08em;color:var(--dimmest)}
@@ -250,7 +251,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
         <header><span data-i18n>IPMS — plateforme</span> <em id="ipms-em">—</em></header>
         <div class="sensors" id="sensors"></div>
       </section>
-      <section class="pane">
+      <section class="pane" id="armement-pane" hidden>
         <header><span data-i18n>Armement — lanceur</span> <em id="arm-em">—</em></header>
         <div class="sensors" id="armement"></div>
       </section>
@@ -999,8 +1000,13 @@ function renderPlatform(){
 const EFF_LABELS = {sam:"SAM", ciws:"CIWS", gun:"ARTILLERIE", ssm:"SSM"};
 function renderArmement(){
   const a = F.armement;
-  $("arm-em").textContent = t(a.source);
+  // Panneau caché tant qu'aucun automate armement n'est branché — la
+  // plupart des scénarios (01-05) n'en ont aucun besoin, et le journal a
+  // besoin de toute la hauteur disponible sans lui.
   const enLigne = a.source === "MODBUS";
+  $("armement-pane").hidden = !enLigne;
+  if(!enLigne) return;
+  $("arm-em").textContent = t(a.source);
   $("armement").innerHTML = Object.keys(EFF_LABELS).map(k=>{
     const m = a.munitions[k], pret = a.pret[k], def = a.defaut[k];
     return '<div class="srow"><i>'+t(EFF_LABELS[k])+'</i>'+
