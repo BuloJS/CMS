@@ -729,7 +729,15 @@ function drawScope(){
       g.arc(p.x,p.y-r2,r2,Math.PI,2*Math.PI); g.arc(p.x+r2,p.y,r2,-Math.PI/2,Math.PI/2);
       g.arc(p.x,p.y+r2,r2,0,Math.PI); g.arc(p.x-r2,p.y,r2,Math.PI/2,3*Math.PI/2);
       g.closePath(); g.stroke(); }
-    if(t.spd>60){ g.beginPath(); g.moveTo(p.x-s,p.y-s*1.9); g.lineTo(p.x+s,p.y-s*1.9); g.stroke(); }
+    if(t.spd>60){
+      // Piste aérienne (missile) — un losange hostile seul ne dit pas si
+      // c'est un missile ou un navire hostile classé. La barre doit se voir
+      // à 100 NM sans se confondre avec le symbole : nettement plus large
+      // et plus écartée que le plot, trait volontairement plus épais.
+      g.save(); g.lineWidth=2.4;
+      g.beginPath(); g.moveTo(p.x-s*1.7,p.y-s*2.6); g.lineTo(p.x+s*1.7,p.y-s*2.6); g.stroke();
+      g.restore();
+    }
 
     const d=t.spd/60*3/range*R;   // vecteur : 3 minutes de route
     g.beginPath(); g.moveTo(p.x,p.y);
