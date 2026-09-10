@@ -1124,12 +1124,28 @@ SRC.start(f => {
 });
 
 /* ---------------- interactions ---------------- */
+/* Un vrai scope PPI ne se recentre jamais sur un contact — le porteur
+   reste à l'origine, c'est sa position de référence. « Zoomer sur une
+   piste » veut donc dire changer d'échelle, pas déplacer le centre :
+   la plus petite échelle qui la garde confortablement dans le cadre. */
+const ECHELLES = [5,10,25,50,100];
+function zoomSur(t){
+  if(!t) return;
+  const q = dr(t), d = Math.hypot(q.x,q.y);
+  const e = ECHELLES.find(v => d <= v*0.8) || ECHELLES[ECHELLES.length-1];
+  if(e === range) return;
+  range = e;
+  document.querySelectorAll(".rangepad button").forEach(b=>{
+    b.setAttribute("aria-pressed", String(+b.dataset.r === e));
+  });
+}
 cv.addEventListener("click", e=>{
   if(!F) return;
   const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
   let best=null, bd=20;
   F.tracks.forEach(t=>{ const p=px(dr(t)), d=Math.hypot(p.x-mx,p.y-my); if(d<bd){bd=d;best=t;} });
   hooked = best?best.id:null;
+  if(best) zoomSur(best);
 });
 cv.addEventListener("mousemove", e=>{
   const r=cv.getBoundingClientRect();
@@ -1141,11 +1157,15 @@ cv.addEventListener("mousemove", e=>{
   $("cursor-ro").textContent = ro;
 });
 $("threats").addEventListener("click", e=>{
-  const row=e.target.closest(".threat"); if(row) hooked=row.dataset.id;
+  const row=e.target.closest(".threat"); if(!row) return;
+  hooked=row.dataset.id;
+  if(F) zoomSur(F.tracks.find(t=>t.id===hooked));
 });
 $("threats").addEventListener("keydown", e=>{
   if(e.key!=="Enter" && e.key!==" ") return;
-  const row=e.target.closest(".threat"); if(row){ e.preventDefault(); hooked=row.dataset.id; }
+  const row=e.target.closest(".threat"); if(!row) return;
+  e.preventDefault(); hooked=row.dataset.id;
+  if(F) zoomSur(F.tracks.find(t=>t.id===hooked));
 });
 $("solutions").addEventListener("click", e=>{
   const b=e.target.closest("[data-eng]"); if(!b) return;
