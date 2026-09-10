@@ -306,6 +306,13 @@ class Engine:
         ef = next((e for e in self.effectors if e.key == ef_key), None)
         if not tr or not ef or ef.free_channels < 1 or ef.rounds < 1:
             return False
+        # Avec un automate réel dans la boucle, le lanceur a le dernier mot :
+        # un canal occupé ou un magasin vide côté PLC refuse le tir, même si
+        # le modèle logiciel croit encore avoir des munitions. Sans automate
+        # (source SIMULÉ), armement.pret reste à None pour tout le monde et
+        # ne bloque donc jamais — c'est le modèle logiciel qui décide seul.
+        if self.armement.source == "MODBUS" and self.armement.pret.get(ef_key) is False:
+            return False
         # Un seul tir non évalué par couple (piste, effecteur) : le canal de
         # conduite de tir reste accroché jusqu'à l'évaluation du résultat.
         if any(s.tgt == track_num and s.ef == ef_key and not s.assessed

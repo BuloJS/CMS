@@ -6,6 +6,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sim.armement import Armement, EFFECTEURS  # noqa: E402
+from sim.engine import Engine                  # noqa: E402
+from sim.scenario import load                  # noqa: E402
+from sim.tracker import Track                  # noqa: E402
+
+SCENARIO = Path(__file__).resolve().parents[1] / "scenarios" / "06-plc-armement.toml"
+
+
+def moteur_avec_piste():
+    """Un moteur sur l'atelier vide, avec une piste stationnaire injectée
+    directement dans le pisteur — inutile de faire tourner un vrai radar
+    pour tester le seul comportement d'engage() qui nous intéresse ici."""
+    e = Engine(load(SCENARIO))
+    tr = Track(3000.0, 3000.0, e.t)
+    e.tracker.tracks[tr.num] = tr
+    return e, tr.num
 
 
 class TestArmement(unittest.TestCase):
@@ -30,6 +45,30 @@ class TestArmement(unittest.TestCase):
         snap = a.snapshot()
         snap["munitions"]["sam"] = 999
         self.assertEqual(a.munitions["sam"], 1, "snapshot() doit renvoyer une copie")
+
+
+class TestAutoriteDuLanceurSurEngage(unittest.TestCase):
+    """Le cas qui rend l'automate intéressant plutôt que décoratif : une
+    fois connecté, c'est lui qui a le dernier mot sur un tir, pas le seul
+    modèle logiciel de sim/tewa.py."""
+
+    def test_sans_automate_le_logiciel_decide_seul(self):
+        e, piste = moteur_avec_piste()
+        self.assertEqual(e.armement.source, "SIMULÉ")
+        self.assertTrue(e.engage(piste, "sam"),
+                        "sans automate, armement.pret (toujours None) ne doit jamais bloquer")
+
+    def test_canal_occupe_cote_automate_refuse_le_tir(self):
+        e, piste = moteur_avec_piste()
+        e.armement.ingest([16, 999, 120, 8], [False, True, True, True] + [False] * 8)
+        self.assertEqual(e.armement.source, "MODBUS")
+        self.assertFalse(e.engage(piste, "sam"),
+                         "le lanceur dit ne pas être prêt : le tir doit être refusé")
+
+    def test_automate_pret_autorise_le_tir(self):
+        e, piste = moteur_avec_piste()
+        e.armement.ingest([16, 999, 120, 8], [True, True, True, True] + [False] * 8)
+        self.assertTrue(e.engage(piste, "sam"))
 
 
 if __name__ == "__main__":

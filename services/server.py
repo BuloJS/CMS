@@ -74,6 +74,7 @@ class Sim:
         self.capture = None          # compte rendu de la dernière capture
         self.capture_en_cours = False
         self._pompe_seq_vu = 0
+        self._tir_seq_vu = 0
         self.load(DEFAULT_SC)
 
     def load(self, fname):
@@ -86,6 +87,7 @@ class Sim:
             self.engine.platform.timescale = FIELD_TIMESCALE
             self.engine.doctrine["auto_id"] = True
             self._pompe_seq_vu = 0
+            self._tir_seq_vu = 0
             self.name = path.name
             self.meta = {"scenario": sc["name"], "brief": sc["brief"],
                          "attendu": sc["attendu"], "fichier": path.name,
@@ -264,16 +266,27 @@ class Sim:
         Vit sur l'automate lui-même (PLC_HOST), pas sur field-sim — pas de
         capteur physique à simuler ici, tout est interne au programme.
         """
+        self.commander_tirs_armement(effecteur, 1)
+
+    def commander_tirs_armement(self, effecteur, n):
+        """Comme commander_tir_armement, mais pour une salve de n coups —
+        une salve entière ne fait pas un seul front, elle en fait n : le
+        lanceur décompte réellement chaque coup, pas la salve entière d'un
+        coup. Les pulsations sont écrites en série dans le même fil,
+        espacées assez pour laisser le scan PLC (50 ms) voir chaque front.
+        """
         code = {"sam": 0, "ciws": 1, "gun": 2, "ssm": 3}.get(effecteur)
-        if code is None or not PLC_HOST:
+        if code is None or not PLC_HOST or n < 1:
             return
 
         def travail():
             cli = ModbusTcp(PLC_HOST, PLC_PORT, timeout=2.0)
             try:
-                cli.write_register(1024, code)
-                time.sleep(0.15)
-                cli.write_register(1024, 255)
+                for _ in range(n):
+                    cli.write_register(1024, code)
+                    time.sleep(0.15)
+                    cli.write_register(1024, 255)
+                    time.sleep(0.15)
             except Exception:
                 pass
             finally:
@@ -311,6 +324,22 @@ class Sim:
                 self._pompe_seq_vu = seq_max
             if marche is not None:
                 self.commander_pompe_terrain(marche)
+            # Même principe pour chaque tir réel ("engage()", opérateur ou
+            # doctrine automatique) : le lanceur doit décompter un coup
+            # réellement parti, pas seulement ce que sim/tewa.py croit avoir
+            # tiré. Une salve de n coups vaut n fronts côté automate, pas un
+            # seul — voir commander_tirs_armement.
+            with self.lock:
+                seq_max, tirs = self._tir_seq_vu, []
+                for ev in self.engine.events:
+                    if ev["n"] <= self._tir_seq_vu:
+                        break
+                    seq_max = max(seq_max, ev["n"])
+                    if ev.get("code") == "tir":
+                        tirs.append((ev["p"]["ef"], ev["p"]["n"]))
+                self._tir_seq_vu = seq_max
+            for ef, n in reversed(tirs):
+                self.commander_tirs_armement(ef, n)
             if now - pub >= 0.1:
                 pub = now
                 with self.lock:

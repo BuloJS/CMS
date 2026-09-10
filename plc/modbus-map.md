@@ -139,14 +139,21 @@ Bobines lues d'un seul bloc contigu, `read_coils(8, 12)` : indices 0-3
 `%QX2.0-2.3` (défaut). Voir `sim/armement.Armement.ingest()`.
 
 **Côté CMS, ce bloc est lu (`sim/armement.py`, panneau « Armement —
-lanceur » de la console) mais n'a pas encore autorité sur la simulation.**
-`sim/tewa.py Effector.rounds`/`.busy` continue de décider ce qu'un
-engagement consomme réellement ; le panneau et les boutons de tir de test
-de la console (un par effecteur) ne servent aujourd'hui qu'à valider le
-séquencement PLC lui-même, en circuit fermé sur l'automate. La prochaine
-étape, une fois ce séquencement validé, est de donner à ce pont la même
-autorité que `Platform.ingest` sur la pompe — remplacer le modèle
-logiciel plutôt que le doubler.
+lanceur » de la console) et l'automate a maintenant le dernier mot sur un
+tir réel.** `sim/tewa.py Effector.rounds`/`.busy` continue de décider si
+un engagement est *proposé* (portée, canaux, munitions logicielles), mais
+`Engine.engage()` refuse le tir si `armement.pret[effecteur]` est `False`
+côté automate — canal occupé ou magasin vide pour de vrai, pas seulement
+dans le modèle logiciel. Sans automate (`armement.source == "SIMULÉ"`),
+`pret` reste à `None` pour tout effecteur et ne bloque donc jamais : le
+logiciel décide seul, comme avant.
+
+Chaque tir accepté (opérateur ou doctrine automatique) rejoue vers
+l'automate autant de fronts sur `%MW0` que de coups partis dans la salve
+(`services/server.py`, `commander_tirs_armement` — même principe que le
+rejeu des événements « pompe » scriptés). Le bouton de tir de test du
+panneau reste utile pour valider le séquencement PLC seul, sans faire
+tourner tout un scénario de combat.
 
 ## Sécurité
 
