@@ -26,7 +26,7 @@ _DT_MAX = 1.0
 
 
 class Platform:
-    def __init__(self):
+    def __init__(self, timescale=1.0):
         self.pump = True
         self.temp = T_NOMINAL
         self.press = 4.2
@@ -34,13 +34,19 @@ class Platform:
         self.source = "SIMULÉ"
         self.tripped = False
         self._last_ingest = None   # horodatage du dernier ingest() réussi
+        # Levier de démo, pas de réalisme : accélère la dérive (step comme
+        # ingest) sans changer les constantes de temps par défaut tant
+        # qu'il vaut 1.0. Voir FIELD_TIMESCALE côté field_sim.py — les deux
+        # doivent être réglés ensemble pour que l'effet se voie sur la
+        # console en mode MODBUS.
+        self.timescale = max(timescale, 1e-6)
 
     def step(self, dt):
         if self.source != "SIMULÉ":
             return
         target_t = T_NOMINAL if self.pump else 96.0
-        self.temp = approach(self.temp, target_t, 55.0 if self.pump else 90.0, dt)
-        self.press = approach(self.press, 4.2 if self.pump else 0.6, 12.0, dt)
+        self.temp = approach(self.temp, target_t, (55.0 if self.pump else 90.0) / self.timescale, dt)
+        self.press = approach(self.press, 4.2 if self.pump else 0.6, 12.0 / self.timescale, dt)
 
     def ingest(self, regs, coils):
         """Reprend l'état depuis les registres OpenPLC (voir plc/modbus-map.md).
@@ -65,10 +71,10 @@ class Platform:
         cible_temp = regs[0] / 10.0
         cible_press = regs[1] / 100.0
         cible_rpm = regs[2] / 10.0
-        tau_temp = 55.0 if self.pump else 90.0
+        tau_temp = (55.0 if self.pump else 90.0) / self.timescale
         self.temp = approach(self.temp, cible_temp, tau_temp, dt)
-        self.press = approach(self.press, cible_press, 12.0, dt)
-        self.rpm = approach(self.rpm, cible_rpm, 3.0, dt)
+        self.press = approach(self.press, cible_press, 12.0 / self.timescale, dt)
+        self.rpm = approach(self.rpm, cible_rpm, 3.0 / self.timescale, dt)
         # Le contacteur de pompe est un signal tout-ou-rien : rien à lisser,
         # une pompe est en marche ou non, instantanément — comme un vrai
         # relais. C'est délibérément la seule affectation brute qui reste.

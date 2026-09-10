@@ -26,6 +26,12 @@ HOST, PORT = "0.0.0.0", int(os.environ.get("FIELD_PORT", "5020"))
 # côté OpenPLC, ce n'est qu'une entrée lue par l'automate maître).
 _pump_defaut = os.environ.get("FIELD_PUMP", "1").strip().lower() not in ("0", "false", "off")
 
+# FIELD_TIMESCALE accélère la dérive physique pour une démo — la même
+# valeur doit être passée à services/server.py (qui lisse à nouveau côté
+# CMS avec ses propres constantes de temps) sans quoi ce réglage seul ne
+# suffit pas à voir la différence sur la console.
+TIMESCALE = float(os.environ.get("FIELD_TIMESCALE", "1"))
+
 state = {"temp": 420, "press": 420, "rpm": 150, "pump": _pump_defaut, "rot": True}
 lock = threading.Lock()
 
@@ -36,10 +42,10 @@ def physics():
         with lock:
             target = 420 if state["pump"] else 960
             tau = 55.0 if state["pump"] else 90.0
-            state["temp"] += (target - state["temp"]) * (0.5 / tau) + rnd.gauss(0, 1.2)
+            state["temp"] += (target - state["temp"]) * (0.5 * TIMESCALE / tau) + rnd.gauss(0, 1.2)
             pt = 420 if state["pump"] else 60
-            state["press"] += (pt - state["press"]) * (0.5 / 12.0) + rnd.gauss(0, 2)
-            state["rpm"] += (150 - state["rpm"]) * 0.05 + rnd.gauss(0, 0.4)
+            state["press"] += (pt - state["press"]) * (0.5 * TIMESCALE / 12.0) + rnd.gauss(0, 2)
+            state["rpm"] += (150 - state["rpm"]) * 0.05 * TIMESCALE + rnd.gauss(0, 0.4)
         time.sleep(0.5)
 
 

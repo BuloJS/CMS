@@ -47,6 +47,7 @@ PLC_HOST = os.environ.get("PLC_HOST", "")
 PLC_PORT = int(os.environ.get("PLC_PORT", "502"))
 FIELD_HOST = os.environ.get("FIELD_HOST", "")
 FIELD_PORT = int(os.environ.get("FIELD_PORT", "5020"))
+FIELD_TIMESCALE = float(os.environ.get("FIELD_TIMESCALE", "1"))
 DEFAULT_SC = os.environ.get("CMS_SCENARIO", "02-saturation-asm.toml")
 AIS_SOURCE = os.environ.get("AIS_SOURCE", "").lower()
 AIS_FILE = os.environ.get("AIS_FILE", "fixtures/ais-golfe-finlande.json")
@@ -81,6 +82,7 @@ class Sim:
         sc = load(path)
         with self.lock:
             self.engine = Engine(sc)
+            self.engine.platform.timescale = FIELD_TIMESCALE
             self.engine.doctrine["auto_id"] = True
             self.name = path.name
             self.meta = {"scenario": sc["name"], "brief": sc["brief"],
