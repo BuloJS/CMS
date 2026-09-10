@@ -250,6 +250,10 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
         <header><span data-i18n>IPMS — plateforme</span> <em id="ipms-em">—</em></header>
         <div class="sensors" id="sensors"></div>
       </section>
+      <section class="pane">
+        <header><span data-i18n>Armement — lanceur</span> <em id="arm-em">—</em></header>
+        <div class="sensors" id="armement"></div>
+      </section>
       <section class="pane grow">
         <header><span data-i18n>Journal</span> <em id="ev-count">—</em></header>
         <div class="body" id="events"></div>
@@ -339,6 +343,10 @@ const EN = {
   "PUISS. ÉMIS.":"TX POWER", "POMPE OK":"PUMP OK", "POMPE DÉFAUT":"PUMP FAULT",
   "AUCUN DÉFAUT":"NO FAULT", "POMPE REFR.":"COOLANT PUMP",
   "ÉMISSION COUPÉE":"TX SHUT DOWN", "SIMULÉ":"SIMULATED", "MODBUS":"MODBUS",
+  // -- armement
+  "Armement — lanceur":"Weapons — launcher", "MUNI.":"AMMO",
+  "PRÊT":"READY", "OCCUPÉ":"BUSY", "DÉFAUT INTERLOCK":"INTERLOCK FAULT",
+  "ARTILLERIE":"GUN",
   // -- AIS
   "AIS — DÉCLARÉ PAR LE NAVIRE":"AIS — DECLARED BY THE SHIP",
   "AIS — MANŒUVRE CONTRAINTE":"AIS — MANOEUVRE CONSTRAINED",
@@ -983,6 +991,35 @@ function renderPlatform(){
   $("sk-pump").querySelector("span").textContent = t(p.pompe ? "ARRÊT POMPE" : "RELANCER POMPE");
 }
 
+/* Panneau armement — lecture seule sur ce que fait l'automate (voir
+   plc/modbus-map.md) : la simulation logicielle (sim/tewa.py) garde encore
+   la main sur les munitions réellement consommées par un engagement, ce
+   panneau n'affiche pour l'instant que le lanceur lui-même, avec des
+   boutons de test pour valider le séquencement PLC sans autre outil. */
+const EFF_LABELS = {sam:"SAM", ciws:"CIWS", gun:"ARTILLERIE", ssm:"SSM"};
+function renderArmement(){
+  const a = F.armement;
+  $("arm-em").textContent = t(a.source);
+  const enLigne = a.source === "MODBUS";
+  $("armement").innerHTML = Object.keys(EFF_LABELS).map(k=>{
+    const m = a.munitions[k], pret = a.pret[k], def = a.defaut[k];
+    return '<div class="srow"><i>'+t(EFF_LABELS[k])+'</i>'+
+      '<div class="sval" style="grid-column:2/4">'+(m===null?"—":m)+
+      '<small> '+t("MUNI.")+'</small></div></div>'+
+      '<div class="chips">'+
+        '<span class="chip '+(pret?"ok":"ko")+'">'+t(pret?"PRÊT":"OCCUPÉ")+'</span>'+
+        (def ? '<span class="chip ko">'+t("DÉFAUT INTERLOCK")+'</span>' : '') +
+      '</div>';
+  }).join("") +
+    '<div class="idrow">' + Object.keys(EFF_LABELS).map(k=>
+      '<button class="tir" data-tir="'+k+'"'+(enLigne?"":" disabled")+'>'+t(EFF_LABELS[k])+'</button>'
+    ).join("") + '</div>';
+}
+$("armement").addEventListener("click", e=>{
+  const b = e.target.closest("[data-tir]"); if(!b) return;
+  SRC.send({cmd:"armement_tir", effecteur: b.dataset.tir});
+});
+
 function renderEvents(){
   $("events").innerHTML = F.events.map(e=>{
     const col = e.sev==="crit"?"var(--crit)":e.sev==="warn"?"var(--warn)":"var(--dim)";
@@ -1102,7 +1139,7 @@ function loop(now){
   drawScope();
   if(F && now - tPanel > 250){
     tPanel = now;
-    renderThreats(); renderSolutions(); renderHook(); renderPlatform(); renderEvents(); renderTop();
+    renderThreats(); renderSolutions(); renderHook(); renderPlatform(); renderArmement(); renderEvents(); renderTop();
   }
   // la butée descend en continu, elle ne peut pas attendre la trame suivante
   document.querySelectorAll(".butee").forEach(el=>{
@@ -1239,7 +1276,7 @@ function appliquerLangue(){
   $("sk-capture").querySelector("span").textContent = t("CAPTURE AIS");
   $("cursor-ro").textContent = t("GIS")+" —— · "+t("DIST")+" ——";
   if(F){ renderTop(); renderThreats(); renderSolutions(); renderHook();
-         renderPlatform(); renderEvents(); }
+         renderPlatform(); renderArmement(); renderEvents(); }
 }
 $("lang").onclick = () => {
   LANG = LANG === "fr" ? "en" : "fr";

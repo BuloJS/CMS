@@ -75,6 +75,15 @@ ordre écrit dessus par le CMS serait écrasé au tour suivant, même piège que
 la pompe avant son correctif. `%MW0` est un mot mémoire : seul le CMS y
 écrit, seul le programme armement le lit. Rien d'autre n'y touche.
 
+**Adresse Modbus réelle : 1024, pas 0.** Dans le serveur Modbus d'OpenPLC,
+les registres de maintien 0-1023 sont `%QW`, et 1024-2047 sont `%MW` — un
+décalage fixe de +1024, vérifié dans `webserver/core/modbus.cpp`
+(`mapUnusedIO()`) d'OpenPLC_v3, pas deviné. `%MW0` s'écrit donc avec la
+fonction 6 (écriture registre unique) à l'adresse **1024**. `services/
+server.py` (`commander_tir_armement`) écrit le code effecteur puis `255`
+peu après, pour laisser le temps à `R_TRIG` de détecter le front avant que
+la commande retombe au repos.
+
 | Registre | Valeur | Effecteur |
 | --- | --- | --- |
 | `%MW0` | 0 | SAM courte portée |
@@ -106,14 +115,19 @@ Les bobines de défaut (`%QX2.x`) ne sont câblées sur rien pour l'instant :
 c'est le point d'extension prévu pour un vrai interlock (porte de silo,
 sécurité…).
 
-**Côté CMS, ce bloc n'est pas encore lu.** Le programme automate est
-compilé et vérifié (voir `scenarios/06-plc-armement.toml`, un atelier sans
-piste ni événement, pensé pour tester l'automate seul), mais `services/
-server.py` et `sim/` ne consomment pas encore ces registres — la prochaine
-étape, quand le séquencement PLC sera validé côté OpenPLC, est d'écrire un
-pont symétrique à celui de la plateforme (`Platform.ingest`) qui fait
-autorité sur les munitions et l'état prêt/occupé à la place du modèle
-logiciel actuel.
+Bobines lues d'un seul bloc contigu, `read_coils(8, 12)` : indices 0-3
+= `%QX1.0-1.3` (prêt), 4-7 = padding inutilisé (`%QX1.4-1.7`), 8-11 =
+`%QX2.0-2.3` (défaut). Voir `sim/armement.Armement.ingest()`.
+
+**Côté CMS, ce bloc est lu (`sim/armement.py`, panneau « Armement —
+lanceur » de la console) mais n'a pas encore autorité sur la simulation.**
+`sim/tewa.py Effector.rounds`/`.busy` continue de décider ce qu'un
+engagement consomme réellement ; le panneau et les boutons de tir de test
+de la console (un par effecteur) ne servent aujourd'hui qu'à valider le
+séquencement PLC lui-même, en circuit fermé sur l'automate. La prochaine
+étape, une fois ce séquencement validé, est de donner à ce pont la même
+autorité que `Platform.ingest` sur la pompe — remplacer le modèle
+logiciel plutôt que le doubler.
 
 ## Sécurité
 

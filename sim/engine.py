@@ -8,6 +8,7 @@ fixée rend un scénario reproductible au tick près.
 import random
 
 from . import tewa
+from .armement import Armement
 from .entities import Contact, Ownship
 from .geo import KT, NM, Projection, bearing, rng
 from .platform import Platform
@@ -57,6 +58,7 @@ class Engine:
         self.esm, self.iff, self.ais = Esm(), Iff(), Ais()
         self.tracker = Tracker()
         self.platform = Platform()
+        self.armement = Armement()
         self.effectors = tewa.default_effectors()
         self.doctrine = {"auto_ciws": True, "auto_sam": False, "auto_id": False}
         self.shots = []
@@ -476,6 +478,7 @@ class Engine:
             "tracks": tks,
             "solutions": self.solutions[:8],
             "platform": self.platform.snapshot(),
+            "armement": self.armement.snapshot(),
             "effecteurs": [{"key": e.key, "label": e.label, "role": e.role,
                             "rounds": e.rounds, "libres": e.free_channels,
                             "canaux": e.channels} for e in self.effectors],

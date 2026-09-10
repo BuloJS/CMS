@@ -164,6 +164,8 @@ class Sim:
                 # titre qu'un vrai contacteur ; l'écho revient ensuite par le
                 # chemin normal (terrain → automate → console).
                 self.commander_pompe_terrain(marche)
+            elif k == "armement_tir":
+                self.commander_tir_armement(c.get("effecteur", ""))
             elif k == "ais_capture":
                 return self.lancer_capture()
             elif k == "rate":
@@ -251,6 +253,34 @@ class Sim:
 
         threading.Thread(target=travail, daemon=True).start()
 
+    def commander_tir_armement(self, effecteur):
+        """Écrit %MW0 sur l'automate — un mot mémoire, pas une bobine %Q, et
+        décalé de +1024 dans l'espace d'adressage Modbus d'OpenPLC (les
+        registres de maintien 0-1023 sont %QW, 1024-2047 sont %MW ; vérifié
+        dans le code source d'OpenPLC_v3, pas deviné). Écrit le code
+        effecteur puis 255 (repos) peu après : c'est ce front qui déclenche
+        un coup côté programme armement, voir plc/program.st.
+
+        Vit sur l'automate lui-même (PLC_HOST), pas sur field-sim — pas de
+        capteur physique à simuler ici, tout est interne au programme.
+        """
+        code = {"sam": 0, "ciws": 1, "gun": 2, "ssm": 3}.get(effecteur)
+        if code is None or not PLC_HOST:
+            return
+
+        def travail():
+            cli = ModbusTcp(PLC_HOST, PLC_PORT, timeout=2.0)
+            try:
+                cli.write_register(1024, code)
+                time.sleep(0.15)
+                cli.write_register(1024, 255)
+            except Exception:
+                pass
+            finally:
+                cli.close()
+
+        threading.Thread(target=travail, daemon=True).start()
+
     def run(self):
         acc, last, pub = 0.0, time.monotonic(), 0.0
         while self.running:
@@ -326,12 +356,21 @@ class PlcBridge(threading.Thread):
                 # ses entrées, il ne peut pas y écrire.
                 regs = self.cli.read_holding_registers(0, 4)
                 coils = self.cli.read_coils(0, 8)
+                # Bloc armement : maintien 10-13 (munitions), bobines 8-19
+                # (%QX1.0-1.3 prêt, %QX2.0-2.3 défaut — voir modbus-map.md).
+                # Lu dans la même passe puisque c'est le même automate ; sans
+                # le programme armement chargé, ça lit des zéros, pas une
+                # erreur — la console affichera juste « 0 munitions ».
+                regs_arm = self.cli.read_holding_registers(10, 4)
+                coils_arm = self.cli.read_coils(8, 12)
                 with self.sim.lock:
                     self.sim.engine.platform.ingest(regs, coils)
+                    self.sim.engine.armement.ingest(regs_arm, coils_arm)
             except Exception:
                 self.cli.close()
                 with self.sim.lock:
                     self.sim.engine.platform.source = "SIMULÉ"
+                    self.sim.engine.armement.source = "SIMULÉ"
                 time.sleep(3.0)
                 continue
             time.sleep(0.2)

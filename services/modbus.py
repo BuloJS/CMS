@@ -1,9 +1,10 @@
 """Client Modbus TCP minimal, sans dépendance.
 
-Trois codes fonction suffisent au pont : lecture de bobines (1), de
-registres d'entrée (4) et écriture d'une bobine (5). Écrire ces soixante
-lignes évite d'épingler une bibliothèque dont l'API bouge d'une version
-mineure à l'autre — et rend l'image Docker installable sans réseau.
+Quatre codes fonction suffisent au pont : lecture de bobines (1), de
+registres d'entrée (4) et de maintien (3), écriture d'une bobine (5) et
+d'un registre de maintien (6). Écrire ces quelques lignes évite d'épingler
+une bibliothèque dont l'API bouge d'une version mineure à l'autre — et
+rend l'image Docker installable sans réseau.
 
 Modbus n'a ni authentification ni chiffrement : c'est une propriété du
 protocole, pas un défaut de cette implémentation. Le bus reste sur un
@@ -76,3 +77,6 @@ class ModbusTcp:
 
     def write_coil(self, addr, value):
         self._tx(5, struct.pack(">HH", addr, 0xFF00 if value else 0x0000))
+
+    def write_register(self, addr, value):
+        self._tx(6, struct.pack(">HH", addr, value & 0xFFFF))
