@@ -667,7 +667,7 @@ function drawScope(){
   // porteur n'est alors plus au centre du scope — c'est le prix du suivi,
   // assumé et visible plutôt que caché.
   const suiveur = suivi && F ? F.tracks.find(t=>t.id===hooked) : null;
-  followOffset = suiveur ? dr(suiveur) : {x: 0, y: 0};
+  followOffset = suiveur ? dr(suiveur) : panOffset;
   // Sous suivi, c'est la piste accrochée qui occupe le centre — c'est
   // donc le porteur qui s'en écarte, à la distance porteur<->piste. Sans
   // réajuster l'échelle, le porteur (et son radar) sort du cadre dès que
@@ -1257,7 +1257,38 @@ function zoomSur(t){
     b.setAttribute("aria-pressed", String(+b.dataset.r === e));
   });
 }
+// Glissé main gauche : déplace la vue (panOffset), indépendant du suivi
+// automatique (panOffset) — un glissé manuel prend la main dessus, comme
+// un clic ou une molette le fait déjà pour l'échelle. Le clic normal
+// (sélection d'une piste) doit rester possible : on ne bascule en glissé
+// qu'après quelques pixels de mouvement, et le clic qui suit un glissé
+// réel est avalé plutôt que traité comme une sélection.
+let panOffset = {x: 0, y: 0};
+let glisse = null, glisseBouge = false;
+cv.addEventListener("mousedown", e=>{
+  if(e.button !== 0) return;
+  glisse = {mx: e.clientX, my: e.clientY, ox: panOffset.x, oy: panOffset.y};
+});
+window.addEventListener("mousemove", e=>{
+  if(!glisse) return;
+  const dxpx = e.clientX - glisse.mx, dypx = e.clientY - glisse.my;
+  if(!glisseBouge && Math.hypot(dxpx,dypx) < 4) return;
+  glisseBouge = true;
+  if(suivi){ suivi = false; $("sk-suivi").setAttribute("aria-pressed","false"); }
+  panOffset = {x: glisse.ox - dxpx/R*range, y: glisse.oy + dypx/R*range};
+});
+window.addEventListener("mouseup", ()=>{ glisse = null; });
+cv.addEventListener("dblclick", ()=>{ panOffset = {x: 0, y: 0}; });
+
+cv.addEventListener("wheel", e=>{
+  e.preventDefault();
+  if(suivi){ suivi = false; $("sk-suivi").setAttribute("aria-pressed","false"); }
+  range = clamp(range * (e.deltaY > 0 ? 1.15 : 1/1.15), 1, 120);
+  document.querySelectorAll(".rangepad button").forEach(b=>b.setAttribute("aria-pressed","false"));
+}, {passive:false});
+
 cv.addEventListener("click", e=>{
+  if(glisseBouge){ glisseBouge = false; return; }
   if(!F) return;
   const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
   let best=null, bd=20;
