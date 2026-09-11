@@ -40,7 +40,7 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 .statestrip{flex:1;display:flex;align-items:center;gap:22px;padding:0 16px;overflow-x:auto;scrollbar-width:none}
 .statestrip::-webkit-scrollbar{display:none}
 .stat{display:flex;flex-direction:column;line-height:1.15;white-space:nowrap}
-.stat i{font-style:normal;font-size:9.5px;letter-spacing:.15em;color:var(--dimmest);font-family:var(--f-disp)}
+.stat i{font-style:normal;font-size:10.5px;letter-spacing:.13em;color:var(--dim);font-family:var(--f-disp)}
 .stat b{font-family:var(--f-mono);font-size:14px;font-weight:500;color:#e8f4ff;font-variant-numeric:tabular-nums}
 .stat b small{font-size:9.5px;color:var(--dim);margin-left:1px}
 .lang{align-self:center;margin-right:10px;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;padding:4px 9px;border:1px solid var(--line);border-radius:2px;background:transparent;color:var(--dim);cursor:pointer}
@@ -175,8 +175,8 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 /* ---- pied ---- */
 .softkeys{background:var(--bezel);display:flex;align-items:stretch;gap:1px;flex-wrap:wrap}
 .sk{background:var(--panel);border:0;border-top:1px solid var(--line-soft);padding:7px 13px 8px;cursor:pointer;color:var(--dim);display:flex;flex-direction:column;gap:1px;align-items:center;min-width:92px;flex:1}
-.sk u{text-decoration:none;font-family:var(--f-mono);font-size:8.5px;color:var(--dimmest);letter-spacing:.09em}
-.sk span{font-family:var(--f-disp);font-size:12px;letter-spacing:.13em}
+.sk u{text-decoration:none;font-family:var(--f-mono);font-size:9.5px;color:var(--dim);letter-spacing:.09em}
+.sk span{font-family:var(--f-disp);font-size:13px;letter-spacing:.12em;font-weight:500}
 .sk:hover:not(:disabled){background:var(--panel-2);color:#e8f4ff}
 .sk:disabled{opacity:.35;cursor:default}
 .sk[aria-pressed="true"]{background:#14406e;color:#dff0ff}
@@ -184,7 +184,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .sk:focus-visible,.threat:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--phos);outline-offset:-2px}
 .foot-sel{display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--panel-2);border-top:1px solid var(--line-soft)}
 .foot-sel select{font-family:var(--f-mono);font-size:11px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:2px;padding:4px 6px}
-.foot-sel label{font-family:var(--f-disp);font-size:10px;letter-spacing:.13em;color:var(--dimmest)}
+.foot-sel label{font-family:var(--f-disp);font-size:11px;letter-spacing:.13em;color:var(--dim)}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:1180px){
