@@ -659,6 +659,12 @@ function drawScope(){
   // assumé et visible plutôt que caché.
   const suiveur = suivi && F ? F.tracks.find(t=>t.id===hooked) : null;
   followOffset = suiveur ? dr(suiveur) : {x: 0, y: 0};
+  // Le radar n'existe que sur le porteur : anneaux, graduations et
+  // faisceau de balayage sont ancrés sur sa position à l'écran (op), pas
+  // sur le centre du hublot rond — celui-ci reste fixe, c'est le cadre de
+  // l'écran, pas une donnée. Sous suivi, tout ce bloc se décale donc
+  // ensemble hors du centre visuel, avec le porteur.
+  const op = px({x: 0, y: 0});
   const grd = g.createRadialGradient(cx,cy,R*0.05,cx,cy,R);
   grd.addColorStop(0,"#14488c"); grd.addColorStop(.72,"#0d3062"); grd.addColorStop(1,"#071c39");
   g.beginPath(); g.arc(cx,cy,R,0,7); g.fillStyle=grd; g.fill();
@@ -699,13 +705,13 @@ function drawScope(){
   }
 
   g.strokeStyle="rgba(96,168,240,.30)"; g.lineWidth=1;
-  for(let i=1;i<=4;i++){ g.beginPath(); g.arc(cx,cy,R*i/4,0,7); g.stroke(); }
+  for(let i=1;i<=4;i++){ g.beginPath(); g.arc(op.x,op.y,R*i/4,0,7); g.stroke(); }
   g.font='10px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
   for(let a=0;a<360;a+=5){
     const long=a%30===0, len=long?11:5, s=Math.sin(a*Math.PI/180), c=Math.cos(a*Math.PI/180);
-    g.beginPath(); g.moveTo(cx+s*R,cy-c*R); g.lineTo(cx+s*(R-len),cy-c*(R-len));
+    g.beginPath(); g.moveTo(op.x+s*R,op.y-c*R); g.lineTo(op.x+s*(R-len),op.y-c*(R-len));
     g.strokeStyle=long?"rgba(140,205,255,.55)":"rgba(110,175,235,.28)"; g.stroke();
-    if(long){ g.fillStyle="rgba(160,210,250,.62)"; g.fillText(String(a).padStart(3,"0"),cx+s*(R+13),cy-c*(R+13)); }
+    if(long){ g.fillStyle="rgba(160,210,250,.62)"; g.fillText(String(a).padStart(3,"0"),op.x+s*(R+13),op.y-c*(R+13)); }
   }
 
   const sweep = REDUCED ? 0 : (simT()*90)%360;
@@ -714,10 +720,10 @@ function drawScope(){
     g.save(); g.globalCompositeOperation="lighter";
     for(let i=0;i<26;i++){
       const a=a0-i*0.028;
-      g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+Math.sin(a)*R,cy-Math.cos(a)*R);
+      g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(a)*R,op.y-Math.cos(a)*R);
       g.strokeStyle="rgba(150,225,255,"+(0.16*(1-i/26))+")"; g.lineWidth=2.4; g.stroke();
     }
-    g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+Math.sin(a0)*R,cy-Math.cos(a0)*R);
+    g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(a0)*R,op.y-Math.cos(a0)*R);
     g.strokeStyle="rgba(190,240,255,.85)"; g.lineWidth=1.4; g.stroke();
     g.restore();
   }
@@ -775,9 +781,11 @@ function drawScope(){
       g.strokeStyle="#8fdcff"; g.lineWidth=1.2;
       g.strokeRect(p.x-s-7,p.y-s-7,(s+7)*2,(s+7)*2);
       if(showEbl){
-        g.setLineDash([4,4]); g.beginPath(); g.moveTo(cx,cy); g.lineTo(p.x,p.y);
+        // Gisement/distance vrais depuis le porteur, pas depuis le centre
+        // visuel : l'EBL sert justement à lire une valeur exploitable.
+        g.setLineDash([4,4]); g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(p.x,p.y);
         g.strokeStyle="rgba(143,220,255,.6)"; g.stroke(); g.setLineDash([]);
-        g.beginPath(); g.arc(cx,cy,rr/range*R,0,7);
+        g.beginPath(); g.arc(op.x,op.y,rr/range*R,0,7);
         g.strokeStyle="rgba(143,220,255,.35)"; g.stroke();
       }
     }
@@ -826,10 +834,7 @@ function drawScope(){
   });
   g.restore();
 
-  // Position réelle du porteur à l'écran : au centre en temps normal, mais
-  // pas sous suivi — c'est précisément le signal visuel qui dit qu'on
-  // regarde ailleurs que depuis le porteur.
-  const op = px({x: 0, y: 0});
+  // op (position réelle du porteur à l'écran) est déjà calculé plus haut.
   const crs = F ? F.own.crs : 0;
   g.save(); g.translate(op.x,op.y); g.rotate(crs*Math.PI/180);
   g.beginPath(); g.moveTo(0,-11); g.lineTo(6,8); g.lineTo(0,4); g.lineTo(-6,8); g.closePath();
@@ -1239,16 +1244,15 @@ cv.addEventListener("click", e=>{
 });
 cv.addEventListener("mousemove", e=>{
   const r=cv.getBoundingClientRect();
-  // Gisement/distance restent lus depuis le centre du scope — sous suivi,
-  // c'est la piste suivie, pas le porteur, et les anneaux affichés suivent
-  // la même convention. Seule la position géographique doit rester vraie :
-  // toLatLon() attend des NM relatifs au porteur, donc on y ajoute le
-  // décalage de recentrage.
-  const dx=(e.clientX-r.left-cx)/R*range, dy=(cy-(e.clientY-r.top))/R*range;
+  // Le radar n'est que sur le porteur : gisement, distance et anneaux
+  // affichés sont tous relatifs à sa position réelle à l'écran (op), pas
+  // au centre du hublot — cohérent avec ce que dessine drawScope().
+  const op = px({x: 0, y: 0});
+  const dx=(e.clientX-r.left-op.x)/R*range, dy=(op.y-(e.clientY-r.top))/R*range;
   const b=(Math.atan2(dx,dy)*180/Math.PI+360)%360, d=Math.hypot(dx,dy);
   if(d>range){ $("cursor-ro").textContent = t("GIS")+" —— · "+t("DIST")+" ——"; return; }
   let ro = t("GIS")+" "+pad(b,3,0)+"° · "+t("DIST")+" "+d.toFixed(1)+" NM";
-  if(geoOk()){ const g2 = toLatLon(dx+followOffset.x, dy+followOffset.y); ro += " · " + fmtLatLon(g2[0], g2[1]); }
+  if(geoOk()){ const g2 = toLatLon(dx, dy); ro += " · " + fmtLatLon(g2[0], g2[1]); }
   $("cursor-ro").textContent = ro;
 });
 $("threats").addEventListener("click", e=>{
