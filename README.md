@@ -281,7 +281,7 @@ illisible. La terre est **réelle mais toujours transparente** : le radar voit
 curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_coastline.geojson
 curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson
 python3 tools/coastline.py ne_10m_coastline.geojson --terres ne_10m_land.geojson \
-    --lat 59.85 --lon 24.85 --rayon 120 -o web/coastline.json
+    --lat 59.85 --lon 24.85 --rayon 300 -o web/coastline.json
 ```
 
 Les polygones servent aussi à vérifier qu'un scénario est posé où il doit

@@ -254,7 +254,7 @@ node tools/build-artifact.mjs                   # l'artefact autonome
 curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_coastline.geojson
 curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson
 python3 tools/coastline.py ne_10m_coastline.geojson --terres ne_10m_land.geojson \
-    --lat 59.85 --lon 24.85 --rayon 120 -o web/coastline.json
+    --lat 59.85 --lon 24.85 --rayon 300 -o web/coastline.json
 python3 tools/eaux.py                           # origines, contacts et leurs routes
 python3 tools/eaux.py --capture fixtures/ais-golfe-finlande.json
 ```
