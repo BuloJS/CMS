@@ -667,6 +667,13 @@ function drawScope(){
   // porteur n'est alors plus au centre du scope — c'est le prix du suivi,
   // assumé et visible plutôt que caché.
   const suiveur = suivi && F ? F.tracks.find(t=>t.id===hooked) : null;
+  // Limite de glissé manuel : sans elle, un dézoom suivi d'un grand
+  // glissé peut pousser le porteur complètement hors champ, avec plus
+  // aucun repère pour revenir (à part le double-clic). Borné à 1,3x
+  // l'échelle affichée — au-delà, le porteur serait de toute façon hors
+  // du cadran radar, donc rien d'utile à voir plus loin.
+  const dPan = Math.hypot(panOffset.x, panOffset.y), maxPan = range * 1.3;
+  if(dPan > maxPan){ const k = maxPan/dPan; panOffset = {x: panOffset.x*k, y: panOffset.y*k}; }
   followOffset = suiveur ? dr(suiveur) : panOffset;
   // Sous suivi, c'est la piste accrochée qui occupe le centre — c'est
   // donc le porteur qui s'en écarte, à la distance porteur<->piste. Sans
@@ -1283,7 +1290,10 @@ cv.addEventListener("dblclick", ()=>{ panOffset = {x: 0, y: 0}; });
 cv.addEventListener("wheel", e=>{
   e.preventDefault();
   if(suivi){ suivi = false; $("sk-suivi").setAttribute("aria-pressed","false"); }
-  range = clamp(range * (e.deltaY > 0 ? 1.15 : 1/1.15), 1, 120);
+  // 110 NM, pas un chiffre rond arbitraire : c'est la portée maximale du
+  // capteur (sim/sensors.py Radar.max_range) — dézoomer au-delà montrerait
+  // une échelle que le radar ne peut physiquement pas atteindre.
+  range = clamp(range * (e.deltaY > 0 ? 1.15 : 1/1.15), 1, 110);
   document.querySelectorAll(".rangepad button").forEach(b=>b.setAttribute("aria-pressed","false"));
 }, {passive:false});
 
