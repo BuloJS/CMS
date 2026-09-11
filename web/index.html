@@ -29,7 +29,7 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 
 /* ---- bandeau ---- */
 .topbar{background:var(--bezel);display:flex;align-items:stretch;gap:1px;font-family:var(--f-disp)}
-.brand{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--panel-2)}
+.brand{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--panel-2);width:344px;flex:none;box-sizing:border-box}
 .brand .mark{width:20px;height:20px;border:1.5px solid var(--phos);border-radius:50%;position:relative;flex:none}
 .brand .mark::after{content:"";position:absolute;inset:50% 50% 3px 50%;border-left:1.5px solid var(--phos);transform-origin:bottom;transform:rotate(38deg)}
 .brand b{font-size:15px;letter-spacing:.16em;color:#eaf5ff;display:block;line-height:1.1}
@@ -192,6 +192,9 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
   .main{grid-template-columns:1fr}
   .scopewrap{height:min(88vw,620px);order:-1}
   .rail{overflow:visible}
+  /* La colonne de gauche n'a plus une largeur fixe de 344px une fois les
+     trois colonnes empilées — le bloc MFCL ne doit donc plus non plus. */
+  .brand{width:auto}
 }
 </style>
 
