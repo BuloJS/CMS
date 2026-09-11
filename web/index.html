@@ -659,6 +659,14 @@ function drawScope(){
   // assumé et visible plutôt que caché.
   const suiveur = suivi && F ? F.tracks.find(t=>t.id===hooked) : null;
   followOffset = suiveur ? dr(suiveur) : {x: 0, y: 0};
+  // Sous suivi, c'est la piste accrochée qui occupe le centre — c'est
+  // donc le porteur qui s'en écarte, à la distance porteur<->piste. Sans
+  // réajuster l'échelle, le porteur (et son radar) sort du cadre dès que
+  // cette distance dépasse l'échelle choisie au clic. zoomSur() choisit la
+  // plus petite échelle qui cadre cette même distance à 80% — recalculé à
+  // chaque trame tant que le suivi est actif, pas seulement une fois au
+  // clic, pour suivre la distance qui change en vol.
+  if(suiveur) zoomSur(suiveur);
   // Le radar n'existe que sur le porteur : anneaux, graduations et
   // faisceau de balayage sont ancrés sur sa position à l'écran (op), pas
   // sur le centre du hublot rond — celui-ci reste fixe, c'est le cadre de
