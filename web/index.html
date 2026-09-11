@@ -264,6 +264,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 
   <div class="softkeys">
     <button class="sk" id="sk-hook" disabled><u>F1</u><span data-i18n>DÉCROCHER</span></button>
+    <button class="sk" id="sk-suivi" disabled><u>F4</u><span data-i18n>SUIVI</span></button>
     <button class="sk" id="sk-ebl"><u>F5</u><span>EBL / VRM</span></button>
     <button class="sk" id="sk-trails" aria-pressed="true"><u>F6</u><span data-i18n>TRACES</span></button>
     <button class="sk" id="sk-ell" aria-pressed="true"><u>F7</u><span data-i18n>INCERTITUDE</span></button>
@@ -318,7 +319,7 @@ const EN = {
   "SIMULATION EN DIRECT":"LIVE SIMULATION", "REJEU — ENREGISTREMENT":"REPLAY — RECORDING",
   "FLUX INTERROMPU":"FEED LOST", "CONNEXION…":"CONNECTING…",
   // -- touches
-  "DÉCROCHER":"UNHOOK", "TRACES":"TRAILS", "INCERTITUDE":"UNCERTAINTY",
+  "DÉCROCHER":"UNHOOK", "SUIVI":"FOLLOW", "TRACES":"TRAILS", "INCERTITUDE":"UNCERTAINTY",
   "SAM AUTO":"AUTO SAM", "ARRÊT POMPE":"STOP PUMP", "RELANCER POMPE":"RESTART PUMP",
   "CAPTURE AIS":"AIS CAPTURE", "CAPTURE…":"CAPTURING…", "CAPTURE KO":"CAPTURE FAILED",
   "CAPTURÉ":"CAPTURED", "SCÉNARIO":"SCENARIO", "REJOUER":"REPLAY", "pause":"pause",
@@ -576,6 +577,13 @@ let F = null;            // dernière trame reçue
 let tRecv = 0;           // horloge locale à la réception
 let range = 25, showTrails = true, showEll = true, showEbl = false;
 let hooked = null;
+// Recentrage optionnel sur la piste accrochée. Volontairement un bouton à
+// part, pas un comportement automatique du crochet : sur un scope à
+// plusieurs menaces simultanées, décider laquelle suit la vue doit rester
+// un choix explicite de l'opérateur, pas une bascule au clic — accrocher
+// pour lire, puis choisir en plus de suivre, sont deux gestes distincts.
+let suivi = false;
+let followOffset = {x: 0, y: 0};   // NM, relatif au porteur ; {0,0} = porteur au centre
 
 function age(){ return (performance.now() - tRecv)/1000 * (F && F.rate ? F.rate : 1); }
 function simT(){ return F ? F.t + age() : 0; }
@@ -640,11 +648,17 @@ function resize(){
   cx=W/2; cy=H/2; R=Math.min(W,H)/2-26;
 }
 new ResizeObserver(resize).observe(cv.parentElement);
-const px = p => ({x: cx + p.x/range*R, y: cy - p.y/range*R});
+const px = p => ({x: cx + (p.x-followOffset.x)/range*R, y: cy - (p.y-followOffset.y)/range*R});
 
 function drawScope(){
   g.clearRect(0,0,W,H);
   if (R<=10) return;
+
+  // Recentrage : la vue suit la piste accrochée tant que F4 est actif. Le
+  // porteur n'est alors plus au centre du scope — c'est le prix du suivi,
+  // assumé et visible plutôt que caché.
+  const suiveur = suivi && F ? F.tracks.find(t=>t.id===hooked) : null;
+  followOffset = suiveur ? dr(suiveur) : {x: 0, y: 0};
   const grd = g.createRadialGradient(cx,cy,R*0.05,cx,cy,R);
   grd.addColorStop(0,"#14488c"); grd.addColorStop(.72,"#0d3062"); grd.addColorStop(1,"#071c39");
   g.beginPath(); g.arc(cx,cy,R,0,7); g.fillStyle=grd; g.fill();
@@ -798,13 +812,17 @@ function drawScope(){
   });
   g.restore();
 
+  // Position réelle du porteur à l'écran : au centre en temps normal, mais
+  // pas sous suivi — c'est précisément le signal visuel qui dit qu'on
+  // regarde ailleurs que depuis le porteur.
+  const op = px({x: 0, y: 0});
   const crs = F ? F.own.crs : 0;
-  g.save(); g.translate(cx,cy); g.rotate(crs*Math.PI/180);
+  g.save(); g.translate(op.x,op.y); g.rotate(crs*Math.PI/180);
   g.beginPath(); g.moveTo(0,-11); g.lineTo(6,8); g.lineTo(0,4); g.lineTo(-6,8); g.closePath();
   g.fillStyle="#bfeaff"; g.fill(); g.restore();
-  g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+Math.sin(crs*Math.PI/180)*R, cy-Math.cos(crs*Math.PI/180)*R);
+  g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(crs*Math.PI/180)*R, op.y-Math.cos(crs*Math.PI/180)*R);
   g.strokeStyle="rgba(191,234,255,.28)"; g.lineWidth=1; g.setLineDash([2,6]); g.stroke(); g.setLineDash([]);
-  g.beginPath(); g.arc(cx,cy,R,0,7); g.strokeStyle="rgba(150,210,255,.5)"; g.lineWidth=1.2; g.stroke();
+  g.beginPath(); g.arc(op.x,op.y,R,0,7); g.strokeStyle="rgba(150,210,255,.5)"; g.lineWidth=1.2; g.stroke();
 }
 
 /* ---------------- panneaux ---------------- */
@@ -938,6 +956,13 @@ function renderDoutes(an){
 function renderHook(){
   const t = F.tracks.find(x=>x.id===hooked);
   $("sk-hook").disabled = !t;
+  // Le suivi n'a de sens que sur une piste accrochée — décrocher (ou perdre
+  // la piste) l'éteint plutôt que de le laisser suivre dans le vide.
+  $("sk-suivi").disabled = !t;
+  if(!t && suivi){
+    suivi = false;
+    $("sk-suivi").setAttribute("aria-pressed", "false");
+  }
   if(!t){
     $("hook-body").className="empty";
     $("hook-body").innerHTML=t2("AUCUNE PISTE ACCROCHÉE")+"<br>"+
@@ -1200,11 +1225,16 @@ cv.addEventListener("click", e=>{
 });
 cv.addEventListener("mousemove", e=>{
   const r=cv.getBoundingClientRect();
+  // Gisement/distance restent lus depuis le centre du scope — sous suivi,
+  // c'est la piste suivie, pas le porteur, et les anneaux affichés suivent
+  // la même convention. Seule la position géographique doit rester vraie :
+  // toLatLon() attend des NM relatifs au porteur, donc on y ajoute le
+  // décalage de recentrage.
   const dx=(e.clientX-r.left-cx)/R*range, dy=(cy-(e.clientY-r.top))/R*range;
   const b=(Math.atan2(dx,dy)*180/Math.PI+360)%360, d=Math.hypot(dx,dy);
   if(d>range){ $("cursor-ro").textContent = t("GIS")+" —— · "+t("DIST")+" ——"; return; }
   let ro = t("GIS")+" "+pad(b,3,0)+"° · "+t("DIST")+" "+d.toFixed(1)+" NM";
-  if(geoOk()){ const g2 = toLatLon(dx,dy); ro += " · " + fmtLatLon(g2[0], g2[1]); }
+  if(geoOk()){ const g2 = toLatLon(dx+followOffset.x, dy+followOffset.y); ro += " · " + fmtLatLon(g2[0], g2[1]); }
   $("cursor-ro").textContent = ro;
 });
 $("threats").addEventListener("click", e=>{
@@ -1233,6 +1263,7 @@ document.querySelectorAll(".rangepad button").forEach(b=>{
 const tgl=(id,fn)=>{ $(id).onclick=e=>{ const on=e.currentTarget.getAttribute("aria-pressed")!=="true";
   e.currentTarget.setAttribute("aria-pressed",String(on)); fn(on); }; };
 $("sk-hook").onclick = ()=>{ hooked=null; };
+tgl("sk-suivi", v=>suivi=v);
 
 /* Capture : va chercher un instantané du flux public et l'enregistre, puis
    le pont le relit. C'est ce qui transforme un lab qui a besoin du réseau
@@ -1247,7 +1278,7 @@ $("sk-restart").onclick = ()=>SRC.send({cmd:"restart"});
 $("sel-rate").onchange = e=>SRC.send({cmd:"rate", valeur:+e.target.value});
 $("sel-sc").onchange = e=>SRC.send({cmd:"scenario", fichier:e.target.value});
 document.addEventListener("keydown", e=>{
-  const map={F1:"sk-hook",F5:"sk-ebl",F6:"sk-trails",F7:"sk-ell",
+  const map={F1:"sk-hook",F4:"sk-suivi",F5:"sk-ebl",F6:"sk-trails",F7:"sk-ell",
              F8:"sk-decoy",F9:"sk-autosam",F10:"sk-pump",F2:"sk-capture"};
   if(map[e.key]){ e.preventDefault(); $(map[e.key]).click(); }
 });
