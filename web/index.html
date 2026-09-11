@@ -6,7 +6,7 @@
 <title>Console Tactique MFCL</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500&display=swap">
 </head>
 <body>
 <!-- BEGIN CONSOLE -->
@@ -85,10 +85,10 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 .threat[aria-selected="true"]{background:#17416f}
 .threat[aria-selected="true"] .tid{box-shadow:-3px 0 0 var(--phos)}
 .tid{font-family:var(--f-mono);font-size:13px;font-weight:500;padding-left:5px}
-.tmeta{font-family:var(--f-mono);font-size:10.5px;color:var(--dim);text-align:right;font-variant-numeric:tabular-nums}
+.tmeta{font-family:var(--f-mono);font-size:11px;font-weight:500;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
 .sbar{grid-column:1/-1;height:4px;background:#0a2038;border-radius:1px;overflow:hidden;display:flex}
 .sbar i{display:block;height:100%}
-.tfact{grid-column:1/-1;font-family:var(--f-mono);font-size:9.5px;color:var(--dimmest);letter-spacing:.02em}
+.tfact{grid-column:1/-1;font-family:var(--f-mono);font-size:10px;color:var(--dim);letter-spacing:.02em}
 
 /* ---- solutions ---- */
 .sol{padding:9px 11px;border-bottom:1px solid #0d1f38;display:grid;gap:7px}
@@ -119,15 +119,15 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .hook-id{display:flex;align-items:center;gap:8px;margin-bottom:9px}
 .hook-id b{font-family:var(--f-mono);font-size:18px;color:#eaf5ff}
 .hook-id .aff{font-family:var(--f-disp);font-size:11px;letter-spacing:.16em;padding:2px 7px;border:1px solid currentColor;border-radius:2px}
-.hook-id .src{margin-left:auto;font-family:var(--f-mono);font-size:9px;color:var(--dimmest)}
+.hook-id .src{margin-left:auto;font-family:var(--f-mono);font-size:9.5px;color:var(--dim)}
 .readouts{display:grid;grid-template-columns:repeat(4,1fr);gap:9px 7px}
-.ro i{display:block;font-style:normal;font-family:var(--f-disp);font-size:9.5px;letter-spacing:.13em;color:var(--dimmest)}
-.ro b{font-family:var(--f-mono);font-size:15px;color:#e8f4ff;font-variant-numeric:tabular-nums}
+.ro i{display:block;font-style:normal;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.12em;color:var(--dim)}
+.ro b{font-family:var(--f-mono);font-size:15px;font-weight:700;color:#eef4f8;font-variant-numeric:tabular-nums}
 .ro b small{font-size:9.5px;color:var(--dim);margin-left:1px}
 .ro.alert b{color:var(--crit)}
 .aisbox{margin-top:11px;border:1px solid var(--line-soft);border-radius:2px;padding:8px 9px 9px;background:rgba(6,18,34,.5)}
 .aisbox.flag{border-color:var(--warn)}
-.aisbox>header{font-family:var(--f-disp);font-size:9.5px;letter-spacing:.14em;color:var(--dimmest);margin-bottom:8px}
+.aisbox>header{font-family:var(--f-disp);font-size:10.5px;letter-spacing:.13em;color:var(--dim);margin-bottom:8px}
 .aisbox.flag>header{color:var(--warn)}
 .aisbox .readouts{grid-template-columns:repeat(2,1fr);gap:8px 7px}
 .aisbox .ro b{font-size:12.5px}
