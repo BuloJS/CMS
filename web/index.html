@@ -645,7 +645,13 @@ function resize(){
   W=r.width; H=r.height;
   cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
   g.setTransform(dpr,0,0,dpr,0,0);
-  cx=W/2; cy=H/2; R=Math.min(W,H)/2-26;
+  // R fixe l'échelle (NM par pixel) pour toute la carte, pas seulement le
+  // cadran rond — le prendre sur la plus petite dimension (comme du temps
+  // du disque découpé) gaspille tout le surplus horizontal d'un panneau
+  // large. La plus grande dimension exploite ce surplus ; l'autre axe est
+  // simplement rogné par les bords du panneau, ce qui est très bien
+  // puisque plus rien n'exige que le disque tienne entièrement dedans.
+  cx=W/2; cy=H/2; R=Math.max(W,H)/2-26;
 }
 new ResizeObserver(resize).observe(cv.parentElement);
 const px = p => ({x: cx + (p.x-followOffset.x)/range*R, y: cy - (p.y-followOffset.y)/range*R});
