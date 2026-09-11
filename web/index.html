@@ -673,10 +673,17 @@ function drawScope(){
   // l'écran, pas une donnée. Sous suivi, tout ce bloc se décale donc
   // ensemble hors du centre visuel, avec le porteur.
   const op = px({x: 0, y: 0});
-  const grd = g.createRadialGradient(cx,cy,R*0.05,cx,cy,R);
-  grd.addColorStop(0,"#14488c"); grd.addColorStop(.72,"#0d3062"); grd.addColorStop(1,"#071c39");
-  g.beginPath(); g.arc(cx,cy,R,0,7); g.fillStyle=grd; g.fill();
-  g.save(); g.beginPath(); g.arc(cx,cy,R,0,7); g.clip();
+  // Le cercle du radar (anneaux, graduations, faisceau) n'est plus une
+  // fenêtre qui découpe ce qu'on voit — c'est un cadran dessiné par-dessus
+  // une carte qui, elle, occupe tout le panneau. Un cercle inscrit dans un
+  // rectangle laisse ses coins inexploités ; à échelle égale, le
+  // rectangle montre donc naturellement plus loin sans avoir à dézoomer,
+  // ce qui limite le cas où le porteur se retrouve écrasé contre un bord
+  // pendant le suivi. Le fond (dégradé mer) couvre tout le panneau pour
+  // la même raison — sans lui, les coins resteraient noirs sous la carte.
+  const grd = g.createRadialGradient(cx,cy,R*0.05,cx,cy,R*1.6);
+  grd.addColorStop(0,"#14488c"); grd.addColorStop(.55,"#0d3062"); grd.addColorStop(1,"#071c39");
+  g.fillStyle=grd; g.fillRect(0,0,W,H);
 
   /* Le fond de carte, sous les anneaux. La terre est remplie : un trait
      seul ne dit pas de quel côté est la mer, et sur un scope dense c'est
@@ -840,7 +847,6 @@ function drawScope(){
     g.beginPath(); g.moveTo(p.x,p.y-4); g.lineTo(p.x+4,p.y+4); g.lineTo(p.x-4,p.y+4); g.closePath();
     g.fillStyle="#ff9a3c"; g.fill();
   });
-  g.restore();
 
   // op (position réelle du porteur à l'écran) est déjà calculé plus haut.
   const crs = F ? F.own.crs : 0;
