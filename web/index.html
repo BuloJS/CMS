@@ -998,6 +998,11 @@ function renderPlatform(){
    panneau n'affiche pour l'instant que le lanceur lui-même, avec des
    boutons de test pour valider le séquencement PLC sans autre outil. */
 const EFF_LABELS = {sam:"SAM", ciws:"CIWS", gun:"ARTILLERIE", ssm:"SSM"};
+// Dotations max — mêmes valeurs que PROGRAM armement (plc/program.st) et
+// sim/tewa.py Effector.rounds. Pas transmises par le pont aujourd'hui,
+// donc dupliquées ici ; si tu changes une dotation d'un côté, change-la
+// des trois (les deux autres sont dans les fichiers cités ci-dessus).
+const EFF_MAX = {sam:16, ciws:999, gun:120, ssm:8};
 function renderArmement(){
   const a = F.armement;
   // Panneau caché tant qu'aucun automate armement n'est branché — la
@@ -1008,10 +1013,12 @@ function renderArmement(){
   if(!enLigne) return;
   $("arm-em").textContent = t(a.source);
   $("armement").innerHTML = Object.keys(EFF_LABELS).map(k=>{
-    const m = a.munitions[k], pret = a.pret[k], def = a.defaut[k];
+    const m = a.munitions[k], pret = a.pret[k], def = a.defaut[k], max = EFF_MAX[k];
+    const pct = m===null ? 0 : clamp(m/max*100, 0, 100);
+    const st = m===0 ? "crit" : pct<30 ? "warn" : "";
     return '<div class="srow"><i>'+t(EFF_LABELS[k])+'</i>'+
-      '<div class="sval" style="grid-column:2/4">'+(m===null?"—":m)+
-      '<small> '+t("MUNI.")+'</small></div></div>'+
+      '<div class="bar '+st+'"><span style="width:'+pct.toFixed(1)+'%"></span></div>'+
+      '<div class="sval">'+(m===null?"—":m)+'</div></div>'+
       '<div class="chips">'+
         '<span class="chip '+(pret?"ok":"ko")+'">'+t(pret?"PRÊT":"OCCUPÉ")+'</span>'+
         (def ? '<span class="chip ko">'+t("DÉFAUT INTERLOCK")+'</span>' : '') +
