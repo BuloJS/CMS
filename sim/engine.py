@@ -24,15 +24,25 @@ DECOY_RANGE = 5 * NM
 
 
 class Interceptor:
-    """Munition en vol. Sa seule raison d'être est le délai : on ne sait pas
-    tout de suite si on a touché, et cette incertitude déclenche — ou non —
-    le réengagement."""
-    __slots__ = ("x", "y", "tgt", "v", "pk", "eta", "ef", "salve", "assessed")
+    """Munition en vol. Sa seule raison d'être était le délai — mais un
+    délai seul ne se suit pas à l'écran. `(x, y)` avance donc en ligne
+    droite du point de tir vers le point d'interception calculé au
+    lancement (`(hx, hy)`, celui que le tir a résolu — la cible réelle a
+    pu manœuvrer depuis, ce n'est pas de la triche, c'est ce que "tirer sur
+    une solution" veut dire). Pas de navigation proportionnelle, pas
+    d'enveloppe de manœuvre : une ligne droite parcourue à vitesse
+    constante, comme le reste du domaine le documente déjà."""
+    __slots__ = ("x0", "y0", "x", "y", "hx", "hy", "tof",
+                 "tgt", "v", "pk", "eta", "ef", "salve", "assessed", "history")
 
-    def __init__(self, x, y, tgt, v, pk, eta, ef, salve):
-        self.x, self.y, self.tgt, self.v = x, y, tgt, v
+    def __init__(self, x, y, hx, hy, tof, tgt, v, pk, eta, ef, salve):
+        self.x0, self.y0 = x, y
+        self.x, self.y = x, y
+        self.hx, self.hy, self.tof = hx, hy, tof
+        self.tgt, self.v = tgt, v
         self.pk, self.eta, self.ef, self.salve = pk, eta, ef, salve
         self.assessed = False
+        self.history = [(x, y)]
 
 
 class Engine:
@@ -297,6 +307,13 @@ class Engine:
         self.shots = [s for s in self.shots if not s.assessed or s.eta > -30.0]
         for s in list(self.shots):
             s.eta -= dt
+            if not s.assessed and s.tof > 0:
+                frac = min(1.0, max(0.0, 1 - s.eta / s.tof))
+                s.x = s.x0 + (s.hx - s.x0) * frac
+                s.y = s.y0 + (s.hy - s.y0) * frac
+                s.history.append((s.x, s.y))
+                if len(s.history) > 20:
+                    s.history.pop(0)
             if s.eta <= 0 and not s.assessed:
                 s.assessed = True
                 self._resolve(s)
@@ -328,7 +345,11 @@ class Engine:
         n = tewa.salvo_for(ef.pk)
         ef.busy += 1
         ef.rounds = max(0, ef.rounds - n)
-        self.shots.append(Interceptor(self.own.x, self.own.y, track_num, ef.v,
+        # Point d'interception résolu au tir : c'est la solution que le tir
+        # engage, pas une prédiction recalculée en vol — la cible réelle
+        # peut s'en écarter d'ici l'échéance, exactement comme un vrai tir.
+        hx, hy = x + vx * tof, y + vy * tof
+        self.shots.append(Interceptor(self.own.x, self.own.y, hx, hy, tof, track_num, ef.v,
                                       1 - (1 - ef.pk) ** n, tof, ef.key, n))
         self.log("warn", "%s — %s x%d sur %s%s"
                  % (ef.label, "tir", n, track_num, " (doctrine)" if auto else ""),
@@ -491,7 +512,12 @@ class Engine:
                             "canaux": e.channels} for e in self.effectors],
             "leurres": self.decoys,
             "doctrine": dict(self.doctrine),
-            "tirs": [{"tgt": s.tgt, "ef": s.ef, "eta": round(s.eta, 1)}
+            "tirs": [{"tgt": s.tgt, "ef": s.ef, "eta": round(s.eta, 1),
+                      "x": round((s.x - self.own.x) / NM, 3),
+                      "y": round((s.y - self.own.y) / NM, 3),
+                      "trail": [[round((hx - self.own.x) / NM, 3),
+                                 round((hy - self.own.y) / NM, 3)]
+                                for hx, hy in s.history[-10:]]}
                      for s in self.shots if not s.assessed],
             # Déclarations AIS sans écho radar en face. Un petit mobile
             # s'entend plus loin qu'il ne se voit, donc ce n'est pas une

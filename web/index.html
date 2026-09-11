@@ -803,12 +803,26 @@ function drawScope(){
     g.fillText((o.nom||o.mmsi||"AIS")+" (sans écho)", p.x+s2+5, p.y+3);
   });
 
-  // munitions en vol : un trait du porteur vers la piste visée
+  // munitions en vol : position réelle interpolée départ -> solution de
+  // tir, avec sa propre traînée — pas une ligne figée du porteur vers la
+  // cible pendant toute la durée du vol. La traînée suit le même réglage
+  // que celle des pistes (F6) : c'est la même idée, appliquée au même
+  // endroit du scope.
   if(F) F.tirs.forEach(s=>{
-    const t = F.tracks.find(x=>x.id===s.tgt); if(!t) return;
-    const p = px(dr(t));
-    g.setLineDash([2,5]); g.beginPath(); g.moveTo(cx,cy); g.lineTo(p.x,p.y);
-    g.strokeStyle="rgba(255,154,60,.75)"; g.lineWidth=1.4; g.stroke(); g.setLineDash([]);
+    const p = px({x: s.x, y: s.y});
+    if(showTrails && s.trail && s.trail.length>1){
+      g.beginPath();
+      s.trail.forEach((h,i)=>{ const P=px({x:h[0],y:h[1]}); i?g.lineTo(P.x,P.y):g.moveTo(P.x,P.y); });
+      g.strokeStyle="rgba(255,154,60,.55)"; g.lineWidth=1.2; g.stroke();
+    }
+    const t = F.tracks.find(x=>x.id===s.tgt);
+    if(t){
+      const pt = px(dr(t));
+      g.setLineDash([2,5]); g.beginPath(); g.moveTo(p.x,p.y); g.lineTo(pt.x,pt.y);
+      g.strokeStyle="rgba(255,154,60,.35)"; g.lineWidth=1; g.stroke(); g.setLineDash([]);
+    }
+    g.beginPath(); g.moveTo(p.x,p.y-4); g.lineTo(p.x+4,p.y+4); g.lineTo(p.x-4,p.y+4); g.closePath();
+    g.fillStyle="#ff9a3c"; g.fill();
   });
   g.restore();
 
