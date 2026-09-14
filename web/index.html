@@ -198,35 +198,38 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .mview .pane{padding:16px 18px;gap:12px}
 .mview .pane>header{padding:0}
 .compass-wrap{display:flex;align-items:center;justify-content:center;flex:1;min-height:0}
-.compass{width:min(52vh,420px);height:min(52vh,420px);cursor:pointer}
-.compass.speedo{height:min(26vh,210px)}
-.compass .rose{stroke:var(--line);stroke-width:1.5}
-.compass .zone{stroke-width:7;fill:none}
-.compass .tick-major{stroke:var(--dim);stroke-width:2}
-.compass .tick-minor{stroke:var(--line);stroke-width:1.3}
-.compass .lbl{font-family:var(--f-disp);font-size:13px;font-weight:600;fill:var(--dim)}
-.compass .needle{stroke:var(--phos);stroke-width:3.5;stroke-linecap:round}
+.compass{width:min(48vh,400px);height:min(48vh,400px);cursor:pointer}
+.compass.speedo{height:min(24vh,200px)}
+.compass.rpmgauge{width:min(30vh,240px);height:min(30vh,240px)}
+.rpm-gauge-wrap{flex:none;padding:6px 0}
+.compass .rose{stroke:#525b63;stroke-width:1.5}
+.compass .zone{stroke-width:8;fill:none}
+.compass .tick-major{stroke:#eef2f5;stroke-width:2.4}
+.compass .tick-minor{stroke:#7c868f;stroke-width:1.3}
+.compass .lbl{font-family:var(--f-disp);font-size:14px;font-weight:700;fill:#f4f7f9}
+.compass .needle{stroke:#ffffff;stroke-width:3.5;stroke-linecap:round}
 .compass .ghost{stroke:var(--warn);stroke-width:2.5;stroke-dasharray:4 5}
-.compass .hub{fill:var(--phos)}
+.compass .hub{fill:#ffffff}
 .mview .readout-row{display:flex;justify-content:center;gap:18px}
 .mview .readout-row[hidden]{display:none}
 .mview .readout{text-align:center}
-.mview .readout i{display:block;font-style:normal;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.13em;color:var(--dim);margin-bottom:5px}
-.digital{display:inline-block;min-width:5ch;background:#050b14;border:1px solid var(--line);border-radius:3px;padding:5px 12px;box-shadow:inset 0 0 10px rgba(0,0,0,.5)}
-.mview .readout b{font-family:var(--f-mono);font-size:28px;font-weight:700;color:#eef4f8;text-shadow:0 0 8px rgba(191,234,255,.3);font-variant-numeric:tabular-nums}
+.mview .readout i{display:block;font-style:normal;font-family:var(--f-disp);font-size:11px;letter-spacing:.13em;color:#c9d1d6;margin-bottom:5px}
+.digital{display:inline-block;min-width:5ch;background:#000;border:1px solid #4a525a;border-radius:3px;padding:5px 12px;box-shadow:inset 0 0 10px rgba(0,0,0,.7)}
+.mview .readout b{font-family:var(--f-mono);font-size:28px;font-weight:700;color:#ffffff;text-shadow:0 0 8px rgba(255,255,255,.35);font-variant-numeric:tabular-nums}
 .mview .readout.ord .digital{border-color:#6b4416}
-.mview .readout.ord b{color:var(--warn);font-size:22px;text-shadow:0 0 8px rgba(255,154,60,.3)}
-.mview .readout small{font-size:12px;margin-left:2px;color:var(--dim)}
-.hint{text-align:center;font-family:var(--f-mono);font-size:9.5px;color:var(--dimmest);letter-spacing:.03em}
+.mview .readout.ord b{color:var(--warn);font-size:22px;text-shadow:0 0 8px rgba(255,154,60,.35)}
+.mview .readout small{font-size:12px;margin-left:2px;color:#c9d1d6}
+.hint{text-align:center;font-family:var(--f-mono);font-size:9.5px;color:var(--dim);letter-spacing:.03em}
 .telegraph-row{display:flex;gap:5px}
-.telegraph-row button{flex:1;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.07em;padding:7px 2px;border-radius:2px;background:transparent;border:1px solid var(--line);color:var(--dim);cursor:pointer}
-.telegraph-row button:hover:not(:disabled){border-color:currentColor;color:#e8f4ff}
-.telegraph-row button[aria-pressed="true"]{background:#14406e;border-color:#2a6099;color:#dff0ff}
+.telegraph-row button{flex:1;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.07em;padding:7px 2px;border-radius:2px;background:transparent;border:1px solid #4a525a;color:#c9d1d6;cursor:pointer}
+.telegraph-row button:hover:not(:disabled){border-color:#fff;color:#fff}
+.telegraph-row button[aria-pressed="true"]{background:#14406e;border-color:#5aa5e8;color:#fff}
 .telegraph-row button:disabled{opacity:.35;cursor:default}
-.rpm{display:flex;justify-content:space-between;align-items:center;padding-top:10px;margin-top:4px;border-top:1px solid var(--line-soft)}
-.rpm i{font-style:normal;font-family:var(--f-disp);font-size:11px;letter-spacing:.1em;color:var(--dim)}
+.rpm-wrap{display:flex;flex-direction:column;align-items:center;padding-top:10px;margin-top:4px;border-top:1px solid var(--line-soft)}
+.rpm{display:flex;align-items:center;gap:10px}
+.rpm i{font-style:normal;font-family:var(--f-disp);font-size:11px;letter-spacing:.1em;color:#c9d1d6}
 .rpm .digital{padding:6px 16px}
-.rpm b{font-family:var(--f-mono);font-size:22px;font-weight:700;color:#eef4f8;text-shadow:0 0 8px rgba(191,234,255,.3);font-variant-numeric:tabular-nums}
+.rpm b{font-family:var(--f-mono);font-size:24px;font-weight:700;color:#ffffff;text-shadow:0 0 8px rgba(255,255,255,.35);font-variant-numeric:tabular-nums}
 .rpm.warn .digital{border-color:var(--warn)} .rpm.warn b{color:var(--warn)}
 .rpm.crit .digital{border-color:var(--crit)} .rpm.crit b{color:var(--crit)}
 @media(max-width:820px){ .mgrid{grid-template-columns:1fr} }
@@ -371,7 +374,12 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       </div>
       <div class="hint" data-i18n>CLIQUER LE CADRAN POUR ORDONNER UNE VITESSE</div>
       <div class="telegraph-row" id="m-telegraph"></div>
-      <div class="rpm" id="m-rpm-row"><i id="m-rpm-lbl">RPM ARBRE (estimé)</i><span class="digital"><b id="m-rpm">---</b></span></div>
+      <div class="rpm-wrap">
+        <div class="compass-wrap rpm-gauge-wrap">
+          <svg class="compass rpmgauge" viewBox="0 0 200 200" id="m-rpm-gauge"></svg>
+        </div>
+        <div class="rpm" id="m-rpm-row"><i id="m-rpm-lbl">RPM ARBRE (estimé)</i><span class="digital"><b id="m-rpm">---</b></span></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1325,6 +1333,49 @@ function orienterAiguilleSpeedo(id, kt){
   el.setAttribute("y2", (cy-Math.sin(ang)*r).toFixed(1));
 }
 
+// Compte-tours : cadran 3/4 de cercle (270°) façon tachymètre réel, pas
+// un demi-cercle — assez de débattement pour lire un régime précisément
+// sans que les graduations se marchent dessus. Mêmes seuils que la
+// bordure du rpm-wrap (75%/90% de MAXRPM) pour les zones de couleur.
+const ZONES_RPM = [[0,180,"var(--ok)"], [180,216,"var(--warn)"], [216,MAXRPM,"var(--crit)"]];
+function angRpm(rpm){ return 225 - (rpm/MAXRPM)*270; }
+function arcRpm(cx,cy,r,r0,r1){
+  const a0=angRpm(r0), a1=angRpm(r1);
+  const x0=(cx+Math.cos(a0*Math.PI/180)*r).toFixed(1), y0=(cy-Math.sin(a0*Math.PI/180)*r).toFixed(1);
+  const x1=(cx+Math.cos(a1*Math.PI/180)*r).toFixed(1), y1=(cy-Math.sin(a1*Math.PI/180)*r).toFixed(1);
+  const large = (a0-a1) > 180 ? 1 : 0;
+  return `M ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1}`;
+}
+function dessinerRpmGauge(){
+  const svg = $("m-rpm-gauge"), cx=100, cy=100, r=88;
+  let html = `<path class="rose" d="${arcRpm(cx,cy,r,0,MAXRPM)}" fill="none"/>`;
+  html += ZONES_RPM.map(([r0,r1,col])=>
+    `<path class="zone" d="${arcRpm(cx,cy,r-3,r0,r1)}" stroke="${col}" opacity=".55"/>`).join("");
+  for(let rpm=0; rpm<=MAXRPM; rpm+=30){
+    const maj = rpm % 60 === 0;
+    const ang = angRpm(rpm)*Math.PI/180;
+    const ri = maj ? r-11 : r-6;
+    const x1=cx+Math.cos(ang)*ri, y1=cy-Math.sin(ang)*ri;
+    const x2=cx+Math.cos(ang)*r, y2=cy-Math.sin(ang)*r;
+    html += `<line class="${maj?"tick-major":"tick-minor"}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+    if(maj){
+      const rl=r-24, xl=cx+Math.cos(ang)*rl, yl=cy-Math.sin(ang)*rl;
+      html += `<text class="lbl" x="${xl.toFixed(1)}" y="${yl.toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${rpm}</text>`;
+    }
+  }
+  svg.innerHTML = html +
+    `<line class="needle" id="m-needle-rpm" x1="${cx}" y1="${cy}" x2="${cx}" y2="${(cy-(r-18)).toFixed(1)}"/>`+
+    `<circle class="hub" cx="${cx}" cy="${cy}" r="4"/>`;
+}
+dessinerRpmGauge();
+function orienterAiguilleRpm(rpm){
+  const cx=100, cy=100, r=88-18;
+  const ang = angRpm(clamp(rpm,0,MAXRPM))*Math.PI/180;
+  const el = $("m-needle-rpm");
+  el.setAttribute("x2", (cx+Math.cos(ang)*r).toFixed(1));
+  el.setAttribute("y2", (cy-Math.sin(ang)*r).toFixed(1));
+}
+
 // Seuils repris du télégraphe de route classique — pas une vitesse exacte,
 // le cran que l'opérateur ordonne. Même principe que les boutons
 // d'engagement : peu de crans, faciles à viser à la souris. Reste utile à
@@ -1370,11 +1421,12 @@ function renderMachine(){
   // fixe tourne à quelques centaines de tours/min à pleine vitesse.
   const mach = F.machine;
   const rpmReel = mach.source === "MODBUS" && mach.rpm !== null;
-  const rpmVal = rpmReel ? mach.rpm : Math.round(o.ord_spd/30*260);
+  const rpmVal = rpmReel ? mach.rpm : Math.round(o.ord_spd/MAXKT*MAXRPM);
   $("m-rpm").textContent = rpmVal + " rpm";
   $("m-rpm-lbl").textContent = t(rpmReel ? "RPM ARBRE" : "RPM ARBRE (estimé)");
-  // Même codage couleur que les zones du cadran vitesse : vert en
-  // croisière, jaune haute vitesse, rouge en avant toute.
+  orienterAiguilleRpm(rpmVal);
+  // Même codage couleur que les zones du cadran RPM : vert en croisière,
+  // jaune haute vitesse, rouge en avant toute.
   const rpmFrac = rpmVal / MAXRPM;
   $("m-rpm-row").className = "rpm" + (rpmFrac >= 0.9 ? " crit" : rpmFrac >= 0.75 ? " warn" : "");
   $("m-src-crs").textContent = t(mach.source);
