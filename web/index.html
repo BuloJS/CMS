@@ -1038,7 +1038,7 @@ function drawScope(){
   if(showTrails && F && F.own.trail && F.own.trail.length>1){
     g.beginPath();
     F.own.trail.forEach((h,i)=>{ const P=px({x:h[0],y:h[1]}); i?g.lineTo(P.x,P.y):g.moveTo(P.x,P.y); });
-    g.strokeStyle="#bfeaff"; g.globalAlpha=.22; g.lineWidth=1.2; g.stroke(); g.globalAlpha=1;
+    g.strokeStyle="#eef8ff"; g.globalAlpha=.32; g.lineWidth=1.2; g.stroke(); g.globalAlpha=1;
   }
   const crs = F ? F.own.crs : 0;
   g.save(); g.translate(op.x,op.y); g.rotate(crs*Math.PI/180);

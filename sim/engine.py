@@ -205,11 +205,16 @@ class Engine:
             self._passive()
             self._extinctions()
             self._impacts()
-            # Sillage du porteur, même cadence et même profondeur que la
-            # trace d'une piste (Track.history côté Tracker.step) — pas de
-            # raison qu'il se dessine différemment sur le scope.
+            # Sillage du porteur : contrairement à la trace d'une piste
+            # (Track.history, profondeur volontairement courte pour ne pas
+            # traverser tout le scope), celui du porteur doit rester visible
+            # sur toute la durée du scénario — c'est le seul repère de la
+            # route réellement suivie. Plafond large (~3h20 à la cadence
+            # d'un tour d'antenne, 4s) plutôt qu'illimité : purement une
+            # garde-fou contre une session laissée tourner indéfiniment,
+            # aucun scénario ne dépasse 3600s.
             self.own.history.append((self.own.x, self.own.y))
-            if len(self.own.history) > 40:
+            if len(self.own.history) > 3000:
                 self.own.history.pop(0)
 
         self._weapons(dt)
@@ -504,9 +509,12 @@ class Engine:
                "spd": round(self.own.speed / KT, 1),
                "ord_crs": round(self.own.ordered_course, 1),
                "ord_spd": round(self.own.ordered_speed / KT, 1),
+               # Sillage entier (voir Engine.step()), pas les 10 derniers
+               # points comme une piste — il doit rester visible toute la
+               # simu, pas juste sur les dernières minutes.
                "trail": [[round((hx - self.own.x) / NM, 3),
                           round((hy - self.own.y) / NM, 3)]
-                         for hx, hy in self.own.history[-10:]]}
+                         for hx, hy in self.own.history]}
         geo = None
         if self.proj:
             # La console a besoin du point de référence pour convertir la
