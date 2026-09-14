@@ -174,10 +174,22 @@ relit à chaque cycle, sans `R_TRIG`.
 | `%MW2` | 1026 | -35..35 | Angle de barre ordonné, degrés |
 
 Le télégraphe reprend les mêmes cinq crans que le poste machine de la
-console (`web/index.html`, bloc `TELEGRAPHE`) — les seuils de vitesse qui
-choisissent un cran restent une correspondance approximative côté CMS
-(`libelleTelegraphe()`), pas une conversion exacte : un télégraphe réel
-ordonne un régime, pas un nombre de nœuds.
+console (`web/index.html`, bloc `TELEGRAPHE`) et que `PROGRAM machine`
+(`rpm_cible`) : un télégraphe réel ordonne un régime, pas un nombre de
+nœuds, donc la vitesse ordonnée par l'opérateur (`Ownship.ordered_speed`)
+est convertie au cran le plus proche avant d'être écrite — c'est
+`services/server.py PlcBridge.run()` qui fait cette conversion
+(`_cran_telegraphe()`) à chaque sondage, pas un composant à part que
+l'opérateur piloterait directement.
+
+L'angle de barre suit la même logique mais n'a pas d'équivalent
+« ordonné » côté CMS : `Ownship` ne modélise pas de gouvernail, juste un
+cap qui tourne à `turn_rate` constant. `PlcBridge` en dérive un angle
+plausible, proportionnel à l'écart de cap restant (`ordered_course -
+course`, plafonné à ±35°, gain 2 — un écart de 17,5° ou plus met la
+barre à fond) : la mèche de l'automate est donc à fond tant que le
+porteur est loin de son cap ordonné, et revient au neutre en approchant,
+comme le ferait une vraie boucle de pilote automatique.
 
 ## Automate → CMS (machine, lecture)
 
@@ -190,13 +202,14 @@ ordonne un régime, pas un nombre de nœuds.
 déjà écrit par le CMS, avec une rampe réaliste (RPM : 0 à 240 en ~30 s ;
 barre : -35° à 35° en ~14 s) au lieu d'un saut instantané — **le CMS
 garde la vérité physique du mouvement du porteur** (`sim/entities.py
-Ownship`, piloté par la commande `order` existante). Rien ne lit encore
-ce bloc côté CMS : ni panneau console, ni bascule d'autorité comme celle
-de l'armement (`armement.pret`). C'est le point d'extension prévu — le
-jour où `sim/machine.py` lira `%QW20`/`%QW21` pour remplacer
-l'estimation cosmétique de RPM affichée au poste machine par un chiffre
-réel, et pour faire de l'automate l'autorité sur le mouvement plutôt
-qu'un simple répétiteur.
+Ownship`, piloté par la commande `order` existante) : c'est
+`Ownship.turn_rate`/`.accel_tau` qui décide combien de temps prend une
+manœuvre, pas la rampe de l'automate. `sim/machine.py` lit ce bloc
+(`Machine.ingest()`) et le poste machine de la console affiche le vrai
+RPM/angle de barre dès que la source passe en MODBUS, à la place de
+l'estimation cosmétique — mais rien ne referme encore la boucle vers la
+physique : contrairement à `armement.pret`, aucune bascule d'autorité
+n'existe pour l'instant. C'est le point d'extension qui reste ouvert.
 
 ## Sécurité
 

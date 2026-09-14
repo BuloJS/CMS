@@ -37,6 +37,7 @@ sys.path.insert(0, str(ROOT))
 
 from services.modbus import ModbusTcp                     # noqa: E402
 from sim.engine import DT, Engine                         # noqa: E402
+from sim.geo import KT                                    # noqa: E402
 from sim.scenario import load                             # noqa: E402
 
 WEB = ROOT / "web"
@@ -150,7 +151,6 @@ class Sim:
                 if "course" in c:
                     e.own.ordered_course = float(c["course"]) % 360
                 if "speed_kt" in c:
-                    from sim.geo import KT
                     e.own.ordered_speed = float(c["speed_kt"]) * KT
             elif k == "pump":
                 marche = bool(c.get("valeur", True))
@@ -362,6 +362,25 @@ class Sim:
             return self.frame, self.rev
 
 
+def _cran_telegraphe(kt):
+    """Cran de télégraphe le plus proche d'une vitesse ordonnée, en nœuds.
+
+    Mêmes seuils que web/index.html (const TELEGRAPHE) et plc/program.st
+    (rpm_cible) : les trois doivent rester d'accord sur ce qu'un cran veut
+    dire, sans quoi l'aiguille RPM de l'automate et le cran affiché à la
+    console divergent pour la même vitesse ordonnée.
+    """
+    if kt <= 1:
+        return 0
+    if kt <= 7:
+        return 1
+    if kt <= 13:
+        return 2
+    if kt <= 21:
+        return 3
+    return 4
+
+
 class PlcBridge(threading.Thread):
     """Lit l'automate et injecte l'état plateforme dans la simulation.
 
@@ -398,9 +417,24 @@ class PlcBridge(threading.Thread):
                 # pas plutôt qu'une erreur.
                 regs_mach = self.cli.read_holding_registers(20, 2)
                 with self.sim.lock:
+                    own = self.sim.engine.own
+                    ord_kt = own.ordered_speed / KT
+                    # Écart de cap signé, même formule que sim.geo.turn_toward :
+                    # positif = il faut tourner à droite (tribord), donc plus
+                    # de barre à droite — le sens du %QW21 lu plus haut.
+                    ecart_cap = (own.ordered_course - own.course + 540.0) % 360.0 - 180.0
                     self.sim.engine.platform.ingest(regs, coils)
                     self.sim.engine.armement.ingest(regs_arm, coils_arm)
                     self.sim.engine.machine.ingest(regs_mach)
+                # Commande machine, écrite en dehors du verrou (E/S réseau) :
+                # %MW1 le cran de télégraphe le plus proche de la vitesse
+                # ordonnée (mêmes seuils que web/index.html TELEGRAPHE), %MW2
+                # un angle de barre proportionnel à l'écart de cap restant,
+                # plafonné à la course mécanique — PROGRAM machine n'a que ces
+                # deux ordres à suivre, il ne connaît ni cap ni vitesse en
+                # nœuds (voir modbus-map.md).
+                self.cli.write_register(1025, _cran_telegraphe(ord_kt))
+                self.cli.write_register(1026, round(max(-35.0, min(35.0, ecart_cap * 2.0))) & 0xFFFF)
             except Exception:
                 self.cli.close()
                 with self.sim.lock:
