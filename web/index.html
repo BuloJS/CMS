@@ -197,57 +197,62 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
    repère (trait qui dépasse l'anneau) au seuil critique — cf. discussion
    sur le style, un dégradé vert/jaune/rouge "faisait trop néon". Aiguille
    en triangle plutôt qu'un trait à bout rond : ça se lit comme une
-   vraie aiguille d'instrument, pas un curseur d'interface web. */
-.mview{height:100dvh;display:none;flex-direction:column;background:#000;overflow:auto}
+   vraie aiguille d'instrument, pas un curseur d'interface web.
+
+   Fond et gris relevés d'un cran par rapport au premier jet : du noir
+   quasi pur (#000/#0a0a0a) avec des gris #6a6a6a-#9a9a9a dessus, ça reste
+   sous les niveaux de contraste du reste de la console (--panel #181c20,
+   --dim #a3acb4) — illisible sur un écran ordinaire, pas juste "sobre". */
+.mview{height:100dvh;display:none;flex-direction:column;background:#101318;overflow:auto}
 .mview:not([hidden]){display:flex}
-.mgrid{flex:1;display:grid;grid-template-columns:1.15fr 1.15fr 0.9fr;gap:1px;background:var(--line-soft);min-height:0}
-.mview .pane{padding:16px 18px;gap:10px;background:#0a0a0a}
-.mview .pane>header{padding:0;color:#9a9a9a}
-.mview .pane>header em{color:#6a6a6a}
+.mgrid{flex:1;display:grid;grid-template-columns:1.15fr 1.15fr 0.9fr;gap:1px;background:#32383e;min-height:0}
+.mview .pane{padding:16px 18px;gap:10px;background:#181c20}
+.mview .pane>header{padding:0;color:#c7ccd1}
+.mview .pane>header em{color:#8b939a}
 .compass-wrap{display:flex;align-items:center;justify-content:center;flex:1;min-height:0}
 .compass{width:min(46vh,380px);height:min(46vh,380px);cursor:pointer}
 .compass.speedo{width:min(30vh,240px);height:min(30vh,240px)}
 .compass.rpmgauge{width:min(26vh,210px);height:min(26vh,210px);cursor:default}
 .rpm-gauge-wrap{flex:none;padding:4px 0}
-.compass .rose{stroke:#d8d8d8}
+.compass .rose{stroke:#e2e5e8}
 .compass .tick-major{stroke:#fff}
-.compass .tick-minor{stroke:#6a6a6a}
-.compass .lbl{font-family:var(--f-disp);font-size:14px;font-weight:700;fill:#e2e2e2}
+.compass .tick-minor{stroke:#8b939a}
+.compass .lbl{font-family:var(--f-disp);font-size:14px;font-weight:700;fill:#f0f2f4}
 .compass .needle{fill:#fff}
-.compass .ghost{stroke:#8a8a8a;stroke-width:2.5;stroke-dasharray:4 5}
+.compass .ghost{stroke:#a7aeb4;stroke-width:2.5;stroke-dasharray:4 5}
 .compass .hub-ring{fill:#fff}
-.compass .hub-dot{fill:#0a0a0a}
+.compass .hub-dot{fill:#181c20}
 .compass .crit-mark{stroke:#fff;stroke-width:2.5}
 .mview .readout-row{display:flex;justify-content:center;gap:22px}
 .mview .readout-row[hidden]{display:none}
 .mview .readout{text-align:center}
-.mview .readout i{display:block;font-style:normal;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.13em;color:#8a8a8a;margin-bottom:2px}
+.mview .readout i{display:block;font-style:normal;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.13em;color:#a7aeb4;margin-bottom:2px}
 .mview .readout b{font-family:var(--f-mono);font-size:26px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
-.mview .readout.ord b{color:#c9c9c9}
-.mview .readout small{font-size:12px;margin-left:2px;color:#8a8a8a}
-.hint{text-align:center;font-family:var(--f-mono);font-size:9.5px;color:#6a6a6a;letter-spacing:.03em}
+.mview .readout.ord b{color:#dadde0}
+.mview .readout small{font-size:12px;margin-left:2px;color:#a7aeb4}
+.hint{text-align:center;font-family:var(--f-mono);font-size:9.5px;color:#9098a0;letter-spacing:.03em}
 .telegraph-row{display:flex;gap:5px;width:100%}
-.telegraph-row button{flex:1;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.07em;padding:7px 2px;border-radius:2px;background:transparent;border:1.5px solid #3a3a3a;color:#9a9a9a;cursor:pointer}
+.telegraph-row button{flex:1;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.07em;padding:7px 2px;border-radius:2px;background:transparent;border:1.5px solid #565d64;color:#c7ccd1;cursor:pointer}
 .telegraph-row button:hover:not(:disabled){border-color:#fff;color:#fff}
-.telegraph-row button[aria-pressed="true"]{border-color:#fff;color:#fff;background:#1a1a1a}
-.telegraph-row button:disabled{opacity:.35;cursor:default}
-.rpm-wrap{display:flex;flex-direction:column;align-items:center;padding-top:8px;margin-top:2px;border-top:1px solid var(--line-soft);width:100%}
+.telegraph-row button[aria-pressed="true"]{border-color:#fff;color:#fff;background:#2a2f34}
+.telegraph-row button:disabled{opacity:.5;cursor:default}
+.rpm-wrap{display:flex;flex-direction:column;align-items:center;padding-top:8px;margin-top:2px;border-top:1px solid #32383e;width:100%}
 .rpm-num{font-family:var(--f-mono);font-size:30px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
-.rpm-num small{font-size:13px;color:#8a8a8a;margin-left:3px}
-.rpm-wrap.warn .rpm-num{color:#c9c9c9}
+.rpm-num small{font-size:13px;color:#a7aeb4;margin-left:3px}
+.rpm-wrap.warn .rpm-num{color:#dadde0}
 .rpm-wrap.crit .rpm-num{color:#fff;text-shadow:0 0 10px rgba(255,255,255,.7)}
 
 /* -- tableau électrique -- */
 .ebars{display:flex;justify-content:space-around;width:100%;margin-top:8px;align-items:flex-end}
 .ebar-col{display:flex;flex-direction:column;align-items:center;gap:8px}
 .ebar-pct{font-size:11px;color:#fff;font-weight:700;font-family:var(--f-mono)}
-.ebar-track{width:22px;height:120px;background:#000;border:2.5px solid #3a3a3a;position:relative}
+.ebar-track{width:22px;height:120px;background:#101318;border:2.5px solid #565d64;position:relative}
 .ebar-fill{position:absolute;bottom:0;left:0;right:0;background:#e8e8e8;transition:height .3s linear}
 .ebar-lbl{font-family:var(--f-disp);font-size:11px;letter-spacing:.07em;color:#fff}
 .ebtn-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;width:100%;margin-top:14px}
-.ebtn-grid button{font-family:var(--f-disp);font-size:10.5px;letter-spacing:.06em;padding:8px 2px;font-weight:600;background:transparent;border:1.5px solid #3a3a3a;color:#9a9a9a;cursor:pointer}
+.ebtn-grid button{font-family:var(--f-disp);font-size:10.5px;letter-spacing:.06em;padding:8px 2px;font-weight:600;background:transparent;border:1.5px solid #565d64;color:#c7ccd1;cursor:pointer}
 .ebtn-grid button:hover:not(:disabled){border-color:#fff;color:#fff}
-.ebtn-grid button:disabled{opacity:.3;cursor:default}
+.ebtn-grid button:disabled{opacity:.5;cursor:default}
 /* Panneau électrique masqué (pas d'automate) : pas de 3e colonne vide à
    droite — repli sur 2 colonnes plutôt qu'un trou dans la grille. */
 .mgrid:has(#electrical-pane[hidden]){grid-template-columns:1fr 1fr}
