@@ -928,8 +928,24 @@ function drawScope(){
 
   if(F) F.tracks.forEach(t=>{
     const q = dr(t), p = px(q);
-    const rr = Math.hypot(q.x,q.y); if(rr > range*1.03) return;
+    const rr = Math.hypot(q.x,q.y);
     const brg = (Math.atan2(q.x,q.y)*180/Math.PI+360)%360;
+    if(rr > range*1.03){
+      // Piste toujours détectée (elle reste dans THREATS, cliquable pour
+      // recentrer via zoomSur) mais hors du cercle à l'échelle actuelle —
+      // sans repère, ça se lit comme "plus vue du tout" en zoomant. Un
+      // chevron en bordure, dans le bon gisement, suffit à le corriger
+      // sans réafficher la piste elle-même (trace/vecteur n'auraient pas
+      // de sens hors cadre).
+      const ang = brg*Math.PI/180, ex = op.x+Math.sin(ang)*(R-15), ey = op.y-Math.cos(ang)*(R-15);
+      const col = AFF[t.aff].c;
+      g.save(); g.translate(ex,ey); g.rotate(ang);
+      g.beginPath(); g.moveTo(0,-7); g.lineTo(5,4); g.lineTo(-5,4); g.closePath();
+      g.fillStyle=col; g.globalAlpha=.85; g.fill(); g.restore(); g.globalAlpha=1;
+      g.font='9px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
+      g.fillStyle=col; g.fillText(t.id, op.x+Math.sin(ang)*(R-30), op.y-Math.cos(ang)*(R-30));
+      return;
+    }
     const a = REDUCED?0:(sweep-brg+360)%360/360;
     const al = REDUCED?1:0.42+0.58*Math.pow(1-a,2.2);
     const col = AFF[t.aff].c, isH = t.id===hooked;
