@@ -247,6 +247,15 @@ machine de la console affiche le vrai RPM/angle de barre/état électrique
 dès que la source passe en MODBUS, à la place de l'estimation
 cosmétique.
 
+Cette autorité électrique déborde sur la vérité physique : quand la
+source est MODBUS et que `propulsion_dispo` est faux, `Engine.step()`
+(`sim/engine.py`) fait chuter la vitesse réelle du porteur vers 0 —
+sinon couper la batterie ralentirait le RPM affiché sans jamais
+ralentir le bateau. L'ordre de vitesse affiché à l'opérateur (`ordered_speed`)
+n'est pas modifié : dès que la propulsion revient, le porteur reprend
+l'accélération vers l'ordre toujours en cours, sans qu'il faille le
+redonner.
+
 ## Sécurité
 
 Modbus n'a ni authentification ni chiffrement. Ce n'est pas un défaut de

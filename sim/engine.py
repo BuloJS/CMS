@@ -172,7 +172,16 @@ class Engine:
         self._fire_events()
         self.platform.step(dt)
         self.radar.power = self.platform.radar_power
-        self.own.step(dt)
+        # Coupure réelle de la propulsion si l'automate machine est branché
+        # et refuse la propulsion (batterie coupée, générateur pas prêt,
+        # disjoncteur ouvert) — sinon le tableau électrique ne serait qu'un
+        # gadget visuel : couper la batterie ralentirait bien le RPM affiché
+        # côté PLC sans jamais ralentir le porteur. L'ordre de vitesse reste
+        # affiché tel quel, seule la vitesse atteignable tombe à 0.
+        cible_vit = None
+        if self.machine.source == "MODBUS" and not self.machine.propulsion_dispo:
+            cible_vit = 0.0
+        self.own.step(dt, target_speed=cible_vit)
 
         tgt = {"OWN": self.own}
         for c in self.world.values():

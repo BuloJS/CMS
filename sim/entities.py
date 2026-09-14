@@ -79,9 +79,14 @@ class Ownship:
     mast_height: float = 30.0     # m, hauteur de l'antenne de veille
     history: list = field(default_factory=list)   # sillage, (x, y) en mètres
 
-    def step(self, dt):
+    def step(self, dt, target_speed=None):
+        """`target_speed`, quand fourni, remplace `ordered_speed` pour cette
+        passe sans l'écraser — utilisé par Engine.step() pour faire chuter
+        la vitesse réelle si l'automate machine coupe la propulsion
+        (tableau électrique), sans effacer l'ordre affiché à l'opérateur."""
         self.course = turn_toward(self.course, self.ordered_course, self.turn_rate, dt)
-        self.speed = approach(self.speed, self.ordered_speed, self.accel_tau, dt)
+        cible = self.ordered_speed if target_speed is None else target_speed
+        self.speed = approach(self.speed, cible, self.accel_tau, dt)
         vx, vy = vel(self.course, self.speed)
         self.x += vx * dt
         self.y += vy * dt
