@@ -198,21 +198,24 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .mview .pane{padding:16px 18px;gap:12px}
 .mview .pane>header{padding:0}
 .compass-wrap{display:flex;align-items:center;justify-content:center;flex:1;min-height:0}
-.compass{width:min(42vh,300px);height:min(42vh,300px);cursor:pointer}
-.compass.speedo{height:min(21vh,150px)}
-.compass .rose{stroke:var(--line);stroke-width:1}
-.compass .tick-major{stroke:var(--dim);stroke-width:1.5}
-.compass .tick-minor{stroke:var(--line);stroke-width:1}
-.compass .lbl{font-family:var(--f-disp);font-size:11px;fill:var(--dim)}
-.compass .needle{stroke:var(--phos);stroke-width:2.5;stroke-linecap:round}
-.compass .ghost{stroke:var(--warn);stroke-width:2;stroke-dasharray:3 3}
+.compass{width:min(52vh,420px);height:min(52vh,420px);cursor:pointer}
+.compass.speedo{height:min(26vh,210px)}
+.compass .rose{stroke:var(--line);stroke-width:1.5}
+.compass .zone{stroke-width:7;fill:none}
+.compass .tick-major{stroke:var(--dim);stroke-width:2}
+.compass .tick-minor{stroke:var(--line);stroke-width:1.3}
+.compass .lbl{font-family:var(--f-disp);font-size:13px;font-weight:600;fill:var(--dim)}
+.compass .needle{stroke:var(--phos);stroke-width:3.5;stroke-linecap:round}
+.compass .ghost{stroke:var(--warn);stroke-width:2.5;stroke-dasharray:4 5}
 .compass .hub{fill:var(--phos)}
-.mview .readout-row{display:flex;justify-content:center;gap:36px}
+.mview .readout-row{display:flex;justify-content:center;gap:18px}
 .mview .readout-row[hidden]{display:none}
 .mview .readout{text-align:center}
-.mview .readout i{display:block;font-style:normal;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.13em;color:var(--dim)}
-.mview .readout b{font-family:var(--f-mono);font-size:24px;font-weight:700;color:#eef4f8;font-variant-numeric:tabular-nums}
-.mview .readout.ord b{color:var(--warn);font-size:19px}
+.mview .readout i{display:block;font-style:normal;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.13em;color:var(--dim);margin-bottom:5px}
+.digital{display:inline-block;min-width:5ch;background:#050b14;border:1px solid var(--line);border-radius:3px;padding:5px 12px;box-shadow:inset 0 0 10px rgba(0,0,0,.5)}
+.mview .readout b{font-family:var(--f-mono);font-size:28px;font-weight:700;color:#eef4f8;text-shadow:0 0 8px rgba(191,234,255,.3);font-variant-numeric:tabular-nums}
+.mview .readout.ord .digital{border-color:#6b4416}
+.mview .readout.ord b{color:var(--warn);font-size:22px;text-shadow:0 0 8px rgba(255,154,60,.3)}
 .mview .readout small{font-size:12px;margin-left:2px;color:var(--dim)}
 .hint{text-align:center;font-family:var(--f-mono);font-size:9.5px;color:var(--dimmest);letter-spacing:.03em}
 .telegraph-row{display:flex;gap:5px}
@@ -220,9 +223,12 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .telegraph-row button:hover:not(:disabled){border-color:currentColor;color:#e8f4ff}
 .telegraph-row button[aria-pressed="true"]{background:#14406e;border-color:#2a6099;color:#dff0ff}
 .telegraph-row button:disabled{opacity:.35;cursor:default}
-.rpm{display:flex;justify-content:space-between;align-items:baseline;padding-top:2px;border-top:1px solid var(--line-soft)}
-.rpm i{font-style:normal;font-family:var(--f-disp);font-size:10px;letter-spacing:.1em;color:var(--dim)}
-.rpm b{font-family:var(--f-mono);font-size:15px;color:var(--text);font-variant-numeric:tabular-nums}
+.rpm{display:flex;justify-content:space-between;align-items:center;padding-top:10px;margin-top:4px;border-top:1px solid var(--line-soft)}
+.rpm i{font-style:normal;font-family:var(--f-disp);font-size:11px;letter-spacing:.1em;color:var(--dim)}
+.rpm .digital{padding:6px 16px}
+.rpm b{font-family:var(--f-mono);font-size:22px;font-weight:700;color:#eef4f8;text-shadow:0 0 8px rgba(191,234,255,.3);font-variant-numeric:tabular-nums}
+.rpm.warn .digital{border-color:var(--warn)} .rpm.warn b{color:var(--warn)}
+.rpm.crit .digital{border-color:var(--crit)} .rpm.crit b{color:var(--crit)}
 @media(max-width:820px){ .mgrid{grid-template-columns:1fr} }
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -346,12 +352,12 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
         <svg class="compass" viewBox="0 0 200 200" id="m-compass"></svg>
       </div>
       <div class="readout-row">
-        <div class="readout"><i data-i18n>MESURÉ</i><b id="m-crs-real">---<small>°</small></b></div>
-        <div class="readout ord"><i data-i18n>ORDONNÉ</i><b id="m-crs-ord">---<small>°</small></b></div>
+        <div class="readout"><i data-i18n>MESURÉ</i><span class="digital"><b id="m-crs-real">---<small>°</small></b></span></div>
+        <div class="readout ord"><i data-i18n>ORDONNÉ</i><span class="digital"><b id="m-crs-ord">---<small>°</small></b></span></div>
       </div>
       <div class="hint" data-i18n>CLIQUER LE CADRAN POUR ORDONNER UN CAP</div>
       <div class="readout-row" id="m-barre-row" hidden>
-        <div class="readout"><i data-i18n>BARRE AUTOMATE</i><b id="m-barre-real">--<small>°</small></b></div>
+        <div class="readout"><i data-i18n>BARRE AUTOMATE</i><span class="digital"><b id="m-barre-real">--<small>°</small></b></span></div>
       </div>
     </div>
     <div class="pane">
@@ -360,12 +366,12 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
         <svg class="compass speedo" viewBox="0 0 200 120" id="m-speedo"></svg>
       </div>
       <div class="readout-row">
-        <div class="readout"><i data-i18n>MESURÉ</i><b id="m-spd-real">--<small>kt</small></b></div>
-        <div class="readout ord"><i data-i18n>ORDONNÉ</i><b id="m-spd-ord">--<small>kt</small></b></div>
+        <div class="readout"><i data-i18n>MESURÉ</i><span class="digital"><b id="m-spd-real">--<small>kt</small></b></span></div>
+        <div class="readout ord"><i data-i18n>ORDONNÉ</i><span class="digital"><b id="m-spd-ord">--<small>kt</small></b></span></div>
       </div>
       <div class="hint" data-i18n>CLIQUER LE CADRAN POUR ORDONNER UNE VITESSE</div>
       <div class="telegraph-row" id="m-telegraph"></div>
-      <div class="rpm"><i id="m-rpm-lbl">RPM ARBRE (estimé)</i><b id="m-rpm">---</b></div>
+      <div class="rpm" id="m-rpm-row"><i id="m-rpm-lbl">RPM ARBRE (estimé)</i><span class="digital"><b id="m-rpm">---</b></span></div>
     </div>
   </div>
 </div>
@@ -1270,9 +1276,22 @@ function orienterAiguille(id, deg){
 // de progression — même geste que le cap (cliquer le cadran ordonne),
 // juste une autre forme puisque 0..30 nœuds n'a pas de sens circulaire.
 const MAXKT = 30;
+const MAXRPM = 240;   // même plafond que rpm_cible côté plc/program.st (cran "toute")
+// Zones de couleur façon cadran machine réel : croisière (vert), haute
+// vitesse (jaune), en avant toute (rouge) — mêmes seuils que la
+// coloration du télégraphe, pas des paliers arbitraires en plus.
+const ZONES_VITESSE = [[0,20,"var(--ok)"], [20,26,"var(--warn)"], [26,MAXKT,"var(--crit)"]];
+function arcSpeedo(cx,cy,r,k0,k1){
+  const a0=Math.PI*(1-k0/MAXKT), a1=Math.PI*(1-k1/MAXKT);
+  const x0=(cx+Math.cos(a0)*r).toFixed(1), y0=(cy-Math.sin(a0)*r).toFixed(1);
+  const x1=(cx+Math.cos(a1)*r).toFixed(1), y1=(cy-Math.sin(a1)*r).toFixed(1);
+  return `M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}`;
+}
 function dessinerSpeedo(){
   const svg = $("m-speedo"), cx = 100, cy = 104, r = 88;
   let html = `<path class="rose" d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}" fill="none"/>`;
+  html += ZONES_VITESSE.map(([k0,k1,col])=>
+    `<path class="zone" d="${arcSpeedo(cx,cy,r-3,k0,k1)}" stroke="${col}" opacity=".55"/>`).join("");
   for(let kt=0; kt<=MAXKT; kt+=5){
     const maj = kt % 10 === 0;
     const ang = Math.PI*(1-kt/MAXKT);
@@ -1351,8 +1370,13 @@ function renderMachine(){
   // fixe tourne à quelques centaines de tours/min à pleine vitesse.
   const mach = F.machine;
   const rpmReel = mach.source === "MODBUS" && mach.rpm !== null;
-  $("m-rpm").textContent = (rpmReel ? mach.rpm : Math.round(o.ord_spd/30*260)) + " rpm";
+  const rpmVal = rpmReel ? mach.rpm : Math.round(o.ord_spd/30*260);
+  $("m-rpm").textContent = rpmVal + " rpm";
   $("m-rpm-lbl").textContent = t(rpmReel ? "RPM ARBRE" : "RPM ARBRE (estimé)");
+  // Même codage couleur que les zones du cadran vitesse : vert en
+  // croisière, jaune haute vitesse, rouge en avant toute.
+  const rpmFrac = rpmVal / MAXRPM;
+  $("m-rpm-row").className = "rpm" + (rpmFrac >= 0.9 ? " crit" : rpmFrac >= 0.75 ? " warn" : "");
   $("m-src-crs").textContent = t(mach.source);
   $("m-src-spd").textContent = t(mach.source);
 
