@@ -28,6 +28,13 @@ services:
       - "${OPENPLC_WEB_PORT:-8080}:8080"   # interface web (openplc / openplc)
     expose:
       - "502"                # serveur Modbus : interne, jamais publié
+    volumes:
+      # openplc.db porte tout ce que l'interface web enregistre : le
+      # programme compilé, les Slave Devices, les comptes. Sans ce volume,
+      # recréer le conteneur (pas seulement le redémarrer) repart d'une
+      # base vierge — programme à recompiler, Slave Device field-sim à
+      # rajouter, à chaque fois.
+      - openplc-db:/opt/OpenPLC_v3/webserver/openplc.db
     restart: unless-stopped
 
   field-sim:
@@ -40,3 +47,6 @@ services:
     expose:
       - "5020"
     restart: unless-stopped
+
+volumes:
+  openplc-db:
