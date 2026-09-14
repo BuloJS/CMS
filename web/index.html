@@ -208,6 +208,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .compass .ghost{stroke:var(--warn);stroke-width:2;stroke-dasharray:3 3}
 .compass .hub{fill:var(--phos)}
 .mview .readout-row{display:flex;justify-content:center;gap:36px}
+.mview .readout-row[hidden]{display:none}
 .mview .readout{text-align:center}
 .mview .readout i{display:block;font-style:normal;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.13em;color:var(--dim)}
 .mview .readout b{font-family:var(--f-mono);font-size:24px;font-weight:700;color:#eef4f8;font-variant-numeric:tabular-nums}
@@ -349,6 +350,9 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
         <div class="readout ord"><i data-i18n>ORDONNÉ</i><b id="m-crs-ord">---<small>°</small></b></div>
       </div>
       <div class="hint" data-i18n>CLIQUER LE CADRAN POUR ORDONNER UN CAP</div>
+      <div class="readout-row" id="m-barre-row" hidden>
+        <div class="readout"><i data-i18n>BARRE AUTOMATE</i><b id="m-barre-real">--<small>°</small></b></div>
+      </div>
     </div>
     <div class="pane">
       <header><span data-i18n>VITESSE — PROPULSION</span><em id="m-src-spd">SIMULÉ</em></header>
@@ -361,7 +365,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       </div>
       <div class="hint" data-i18n>CLIQUER LE CADRAN POUR ORDONNER UNE VITESSE</div>
       <div class="telegraph-row" id="m-telegraph"></div>
-      <div class="rpm"><i data-i18n>RPM ARBRE (estimé)</i><b id="m-rpm">---</b></div>
+      <div class="rpm"><i id="m-rpm-lbl">RPM ARBRE (estimé)</i><b id="m-rpm">---</b></div>
     </div>
   </div>
 </div>
@@ -394,8 +398,9 @@ const EN = {
   "CAP — GYROCOMPAS":"HEADING — GYROCOMPASS", "MESURÉ":"ACTUAL", "ORDONNÉ":"ORDERED",
   "CLIQUER LE CADRAN POUR ORDONNER UN CAP":"CLICK THE DIAL TO ORDER A HEADING",
   "CLIQUER LE CADRAN POUR ORDONNER UNE VITESSE":"CLICK THE DIAL TO ORDER A SPEED",
+  "BARRE AUTOMATE":"AUTOMATE RUDDER",
   "VITESSE — PROPULSION":"SPEED — PROPULSION",
-  "RPM ARBRE (estimé)":"SHAFT RPM (estimated)",
+  "RPM ARBRE (estimé)":"SHAFT RPM (estimated)", "RPM ARBRE":"SHAFT RPM",
   "LENTE AV":"SLOW AHEAD", "DEMI AV":"HALF AHEAD", "PLEINE AV":"FULL AHEAD",
   "EN AVANT TOUTE":"FLANK",
   "PORTEUR — ROUTE":"OWN SHIP — COURSE", "VITESSE":"SPEED", "PISTES":"TRACKS",
@@ -1339,14 +1344,21 @@ function renderMachine(){
   $("m-telegraph").querySelectorAll("button").forEach(b=>
     b.setAttribute("aria-pressed", String(b.dataset.i18n===cran)));
 
-  // Pas de sous-programme PLC "machine" pour l'instant (voir
-  // plc/modbus-map.md) : une estimation lisible plutôt qu'un chiffre
-  // qui prétendrait venir d'un vrai arbre moteur. Ordre de grandeur
-  // d'un diesel de corvette à l'hélice à pas fixe : quelques centaines
-  // de tours/min à pleine vitesse.
-  $("m-rpm").textContent = Math.round(o.ord_spd/30*260) + " rpm";
-  $("m-src-crs").textContent = t("SIMULÉ");
-  $("m-src-spd").textContent = t("SIMULÉ");
+  // Le vrai RPM remplace l'estimation dès que PROGRAM machine tourne
+  // côté automate (voir plc/modbus-map.md) — avant ça, ou si le pont
+  // Modbus décroche, on retombe sur un ordre de grandeur lisible plutôt
+  // que d'afficher un tiret : un diesel de corvette à l'hélice à pas
+  // fixe tourne à quelques centaines de tours/min à pleine vitesse.
+  const mach = F.machine;
+  const rpmReel = mach.source === "MODBUS" && mach.rpm !== null;
+  $("m-rpm").textContent = (rpmReel ? mach.rpm : Math.round(o.ord_spd/30*260)) + " rpm";
+  $("m-rpm-lbl").textContent = t(rpmReel ? "RPM ARBRE" : "RPM ARBRE (estimé)");
+  $("m-src-crs").textContent = t(mach.source);
+  $("m-src-spd").textContent = t(mach.source);
+
+  const barreOk = mach.source === "MODBUS" && mach.barre !== null;
+  $("m-barre-row").hidden = !barreOk;
+  if(barreOk) $("m-barre-real").innerHTML = pad(mach.barre,2,0)+"<small>°</small>";
 }
 
 function renderEvents(){

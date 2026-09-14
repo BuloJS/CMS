@@ -392,14 +392,21 @@ class PlcBridge(threading.Thread):
                 # erreur — la console affichera juste « 0 munitions ».
                 regs_arm = self.cli.read_holding_registers(10, 4)
                 coils_arm = self.cli.read_coils(8, 12)
+                # Bloc machine : maintien 20-21 (RPM arbre, angle de barre
+                # réel — voir modbus-map.md). Même principe : lu dans la
+                # même passe, des zéros tant que PROGRAM machine ne tourne
+                # pas plutôt qu'une erreur.
+                regs_mach = self.cli.read_holding_registers(20, 2)
                 with self.sim.lock:
                     self.sim.engine.platform.ingest(regs, coils)
                     self.sim.engine.armement.ingest(regs_arm, coils_arm)
+                    self.sim.engine.machine.ingest(regs_mach)
             except Exception:
                 self.cli.close()
                 with self.sim.lock:
                     self.sim.engine.platform.source = "SIMULÉ"
                     self.sim.engine.armement.source = "SIMULÉ"
+                    self.sim.engine.machine.source = "SIMULÉ"
                 time.sleep(3.0)
                 continue
             time.sleep(0.2)
