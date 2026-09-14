@@ -957,10 +957,28 @@ function drawScope(){
   });
 
   // op (position réelle du porteur à l'écran) est déjà calculé plus haut.
+  // Sillage : même traitement que la trace d'une piste (fondu, respecte
+  // F6) — son.own.trail vient de Engine.step(), à la cadence d'un tour
+  // d'antenne, pas de chaque image.
+  if(showTrails && F && F.own.trail && F.own.trail.length>1){
+    g.beginPath();
+    F.own.trail.forEach((h,i)=>{ const P=px({x:h[0],y:h[1]}); i?g.lineTo(P.x,P.y):g.moveTo(P.x,P.y); });
+    g.strokeStyle="#bfeaff"; g.globalAlpha=.22; g.lineWidth=1.2; g.stroke(); g.globalAlpha=1;
+  }
   const crs = F ? F.own.crs : 0;
   g.save(); g.translate(op.x,op.y); g.rotate(crs*Math.PI/180);
-  g.beginPath(); g.moveTo(0,-11); g.lineTo(6,8); g.lineTo(0,4); g.lineTo(-6,8); g.closePath();
-  g.fillStyle="#bfeaff"; g.fill(); g.restore();
+  // Coque stylisée plutôt qu'un chevron générique — étrave pointue,
+  // tableau arrière plat, un peu de creux au maître-bau, une petite
+  // passerelle. Assez de silhouette pour se lire comme un navire vu du
+  // dessus à cette échelle, pas plus.
+  g.beginPath();
+  g.moveTo(0,-12); g.lineTo(3.2,-6); g.lineTo(4,3); g.lineTo(3.2,8.5);
+  g.lineTo(2.3,10); g.lineTo(-2.3,10); g.lineTo(-3.2,8.5); g.lineTo(-4,3);
+  g.lineTo(-3.2,-6); g.closePath();
+  g.fillStyle="#bfeaff"; g.fill();
+  g.strokeStyle="rgba(8,28,50,.55)"; g.lineWidth=.8; g.stroke();
+  g.fillStyle="rgba(8,28,50,.4)"; g.fillRect(-1.6,-1.5,3.2,4.5);
+  g.restore();
   g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(crs*Math.PI/180)*R, op.y-Math.cos(crs*Math.PI/180)*R);
   g.strokeStyle="rgba(191,234,255,.28)"; g.lineWidth=1; g.setLineDash([2,6]); g.stroke(); g.setLineDash([]);
   g.beginPath(); g.arc(op.x,op.y,R,0,7); g.strokeStyle="rgba(150,210,255,.5)"; g.lineWidth=1.2; g.stroke();

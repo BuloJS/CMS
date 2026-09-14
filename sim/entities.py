@@ -77,6 +77,7 @@ class Ownship:
     turn_rate: float = 1.8        # deg/s à vitesse de manœuvre
     accel_tau: float = 45.0       # s, constante de temps de la propulsion
     mast_height: float = 30.0     # m, hauteur de l'antenne de veille
+    history: list = field(default_factory=list)   # sillage, (x, y) en mètres
 
     def step(self, dt):
         self.course = turn_toward(self.course, self.ordered_course, self.turn_rate, dt)

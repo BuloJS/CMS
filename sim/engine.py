@@ -194,6 +194,12 @@ class Engine:
             self._passive()
             self._extinctions()
             self._impacts()
+            # Sillage du porteur, même cadence et même profondeur que la
+            # trace d'une piste (Track.history côté Tracker.step) — pas de
+            # raison qu'il se dessine différemment sur le scope.
+            self.own.history.append((self.own.x, self.own.y))
+            if len(self.own.history) > 40:
+                self.own.history.pop(0)
 
         self._weapons(dt)
         self._assess()
@@ -486,7 +492,10 @@ class Engine:
         own = {"crs": round(self.own.course, 1),
                "spd": round(self.own.speed / KT, 1),
                "ord_crs": round(self.own.ordered_course, 1),
-               "ord_spd": round(self.own.ordered_speed / KT, 1)}
+               "ord_spd": round(self.own.ordered_speed / KT, 1),
+               "trail": [[round((hx - self.own.x) / NM, 3),
+                          round((hy - self.own.y) / NM, 3)]
+                         for hx, hy in self.own.history[-10:]]}
         geo = None
         if self.proj:
             # La console a besoin du point de référence pour convertir la
