@@ -45,6 +45,7 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 .stat b small{font-size:9.5px;color:var(--dim);margin-left:1px}
 .lang{align-self:center;margin-right:10px;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;padding:4px 9px;border:1px solid var(--line);border-radius:2px;background:transparent;color:var(--dim);cursor:pointer}
 .lang:hover{color:#e8f4ff;border-color:var(--phos)}
+.navlink{text-decoration:none;display:inline-block}
 .posture{display:flex;align-items:center;padding:0 14px;gap:9px;background:var(--panel-2)}
 .posture .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px currentColor}
 .posture span{font-family:var(--f-disp);font-size:13px;letter-spacing:.18em}
@@ -216,6 +217,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       <div class="stat" id="stat-ais" hidden><i>AIS</i><b id="ais-src">—</b></div>
       <div class="stat"><i data-i18n>PUISS. RADAR</i><b id="radpwr">---<small>%</small></b></div>
     </div>
+    <a class="lang navlink" href="helm.html" target="_blank" rel="noopener" data-i18n>POSTE MACHINE</a>
     <button class="lang" id="lang" title="Langue / Language">EN</button>
     <div class="posture"><span class="dot" id="pdot"></span><span id="posture">VEILLE</span></div>
   </div>
@@ -312,6 +314,7 @@ const AFF = {friend:{c:"#5fb8ff",l:"AMI"}, hostile:{c:"#ff5566",l:"HOSTILE"},
 const EN = {
   // -- bandeau et cadres
   "CONSOLE TACTIQUE":"TACTICAL CONSOLE", "TEMPS SIM":"SIM TIME",
+  "POSTE MACHINE":"ENGINE ROOM",
   "PORTEUR — ROUTE":"OWN SHIP — COURSE", "VITESSE":"SPEED", "PISTES":"TRACKS",
   "LEURRES":"DECOYS", "PUISS. RADAR":"RADAR PWR", "Menaces":"Threats",
   "Solutions d'engagement":"Engagement solutions", "Piste accrochée":"Hooked track",
