@@ -261,18 +261,36 @@ END_PROGRAM
    dérivés, jamais les valeurs qu'un opérateur a réellement ordonnées
    (cap en degrés, vitesse en nœuds). Aucune conversion à leur faire
    subir ici, le CMS l'a déjà faite en écrivant %MW1/%MW2.
+
+   Tableau électrique (%MW5-7, %QW22, %QX3.0-3.3) : ici l'automate a une
+   vraie autorité, contrairement au reste du programme — il refuse de
+   fermer le disjoncteur tant que le générateur n'est pas stable, quel
+   que soit ce que le CMS demande. Pas de bobine %MX pour les commandes
+   booléennes : son adressage Modbus n'est pas établi dans ce projet
+   (contrairement à %MW, vérifié dans webserver/core/modbus.cpp), donc
+   même schéma que le reste — un mot mémoire par commande, 0/1 en guise
+   de booléen, pour rester sur un mécanisme déjà prouvé plutôt que d'en
+   deviner un nouveau.
 *)
 PROGRAM machine
   VAR
     (* --- commande, écrite par le CMS --- *)
-    cmd_telegraphe AT %MW1  : INT;   (* 0=stop 1=lente 2=demi 3=pleine 4=toute *)
-    cmd_barre      AT %MW2  : INT;   (* degrés, -35..35, angle de barre ordonné *)
-    cmd_cap_brut   AT %MW3  : INT;   (* degrés, 0..359, cap ordonné tel quel *)
-    cmd_vit_brute  AT %MW4  : INT;   (* dixièmes de nœud, vitesse ordonnée telle quelle *)
+    cmd_telegraphe  AT %MW1  : INT;   (* 0=stop 1=lente 2=demi 3=pleine 4=toute *)
+    cmd_barre       AT %MW2  : INT;   (* degrés, -35..35, angle de barre ordonné *)
+    cmd_cap_brut    AT %MW3  : INT;   (* degrés, 0..359, cap ordonné tel quel *)
+    cmd_vit_brute   AT %MW4  : INT;   (* dixièmes de nœud, vitesse ordonnée telle quelle *)
+    cmd_batterie    AT %MW5  : INT;   (* 0/1 *)
+    cmd_generateur  AT %MW6  : INT;   (* 0/1 *)
+    cmd_disjoncteur AT %MW7  : INT;   (* 0/1, demandé — pas forcément accordé *)
 
     (* --- image transmise au CMS --- *)
-    out_rpm        AT %QW20 : INT;   (* tr/min *)
-    out_barre_reel AT %QW21 : INT;   (* degrés, signé *)
+    out_rpm         AT %QW20 : INT;   (* tr/min *)
+    out_barre_reel  AT %QW21 : INT;   (* degrés, signé *)
+    out_gen_progres AT %QW22 : INT;   (* 0-100, progression du démarrage générateur *)
+    batterie_en_ligne AT %QX3.0 : BOOL;
+    generateur_pret   AT %QX3.1 : BOOL;
+    disjoncteur_ferme AT %QX3.2 : BOOL;
+    propulsion_dispo  AT %QX3.3 : BOOL;
   END_VAR
 
   VAR
@@ -287,9 +305,45 @@ PROGRAM machine
     barre_cible : REAL;
     barre_reel  : REAL;
     PAS_BARRE   : REAL := 0.25;   (* degrés par cycle : -35 à 35 en ~14 s *)
+
+    (* Progression de démarrage en pourcentage plutôt que TON.ET converti
+       en temps — même choix que rpm_reel/barre_reel : un accumulateur
+       borné par cycle, pas de conversion TIME<->REAL dont le support
+       varie d'un compilateur IEC à l'autre. *)
+    gen_demarrage : REAL := 0.0;
+    PAS_GEN       : REAL := 0.417;  (* % par cycle de 50 ms : 0 à 100 en 12 s *)
   END_VAR
 
-  IF cmd_telegraphe <= 0 THEN
+  (* --- tableau électrique --- *)
+  (* La batterie répond tout de suite, un générateur non : c'est le
+     délai de stabilisation qui rend la séquence réelle plutôt que trois
+     bobines qui s'allument en même temps. Couper la batterie ou l'ordre
+     générateur en cours de démarrage remet à zéro plutôt que de figer la
+     progression — un vrai groupe qui perd son alimentation ne reprend
+     pas où il en était. *)
+  batterie_en_ligne := cmd_batterie = 1;
+
+  IF batterie_en_ligne AND cmd_generateur = 1 THEN
+    IF gen_demarrage < 100.0 THEN
+      gen_demarrage := gen_demarrage + PAS_GEN;
+      IF gen_demarrage > 100.0 THEN gen_demarrage := 100.0; END_IF;
+    END_IF;
+  ELSE
+    gen_demarrage := 0.0;
+  END_IF;
+  generateur_pret := gen_demarrage >= 100.0;
+  out_gen_progres := REAL_TO_INT(gen_demarrage);
+
+  (* Le seul vrai interlock de ce programme : le disjoncteur refuse de se
+     fermer sans générateur stable, quoi que le CMS demande sur
+     cmd_disjoncteur. La propulsion en dépend directement — pas de
+     surprise, c'est le même bit. *)
+  disjoncteur_ferme := cmd_disjoncteur = 1 AND generateur_pret;
+  propulsion_dispo  := disjoncteur_ferme;
+
+  IF NOT propulsion_dispo THEN
+    rpm_cible := 0.0;
+  ELSIF cmd_telegraphe <= 0 THEN
     rpm_cible := 0.0;
   ELSIF cmd_telegraphe = 1 THEN
     rpm_cible := 60.0;

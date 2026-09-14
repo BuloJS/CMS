@@ -152,6 +152,17 @@ class Sim:
                     e.own.ordered_course = float(c["course"]) % 360
                 if "speed_kt" in c:
                     e.own.ordered_speed = float(c["speed_kt"]) * KT
+            elif k == "elec":
+                # Ce que l'opérateur demande pour le tableau électrique —
+                # PROGRAM machine décide seul si c'est accordé (générateur
+                # stable avant de fermer le disjoncteur). Pas d'effet en
+                # mode SIMULÉ : sans automate, il n'y a rien à démarrer.
+                if "batterie" in c:
+                    e.machine.cmd_batterie = bool(c["batterie"])
+                if "generateur" in c:
+                    e.machine.cmd_generateur = bool(c["generateur"])
+                if "disjoncteur" in c:
+                    e.machine.cmd_disjoncteur = bool(c["disjoncteur"])
             elif k == "pump":
                 marche = bool(c.get("valeur", True))
                 e.platform.pump = marche
@@ -411,21 +422,26 @@ class PlcBridge(threading.Thread):
                 # erreur — la console affichera juste « 0 munitions ».
                 regs_arm = self.cli.read_holding_registers(10, 4)
                 coils_arm = self.cli.read_coils(8, 12)
-                # Bloc machine : maintien 20-21 (RPM arbre, angle de barre
-                # réel — voir modbus-map.md). Même principe : lu dans la
-                # même passe, des zéros tant que PROGRAM machine ne tourne
-                # pas plutôt qu'une erreur.
-                regs_mach = self.cli.read_holding_registers(20, 2)
+                # Bloc machine : maintien 20-22 (RPM arbre, angle de barre
+                # réel, progression démarrage générateur), bobines 24-27
+                # (tableau électrique — voir modbus-map.md). Même principe :
+                # lu dans la même passe, des zéros tant que PROGRAM machine
+                # ne tourne pas plutôt qu'une erreur.
+                regs_mach = self.cli.read_holding_registers(20, 3)
+                coils_mach = self.cli.read_coils(24, 4)
                 with self.sim.lock:
                     own = self.sim.engine.own
+                    mach = self.sim.engine.machine
                     ord_kt = own.ordered_speed / KT
                     # Écart de cap signé, même formule que sim.geo.turn_toward :
                     # positif = il faut tourner à droite (tribord), donc plus
                     # de barre à droite — le sens du %QW21 lu plus haut.
                     ecart_cap = (own.ordered_course - own.course + 540.0) % 360.0 - 180.0
+                    cmd_batterie, cmd_generateur, cmd_disjoncteur = (
+                        mach.cmd_batterie, mach.cmd_generateur, mach.cmd_disjoncteur)
                     self.sim.engine.platform.ingest(regs, coils)
                     self.sim.engine.armement.ingest(regs_arm, coils_arm)
-                    self.sim.engine.machine.ingest(regs_mach)
+                    mach.ingest(regs_mach, coils_mach)
                 # Commande machine, écrite en dehors du verrou (E/S réseau) :
                 # %MW1 le cran de télégraphe le plus proche de la vitesse
                 # ordonnée (mêmes seuils que web/index.html TELEGRAPHE), %MW2
@@ -437,11 +453,16 @@ class PlcBridge(threading.Thread):
                 # ne s'en sert pas, mais sans eux la page Monitoring
                 # d'OpenPLC ne montrerait jamais que l'opérateur a demandé
                 # « cap 270, 24 nœuds », seulement le cran/l'angle qui en
-                # découlent (voir modbus-map.md).
+                # découlent (voir modbus-map.md). %MW5-7 : ce que l'opérateur
+                # a demandé pour la batterie/le générateur/le disjoncteur —
+                # PROGRAM machine décide seul si c'est accordé.
                 self.cli.write_register(1025, _cran_telegraphe(ord_kt))
                 self.cli.write_register(1026, round(max(-35.0, min(35.0, ecart_cap * 2.0))) & 0xFFFF)
                 self.cli.write_register(1027, round(own.ordered_course) % 360)
                 self.cli.write_register(1028, round(ord_kt * 10) & 0xFFFF)
+                self.cli.write_register(1029, 1 if cmd_batterie else 0)
+                self.cli.write_register(1030, 1 if cmd_generateur else 0)
+                self.cli.write_register(1031, 1 if cmd_disjoncteur else 0)
             except Exception:
                 self.cli.close()
                 with self.sim.lock:

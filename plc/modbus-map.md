@@ -155,7 +155,7 @@ rejeu des événements « pompe » scriptés). Le bouton de tir de test du
 panneau reste utile pour valider le séquencement PLC seul, sans faire
 tourner tout un scénario de combat.
 
-## CMS → automate (machine — `%MW1`-`%MW4`, commande)
+## CMS → automate (machine — `%MW1`-`%MW7`, commande)
 
 Même raisonnement que l'armement : ce sont des mots mémoire, pas des
 bobines `%Q` — une bobine serait réécrite par `PROGRAM machine` à chaque
@@ -165,7 +165,7 @@ restent ordonnés en continu (l'opérateur garde la main tant qu'il ne
 change pas d'avis), pas déclenchés un coup à la fois. Le programme les
 relit à chaque cycle, sans `R_TRIG`.
 
-**Adresses Modbus réelles : 1025 à 1028** (même décalage +1024 que
+**Adresses Modbus réelles : 1025 à 1031** (même décalage +1024 que
 `%MW0`, voir plus haut).
 
 | Registre | Modbus | Valeur | Description |
@@ -174,6 +174,15 @@ relit à chaque cycle, sans `R_TRIG`.
 | `%MW2` | 1026 | -35..35 | Angle de barre ordonné, degrés |
 | `%MW3` | 1027 | 0-359 | Cap ordonné, degrés, tel quel |
 | `%MW4` | 1028 | 0-999 | Vitesse ordonnée, dixièmes de nœud, telle quelle |
+| `%MW5` | 1029 | 0/1 | Batterie demandée en ligne |
+| `%MW6` | 1030 | 0/1 | Générateur demandé en marche |
+| `%MW7` | 1031 | 0/1 | Disjoncteur principal demandé fermé — **demandé, pas accordé** |
+
+`%MW5`-`%MW7` sont des booléens transportés en `INT` (0/1), pas des
+bobines `%MX` : l'adressage Modbus des bits mémoire n'est établi nulle
+part dans ce projet, alors que celui des mots mémoire l'est (`%MW0`,
+vérifié dans `webserver/core/modbus.cpp`). Plutôt que de deviner un
+nouveau mécanisme, même schéma que le reste — un mot par commande.
 
 Le télégraphe reprend les mêmes cinq crans que le poste machine de la
 console (`web/index.html`, bloc `TELEGRAPHE`) et que `PROGRAM machine`
@@ -208,19 +217,35 @@ comme le ferait une vraie boucle de pilote automatique.
 | --- | --- | --- |
 | `%QW20` | maintien 20 | RPM arbre |
 | `%QW21` | maintien 21 | Angle de barre réel, degrés (signé) |
+| `%QW22` | maintien 22 | Progression du démarrage générateur, 0-100 % |
+| `%QX3.0` | bobine 24 | Batterie en ligne |
+| `%QX3.1` | bobine 25 | Générateur stable |
+| `%QX3.2` | bobine 26 | Disjoncteur principal fermé |
+| `%QX3.3` | bobine 27 | Propulsion disponible |
 
-`PROGRAM machine` ne fait pour l'instant que rejouer en façade l'ordre
-déjà écrit par le CMS, avec une rampe réaliste (RPM : 0 à 240 en ~30 s ;
-barre : -35° à 35° en ~14 s) au lieu d'un saut instantané — **le CMS
-garde la vérité physique du mouvement du porteur** (`sim/entities.py
-Ownship`, piloté par la commande `order` existante) : c'est
-`Ownship.turn_rate`/`.accel_tau` qui décide combien de temps prend une
-manœuvre, pas la rampe de l'automate. `sim/machine.py` lit ce bloc
-(`Machine.ingest()`) et le poste machine de la console affiche le vrai
-RPM/angle de barre dès que la source passe en MODBUS, à la place de
-l'estimation cosmétique — mais rien ne referme encore la boucle vers la
-physique : contrairement à `armement.pret`, aucune bascule d'autorité
-n'existe pour l'instant. C'est le point d'extension qui reste ouvert.
+`PROGRAM machine` rejoue en façade l'ordre du CMS pour le cap et la
+vitesse, avec une rampe réaliste (RPM : 0 à 240 en ~30 s ; barre : -35°
+à 35° en ~14 s) au lieu d'un saut instantané — **le CMS garde la vérité
+physique du mouvement du porteur** (`sim/entities.py Ownship`, piloté
+par la commande `order` existante) : c'est `Ownship.turn_rate`/
+`.accel_tau` qui décide combien de temps prend une manœuvre, pas la
+rampe de l'automate.
+
+**Le tableau électrique fait exception : l'automate y a une vraie
+autorité**, comme `armement.pret` sur un tir. La batterie répond tout de
+suite ; le générateur met 12 s à devenir stable (`out_gen_progres` monte
+de 0 à 100, remis à zéro si la batterie ou l'ordre générateur retombe en
+cours de route — pas de reprise à mi-chemin) ; le disjoncteur **refuse**
+de se fermer tant que `generateur_pret` est faux, quoi que `%MW7`
+demande ; et `rpm_cible` est forcé à zéro tant que `propulsion_dispo`
+est faux, quel que soit le cran demandé sur `%MW1`. Un télégraphe
+« pleine vitesse » sans générateur ne fait donc plus rien — le CMS peut
+l'écrire, l'automate ne le suit pas.
+
+`sim/machine.py` (`Machine.ingest()`) lit tout ce bloc, et le poste
+machine de la console affiche le vrai RPM/angle de barre/état électrique
+dès que la source passe en MODBUS, à la place de l'estimation
+cosmétique.
 
 ## Sécurité
 
