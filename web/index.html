@@ -199,6 +199,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .mview .pane>header{padding:0}
 .compass-wrap{display:flex;align-items:center;justify-content:center;flex:1;min-height:0}
 .compass{width:min(42vh,300px);height:min(42vh,300px);cursor:pointer}
+.compass.speedo{height:min(21vh,150px)}
 .compass .rose{stroke:var(--line);stroke-width:1}
 .compass .tick-major{stroke:var(--dim);stroke-width:1.5}
 .compass .tick-minor{stroke:var(--line);stroke-width:1}
@@ -213,14 +214,6 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .mview .readout.ord b{color:var(--warn);font-size:19px}
 .mview .readout small{font-size:12px;margin-left:2px;color:var(--dim)}
 .hint{text-align:center;font-family:var(--f-mono);font-size:9.5px;color:var(--dimmest);letter-spacing:.03em}
-.speed-big{text-align:center}
-.speed-big b{font-family:var(--f-mono);font-size:46px;font-weight:700;color:#eef4f8;font-variant-numeric:tabular-nums}
-.speed-big small{font-size:16px;color:var(--dim);margin-left:4px}
-.speed-big .ord{font-family:var(--f-mono);font-size:13px;color:var(--warn);margin-top:2px}
-.mview .gauge{height:9px;background:#0a2038;border-radius:2px;position:relative;overflow:visible}
-.mview .gauge .fill{position:absolute;left:0;top:0;bottom:0;background:var(--phos);border-radius:2px;transition:width .3s linear}
-.mview .gauge .mark{position:absolute;top:-3px;width:2px;height:15px;background:var(--warn)}
-.gauge-scale{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:9px;color:var(--dimmest)}
 .telegraph-row{display:flex;gap:5px}
 .telegraph-row button{flex:1;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.07em;padding:7px 2px;border-radius:2px;background:transparent;border:1px solid var(--line);color:var(--dim);cursor:pointer}
 .telegraph-row button:hover:not(:disabled){border-color:currentColor;color:#e8f4ff}
@@ -359,14 +352,14 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
     </div>
     <div class="pane">
       <header><span data-i18n>VITESSE — PROPULSION</span><em id="m-src-spd">SIMULÉ</em></header>
-      <div class="speed-big">
-        <b id="m-spd-real">--<small>kt</small></b>
-        <div class="ord" id="m-spd-ord-txt">ORDONNÉ -- kt</div>
+      <div class="compass-wrap">
+        <svg class="compass speedo" viewBox="0 0 200 120" id="m-speedo"></svg>
       </div>
-      <div>
-        <div class="gauge"><div class="fill" id="m-spd-fill"></div><div class="mark" id="m-spd-mark"></div></div>
-        <div class="gauge-scale"><span>0</span><span>10</span><span>20</span><span>30 kt</span></div>
+      <div class="readout-row">
+        <div class="readout"><i data-i18n>MESURÉ</i><b id="m-spd-real">--<small>kt</small></b></div>
+        <div class="readout ord"><i data-i18n>ORDONNÉ</i><b id="m-spd-ord">--<small>kt</small></b></div>
       </div>
+      <div class="hint" data-i18n>CLIQUER LE CADRAN POUR ORDONNER UNE VITESSE</div>
       <div class="telegraph-row" id="m-telegraph"></div>
       <div class="rpm"><i data-i18n>RPM ARBRE (estimé)</i><b id="m-rpm">---</b></div>
     </div>
@@ -400,6 +393,7 @@ const EN = {
   "POSTE MACHINE":"ENGINE ROOM", "RETOUR CONSOLE":"BACK TO CONSOLE",
   "CAP — GYROCOMPAS":"HEADING — GYROCOMPASS", "MESURÉ":"ACTUAL", "ORDONNÉ":"ORDERED",
   "CLIQUER LE CADRAN POUR ORDONNER UN CAP":"CLICK THE DIAL TO ORDER A HEADING",
+  "CLIQUER LE CADRAN POUR ORDONNER UNE VITESSE":"CLICK THE DIAL TO ORDER A SPEED",
   "VITESSE — PROPULSION":"SPEED — PROPULSION",
   "RPM ARBRE (estimé)":"SHAFT RPM (estimated)",
   "LENTE AV":"SLOW AHEAD", "DEMI AV":"HALF AHEAD", "PLEINE AV":"FULL AHEAD",
@@ -1267,9 +1261,50 @@ function orienterAiguille(id, deg){
   el.setAttribute("y2", (c-Math.cos(rad)*r).toFixed(1));
 }
 
+// Cadran de vitesse : demi-cercle façon compte-tours plutôt qu'une barre
+// de progression — même geste que le cap (cliquer le cadran ordonne),
+// juste une autre forme puisque 0..30 nœuds n'a pas de sens circulaire.
+const MAXKT = 30;
+function dessinerSpeedo(){
+  const svg = $("m-speedo"), cx = 100, cy = 104, r = 88;
+  let html = `<path class="rose" d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}" fill="none"/>`;
+  for(let kt=0; kt<=MAXKT; kt+=5){
+    const maj = kt % 10 === 0;
+    const ang = Math.PI*(1-kt/MAXKT);
+    const r1 = maj ? r-10 : r-5, r2 = r;
+    const x1=cx+Math.cos(ang)*r1, y1=cy-Math.sin(ang)*r1;
+    const x2=cx+Math.cos(ang)*r2, y2=cy-Math.sin(ang)*r2;
+    html += `<line class="${maj?"tick-major":"tick-minor"}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+    if(maj){
+      const rl = r-22, xl=cx+Math.cos(ang)*rl, yl=cy-Math.sin(ang)*rl;
+      html += `<text class="lbl" x="${xl.toFixed(1)}" y="${yl.toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${kt}</text>`;
+    }
+  }
+  svg.innerHTML = html +
+    `<line class="ghost" id="m-needle-spd-ord" x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy-(r-16)}"/>`+
+    `<line class="needle" id="m-needle-spd-real" x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy-(r-16)}"/>`+
+    `<circle class="hub" cx="${cx}" cy="${cy}" r="3.5"/>`;
+  svg.addEventListener("click", e=>{
+    if(!PILOTABLE) return;
+    const box = svg.getBoundingClientRect();
+    const px_ = (e.clientX-box.left)/box.width*200, py_ = (e.clientY-box.top)/box.height*120;
+    const ang = clamp(Math.atan2(cy-py_, px_-cx), 0, Math.PI);
+    SRC.send({cmd:"order", speed_kt: Math.round((1-ang/Math.PI)*MAXKT)});
+  });
+}
+dessinerSpeedo();
+function orienterAiguilleSpeedo(id, kt){
+  const cx=100, cy=104, r=88-16;
+  const ang = Math.PI*(1-clamp(kt,0,MAXKT)/MAXKT);
+  const el = $(id);
+  el.setAttribute("x2", (cx+Math.cos(ang)*r).toFixed(1));
+  el.setAttribute("y2", (cy-Math.sin(ang)*r).toFixed(1));
+}
+
 // Seuils repris du télégraphe de route classique — pas une vitesse exacte,
 // le cran que l'opérateur ordonne. Même principe que les boutons
-// d'engagement : peu de crans, faciles à viser à la souris.
+// d'engagement : peu de crans, faciles à viser à la souris. Reste utile à
+// côté du cadran, pour les ordres usuels sans avoir à viser précisément.
 const TELEGRAPHE = [
   ["STOP", 0], ["LENTE AV", 6], ["DEMI AV", 12], ["PLEINE AV", 20], ["EN AVANT TOUTE", 28],
 ];
@@ -1296,11 +1331,10 @@ function renderMachine(){
   $("m-crs-real").innerHTML = pad(o.crs,3,0)+"<small>°</small>";
   $("m-crs-ord").innerHTML = pad(o.ord_crs,3,0)+"<small>°</small>";
 
-  const max = 30;
+  orienterAiguilleSpeedo("m-needle-spd-real", o.spd);
+  orienterAiguilleSpeedo("m-needle-spd-ord", o.ord_spd);
   $("m-spd-real").innerHTML = o.spd.toFixed(1)+"<small>kt</small>";
-  $("m-spd-ord-txt").textContent = t("ORDONNÉ")+" "+o.ord_spd.toFixed(1)+" kt";
-  $("m-spd-fill").style.width = clamp(o.spd/max*100,0,100).toFixed(1)+"%";
-  $("m-spd-mark").style.left = clamp(o.ord_spd/max*100,0,100).toFixed(1)+"%";
+  $("m-spd-ord").innerHTML = o.ord_spd.toFixed(1)+"<small>kt</small>";
   const cran = libelleTelegraphe(o.ord_spd);
   $("m-telegraph").querySelectorAll("button").forEach(b=>
     b.setAttribute("aria-pressed", String(b.dataset.i18n===cran)));
