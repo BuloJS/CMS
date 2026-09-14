@@ -233,11 +233,101 @@ PROGRAM armement
   out_muni_ssm := muni_ssm;
 END_PROGRAM
 
+(*
+   MACHINE — barre et propulsion.
+
+   Troisième sous-programme, même principe que les deux précédents :
+   l'automate anime ses propres organes (aiguille de RPM, mèche de barre)
+   à sa propre cadence, il ne décide jamais de la route du porteur — ça
+   reste sim/entities.py Ownship côté CMS. Cette première version ne fait
+   donc que rejouer en façade l'ordre déjà écrit par le CMS (télégraphe
+   et angle de barre), avec une rampe réaliste au lieu d'un saut
+   instantané — le CMS garde la vérité physique tant qu'aucune boucle
+   Modbus ne referme l'autorité dessus (voir modbus-map.md).
+
+   Commande CMS -> automate : deux mots mémoire, %MW1 (télégraphe) et
+   %MW2 (angle de barre ordonné), pas des bobines %Q — même raison que
+   %MW0 pour l'armement, cms_pompe plus haut en a payé le prix avant son
+   correctif : une bobine %Q est réécrite par CE programme à chaque
+   cycle, un ordre du CMS dessus serait aussitôt perdu. Contrairement à
+   %MW0, ce ne sont pas des fronts : la vitesse et le cap restent
+   ordonnés en continu, pas déclenchés un coup à la fois — pas de
+   R_TRIG ici, une simple lecture de niveau à chaque cycle suffit.
+*)
+PROGRAM machine
+  VAR
+    (* --- commande, écrite par le CMS --- *)
+    cmd_telegraphe AT %MW1  : INT;   (* 0=stop 1=lente 2=demi 3=pleine 4=toute *)
+    cmd_barre      AT %MW2  : INT;   (* degrés, -35..35, angle de barre ordonné *)
+
+    (* --- image transmise au CMS --- *)
+    out_rpm        AT %QW20 : INT;   (* tr/min *)
+    out_barre_reel AT %QW21 : INT;   (* degrés, signé *)
+  END_VAR
+
+  VAR
+    (* Cinq crans façon télégraphe de route, pas un curseur continu — un
+       automate de salle des machines répond à un ordre discret, pas à
+       une valeur analogique arbitraire. Chiffres ronds pour ce labo, pas
+       la fiche technique d'un moteur réel. *)
+    rpm_cible   : REAL;
+    rpm_reel    : REAL;
+    PAS_RPM     : REAL := 0.4;    (* rpm par cycle de 50 ms : 0 à 240 en ~30 s *)
+
+    barre_cible : REAL;
+    barre_reel  : REAL;
+    PAS_BARRE   : REAL := 0.25;   (* degrés par cycle : -35 à 35 en ~14 s *)
+  END_VAR
+
+  IF cmd_telegraphe <= 0 THEN
+    rpm_cible := 0.0;
+  ELSIF cmd_telegraphe = 1 THEN
+    rpm_cible := 60.0;
+  ELSIF cmd_telegraphe = 2 THEN
+    rpm_cible := 120.0;
+  ELSIF cmd_telegraphe = 3 THEN
+    rpm_cible := 180.0;
+  ELSE
+    rpm_cible := 240.0;
+  END_IF;
+
+  IF rpm_reel < rpm_cible THEN
+    rpm_reel := rpm_reel + PAS_RPM;
+    IF rpm_reel > rpm_cible THEN rpm_reel := rpm_cible; END_IF;
+  ELSIF rpm_reel > rpm_cible THEN
+    rpm_reel := rpm_reel - PAS_RPM;
+    IF rpm_reel < rpm_cible THEN rpm_reel := rpm_cible; END_IF;
+  END_IF;
+
+  (* Défense contre un ordre hors gabarit plutôt qu'une mèche qui parte
+     au-delà de sa course mécanique réelle. *)
+  IF cmd_barre > 35 THEN
+    barre_cible := 35.0;
+  ELSIF cmd_barre < -35 THEN
+    barre_cible := -35.0;
+  ELSE
+    barre_cible := INT_TO_REAL(cmd_barre);
+  END_IF;
+
+  IF barre_reel < barre_cible THEN
+    barre_reel := barre_reel + PAS_BARRE;
+    IF barre_reel > barre_cible THEN barre_reel := barre_cible; END_IF;
+  ELSIF barre_reel > barre_cible THEN
+    barre_reel := barre_reel - PAS_BARRE;
+    IF barre_reel < barre_cible THEN barre_reel := barre_cible; END_IF;
+  END_IF;
+
+  out_rpm        := REAL_TO_INT(rpm_reel);
+  out_barre_reel := REAL_TO_INT(barre_reel);
+END_PROGRAM
+
 CONFIGURATION Config0
   RESOURCE Res0 ON PLC
     TASK cyclique(INTERVAL := T#50ms, PRIORITY := 0);
     TASK cyclique_armement(INTERVAL := T#50ms, PRIORITY := 1);
+    TASK cyclique_machine(INTERVAL := T#50ms, PRIORITY := 2);
     PROGRAM inst0 WITH cyclique : ipms;
     PROGRAM inst1 WITH cyclique_armement : armement;
+    PROGRAM inst2 WITH cyclique_machine : machine;
   END_RESOURCE
 END_CONFIGURATION

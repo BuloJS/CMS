@@ -155,6 +155,49 @@ rejeu des événements « pompe » scriptés). Le bouton de tir de test du
 panneau reste utile pour valider le séquencement PLC seul, sans faire
 tourner tout un scénario de combat.
 
+## CMS → automate (machine — `%MW1`/`%MW2`, commande)
+
+Même raisonnement que l'armement : ce sont des mots mémoire, pas des
+bobines `%Q` — une bobine serait réécrite par `PROGRAM machine` à chaque
+cycle, un ordre du CMS dessus serait aussitôt perdu. Contrairement à
+`%MW0`, ces deux mots ne sont **pas** des fronts : le cap et la vitesse
+restent ordonnés en continu (l'opérateur garde la main tant qu'il ne
+change pas d'avis), pas déclenchés un coup à la fois. Le programme les
+relit à chaque cycle, sans `R_TRIG`.
+
+**Adresses Modbus réelles : 1025 et 1026** (même décalage +1024 que
+`%MW0`, voir plus haut).
+
+| Registre | Modbus | Valeur | Description |
+| --- | --- | --- | --- |
+| `%MW1` | 1025 | 0-4 | Télégraphe : 0=stop 1=lente 2=demi 3=pleine 4=toute |
+| `%MW2` | 1026 | -35..35 | Angle de barre ordonné, degrés |
+
+Le télégraphe reprend les mêmes cinq crans que le poste machine de la
+console (`web/index.html`, bloc `TELEGRAPHE`) — les seuils de vitesse qui
+choisissent un cran restent une correspondance approximative côté CMS
+(`libelleTelegraphe()`), pas une conversion exacte : un télégraphe réel
+ordonne un régime, pas un nombre de nœuds.
+
+## Automate → CMS (machine, lecture)
+
+| Automate | Modbus (openplc:502) | Description |
+| --- | --- | --- |
+| `%QW20` | maintien 20 | RPM arbre |
+| `%QW21` | maintien 21 | Angle de barre réel, degrés (signé) |
+
+`PROGRAM machine` ne fait pour l'instant que rejouer en façade l'ordre
+déjà écrit par le CMS, avec une rampe réaliste (RPM : 0 à 240 en ~30 s ;
+barre : -35° à 35° en ~14 s) au lieu d'un saut instantané — **le CMS
+garde la vérité physique du mouvement du porteur** (`sim/entities.py
+Ownship`, piloté par la commande `order` existante). Rien ne lit encore
+ce bloc côté CMS : ni panneau console, ni bascule d'autorité comme celle
+de l'armement (`armement.pret`). C'est le point d'extension prévu — le
+jour où `sim/machine.py` lira `%QW20`/`%QW21` pour remplacer
+l'estimation cosmétique de RPM affichée au poste machine par un chiffre
+réel, et pour faire de l'automate l'autorité sur le mouvement plutôt
+qu'un simple répétiteur.
+
 ## Sécurité
 
 Modbus n'a ni authentification ni chiffrement. Ce n'est pas un défaut de
