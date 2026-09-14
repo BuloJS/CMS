@@ -245,20 +245,30 @@ END_PROGRAM
    instantané — le CMS garde la vérité physique tant qu'aucune boucle
    Modbus ne referme l'autorité dessus (voir modbus-map.md).
 
-   Commande CMS -> automate : deux mots mémoire, %MW1 (télégraphe) et
-   %MW2 (angle de barre ordonné), pas des bobines %Q — même raison que
-   %MW0 pour l'armement, cms_pompe plus haut en a payé le prix avant son
-   correctif : une bobine %Q est réécrite par CE programme à chaque
-   cycle, un ordre du CMS dessus serait aussitôt perdu. Contrairement à
-   %MW0, ce ne sont pas des fronts : la vitesse et le cap restent
-   ordonnés en continu, pas déclenchés un coup à la fois — pas de
+   Commande CMS -> automate : quatre mots mémoire, pas des bobines %Q —
+   même raison que %MW0 pour l'armement, cms_pompe plus haut en a payé le
+   prix avant son correctif : une bobine %Q est réécrite par CE programme
+   à chaque cycle, un ordre du CMS dessus serait aussitôt perdu.
+   Contrairement à %MW0, ce ne sont pas des fronts : la vitesse et le cap
+   restent ordonnés en continu, pas déclenchés un coup à la fois — pas de
    R_TRIG ici, une simple lecture de niveau à chaque cycle suffit.
+
+   %MW1/%MW2 (télégraphe, angle de barre) sont ce que ce programme utilise
+   réellement pour sa rampe. %MW3/%MW4 (cap et vitesse ordonnés bruts) ne
+   pilotent rien ici — cmd_telegraphe/cmd_barre restent les seules
+   entrées de la logique — mais l'automate doit les recevoir lui aussi :
+   sans eux, sa page Monitoring ne montre qu'un cran (0-4) et un angle
+   dérivés, jamais les valeurs qu'un opérateur a réellement ordonnées
+   (cap en degrés, vitesse en nœuds). Aucune conversion à leur faire
+   subir ici, le CMS l'a déjà faite en écrivant %MW1/%MW2.
 *)
 PROGRAM machine
   VAR
     (* --- commande, écrite par le CMS --- *)
     cmd_telegraphe AT %MW1  : INT;   (* 0=stop 1=lente 2=demi 3=pleine 4=toute *)
     cmd_barre      AT %MW2  : INT;   (* degrés, -35..35, angle de barre ordonné *)
+    cmd_cap_brut   AT %MW3  : INT;   (* degrés, 0..359, cap ordonné tel quel *)
+    cmd_vit_brute  AT %MW4  : INT;   (* dixièmes de nœud, vitesse ordonnée telle quelle *)
 
     (* --- image transmise au CMS --- *)
     out_rpm        AT %QW20 : INT;   (* tr/min *)

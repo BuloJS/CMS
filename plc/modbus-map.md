@@ -155,23 +155,25 @@ rejeu des événements « pompe » scriptés). Le bouton de tir de test du
 panneau reste utile pour valider le séquencement PLC seul, sans faire
 tourner tout un scénario de combat.
 
-## CMS → automate (machine — `%MW1`/`%MW2`, commande)
+## CMS → automate (machine — `%MW1`-`%MW4`, commande)
 
 Même raisonnement que l'armement : ce sont des mots mémoire, pas des
 bobines `%Q` — une bobine serait réécrite par `PROGRAM machine` à chaque
 cycle, un ordre du CMS dessus serait aussitôt perdu. Contrairement à
-`%MW0`, ces deux mots ne sont **pas** des fronts : le cap et la vitesse
+`%MW0`, ces mots ne sont **pas** des fronts : le cap et la vitesse
 restent ordonnés en continu (l'opérateur garde la main tant qu'il ne
 change pas d'avis), pas déclenchés un coup à la fois. Le programme les
 relit à chaque cycle, sans `R_TRIG`.
 
-**Adresses Modbus réelles : 1025 et 1026** (même décalage +1024 que
+**Adresses Modbus réelles : 1025 à 1028** (même décalage +1024 que
 `%MW0`, voir plus haut).
 
 | Registre | Modbus | Valeur | Description |
 | --- | --- | --- | --- |
 | `%MW1` | 1025 | 0-4 | Télégraphe : 0=stop 1=lente 2=demi 3=pleine 4=toute |
 | `%MW2` | 1026 | -35..35 | Angle de barre ordonné, degrés |
+| `%MW3` | 1027 | 0-359 | Cap ordonné, degrés, tel quel |
+| `%MW4` | 1028 | 0-999 | Vitesse ordonnée, dixièmes de nœud, telle quelle |
 
 Le télégraphe reprend les mêmes cinq crans que le poste machine de la
 console (`web/index.html`, bloc `TELEGRAPHE`) et que `PROGRAM machine`
@@ -181,6 +183,15 @@ est convertie au cran le plus proche avant d'être écrite — c'est
 `services/server.py PlcBridge.run()` qui fait cette conversion
 (`_cran_telegraphe()`) à chaque sondage, pas un composant à part que
 l'opérateur piloterait directement.
+
+`%MW3`/`%MW4` portent les mêmes ordres **non convertis** — cap en degrés,
+vitesse en dixièmes de nœud, ce que l'opérateur a réellement demandé.
+`PROGRAM machine` ne les lit pas : `cmd_telegraphe`/`cmd_barre` restent
+les seules entrées de sa logique. Ils existent pour que l'automate lui-
+même — sa page Monitoring, notamment — ait accès à la commande humaine
+d'origine, pas seulement au cran/à l'angle qui en découlent. Sans eux,
+quelqu'un qui inspecte l'automate en direct verrait « cran 3, barre 12° »
+sans jamais savoir que l'ordre réel était « cap 270, 24 nœuds ».
 
 L'angle de barre suit la même logique mais n'a pas d'équivalent
 « ordonné » côté CMS : `Ownship` ne modélise pas de gouvernail, juste un

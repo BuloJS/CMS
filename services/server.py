@@ -432,9 +432,16 @@ class PlcBridge(threading.Thread):
                 # un angle de barre proportionnel à l'écart de cap restant,
                 # plafonné à la course mécanique — PROGRAM machine n'a que ces
                 # deux ordres à suivre, il ne connaît ni cap ni vitesse en
-                # nœuds (voir modbus-map.md).
+                # nœuds. %MW3/%MW4 portent les mêmes ordres non convertis
+                # (cap en degrés, vitesse en dixièmes de nœud) : le programme
+                # ne s'en sert pas, mais sans eux la page Monitoring
+                # d'OpenPLC ne montrerait jamais que l'opérateur a demandé
+                # « cap 270, 24 nœuds », seulement le cran/l'angle qui en
+                # découlent (voir modbus-map.md).
                 self.cli.write_register(1025, _cran_telegraphe(ord_kt))
                 self.cli.write_register(1026, round(max(-35.0, min(35.0, ecart_cap * 2.0))) & 0xFFFF)
+                self.cli.write_register(1027, round(own.ordered_course) % 360)
+                self.cli.write_register(1028, round(ord_kt * 10) & 0xFFFF)
             except Exception:
                 self.cli.close()
                 with self.sim.lock:
