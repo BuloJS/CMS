@@ -1716,8 +1716,15 @@ function silhouetteNavires(crs){
     const rel = ((brg-crs+540)%360)-180;
     if(Math.abs(rel) > BV_FOV) return;
     const x = bvCX + (rel/BV_FOV)*bvHalfW;
-    const scale = (bvHorizonY/50) * (1.5 - 1.1*(dist/BV_RANGE));
-    out += navireSVG(x, bvHorizonY, Math.max(.5,scale));
+    // Taille apparente en 1/distance (vraie perspective), pas un dégradé
+    // linéaire sur la portée — sinon un contact à 60% de BV_RANGE reste
+    // à 85% de la taille max et semble juste devant l'étrave au lieu
+    // d'être loin sur l'horizon. refPx calibre la hauteur (mât compris)
+    // à 1 NM, proportionnelle à la fenêtre ; dist plafonné à 0.4 NM pour
+    // ne pas exploser si un contact passe très près.
+    const refPx = bvHorizonY * 0.32;
+    const scale = clamp(refPx / Math.max(dist, 0.4) / 22, 0.12, 3.2);
+    out += navireSVG(x, bvHorizonY, scale);
   });
   return out;
 }
