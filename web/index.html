@@ -263,22 +263,25 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 .mgrid:has(#electrical-pane[hidden]){grid-template-columns:1fr 1fr}
 @media(max-width:1180px){ .mgrid{grid-template-columns:1fr 1fr} .mgrid>.pane:nth-child(3){grid-column:1/-1} }
 
-/* -- vue passerelle -- horizon artificiel en incrustation, coin bas
-   droit. Couleurs mer/ciel propres (pas le vert d'accent du reste du
-   poste machine) — c'est une fenêtre sur l'extérieur, pas un cadran. Le
-   groupe #bv-horizon (mer+ciel+ligne d'horizon+relief des côtes) tourne
-   et se translate ensemble sous le roulis/tangage ; seuls l'étrave, le
-   réticule et l'échelle de roulis sont fixes par rapport à la caméra. */
-.bridge{position:absolute;right:16px;bottom:16px;width:260px;height:170px;background:#0a1622;border:1.5px solid #1c2b3a;border-radius:4px;box-shadow:0 2px 10px rgba(20,30,40,.18);overflow:hidden;z-index:5}
+/* -- vue passerelle -- horizon artificiel, bloc entier sous le cadran de
+   cap plutôt qu'une incrustation flottante (peu de place pour le relief
+   des côtes/futures pistes en 260x170). Couleurs mer/ciel propres (pas
+   le vert d'accent du reste du poste machine) — c'est une fenêtre sur
+   l'extérieur, pas un cadran. Le groupe #bv-horizon (mer+ciel+ligne
+   d'horizon+relief des côtes) tourne et se translate ensemble sous le
+   roulis/tangage ; seuls l'étrave, le réticule et l'échelle de roulis
+   sont fixes par rapport à la caméra. viewBox de #bv-svg posé en JS
+   (mesurerBridge()) sur la taille réelle du bloc, pas figé en dur — la
+   hauteur dépend de l'espace restant sous le cadran, variable. */
+.bridge{position:relative;flex:1;width:100%;min-height:140px;background:#0a1622;border:1.5px solid #1c2b3a;border-radius:4px;box-shadow:0 2px 10px rgba(20,30,40,.18);overflow:hidden}
 .bridge>header{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(10,22,34,.55);font-family:var(--f-disp);font-size:10px;letter-spacing:.1em;color:#cfe3f0;border:0}
 .bridge>header b{color:#fff;font-weight:700}
 .bv-wrap{position:absolute;inset:0;overflow:hidden}
 .bv-crosshair,.bv-roll{position:absolute;z-index:3}
 .bv-crosshair{left:50%;top:50%;transform:translate(-50%,-50%)}
 .bv-roll{top:16px;left:50%;transform:translateX(-50%)}
-.bv-bow{position:absolute;left:0;right:0;bottom:0;height:26%;z-index:2;pointer-events:none}
+.bv-bow{position:absolute;left:0;right:0;bottom:0;height:22%;z-index:2;pointer-events:none}
 .bridge .readout{position:absolute;bottom:4px;left:8px;right:8px;z-index:3;display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:9.5px;color:#cfe3f0;text-shadow:0 1px 2px rgba(0,0,0,.6)}
-@media(max-width:820px){ .bridge{display:none} }
 @media(max-width:820px){ .mgrid{grid-template-columns:1fr} .mgrid>.pane:nth-child(3){grid-column:auto} }
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -415,6 +418,38 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
           <div class="readout"><i data-i18n>BARRE AUTOMATE</i><b id="m-barre-real">--<small>°</small></b></div>
         </div>
       </div>
+
+      <div class="bridge">
+        <header><span data-i18n>VUE PASSERELLE</span><b id="bv-hdg">CAP ---°</b></header>
+        <div class="bv-wrap" id="bv-wrap">
+          <!-- contenu de #bv-horizon (ciel/mer/vagues/relief) entièrement
+               posé par mesurerBridge()/renderBridge() : dépend de la
+               taille réelle du bloc, pas d'un viewBox figé en dur. -->
+          <svg id="bv-svg" viewBox="0 0 260 170">
+            <g id="bv-horizon"><g id="bv-land"></g></g>
+          </svg>
+        </div>
+        <svg class="bv-crosshair" width="60" height="16" viewBox="0 0 60 16">
+          <line x1="0" y1="8" x2="22" y2="8" stroke="#fff" stroke-width="1.6"/>
+          <line x1="38" y1="8" x2="60" y2="8" stroke="#fff" stroke-width="1.6"/>
+          <circle cx="30" cy="8" r="2" fill="none" stroke="#fff" stroke-width="1.4"/>
+        </svg>
+        <svg class="bv-roll" width="120" height="30" viewBox="0 0 120 30">
+          <path d="M10 24 A50 50 0 0 1 110 24" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/>
+          <g id="bv-roll-ticks"></g>
+          <path d="M60 4 L55 12 L65 12 Z" fill="#fff"/>
+        </svg>
+        <svg class="bv-bow" viewBox="0 0 260 44" preserveAspectRatio="none">
+          <path d="M-20 44 L100 10 L160 10 L280 44 Z" fill="#0d1b28"/>
+          <path d="M100 10 L130 3 L160 10" fill="none" stroke="#24384a" stroke-width="1.4"/>
+          <line x1="18" y1="34" x2="18" y2="24" stroke="#24384a" stroke-width="2"/>
+          <line x1="242" y1="34" x2="242" y2="24" stroke="#24384a" stroke-width="2"/>
+        </svg>
+        <div class="readout">
+          <span data-i18n>TANGAGE</span><b id="bv-pitch">+0.0°</b>
+          <span data-i18n>ROULIS</span><b id="bv-roll-lbl">+0.0°</b>
+        </div>
+      </div>
     </div>
     <div class="pane">
       <header><span data-i18n>VITESSE — PROPULSION</span><em id="m-src-spd">SIMULÉ</em></header>
@@ -451,44 +486,6 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
         <button id="e-brk-off" data-i18n>OUVRIR DISJ</button>
       </div>
       <div class="hint" id="e-hint"></div>
-    </div>
-  </div>
-
-  <div class="bridge">
-    <header><span data-i18n>VUE PASSERELLE</span><b id="bv-hdg">CAP ---°</b></header>
-    <div class="bv-wrap">
-      <svg id="bv-svg" viewBox="0 0 260 170" preserveAspectRatio="xMidYMid slice">
-        <g id="bv-horizon">
-          <rect x="-60" y="-150" width="380" height="200" fill="#c3e0f2"/>
-          <rect x="-60" y="50" width="380" height="200" fill="#0b5a86"/>
-          <line x1="-60" y1="50" x2="320" y2="50" stroke="#04202f" stroke-width="2"/>
-          <path d="M-60 68 Q-40 60 -20 68 T20 68 T60 68 T100 68 T140 68 T180 68 T220 68 T260 68 T300 68 T320 68"
-            stroke="rgba(255,255,255,.45)" stroke-width="1.2" fill="none"/>
-          <path d="M-60 100 Q-40 92 -20 100 T20 100 T60 100 T100 100 T140 100 T180 100 T220 100 T260 100 T300 100 T320 100"
-            stroke="rgba(255,255,255,.28)" stroke-width="1" fill="none"/>
-          <g id="bv-land"></g>
-        </g>
-      </svg>
-    </div>
-    <svg class="bv-crosshair" width="60" height="16" viewBox="0 0 60 16">
-      <line x1="0" y1="8" x2="22" y2="8" stroke="#fff" stroke-width="1.6"/>
-      <line x1="38" y1="8" x2="60" y2="8" stroke="#fff" stroke-width="1.6"/>
-      <circle cx="30" cy="8" r="2" fill="none" stroke="#fff" stroke-width="1.4"/>
-    </svg>
-    <svg class="bv-roll" width="120" height="30" viewBox="0 0 120 30">
-      <path d="M10 24 A50 50 0 0 1 110 24" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/>
-      <g id="bv-roll-ticks"></g>
-      <path d="M60 4 L55 12 L65 12 Z" fill="#fff"/>
-    </svg>
-    <svg class="bv-bow" viewBox="0 0 260 44" preserveAspectRatio="none">
-      <path d="M-20 44 L100 10 L160 10 L280 44 Z" fill="#0d1b28"/>
-      <path d="M100 10 L130 3 L160 10" fill="none" stroke="#24384a" stroke-width="1.4"/>
-      <line x1="18" y1="34" x2="18" y2="24" stroke="#24384a" stroke-width="2"/>
-      <line x1="242" y1="34" x2="242" y2="24" stroke="#24384a" stroke-width="2"/>
-    </svg>
-    <div class="readout">
-      <span data-i18n>TANGAGE</span><b id="bv-pitch">+0.0°</b>
-      <span data-i18n>ROULIS</span><b id="bv-roll-lbl">+0.0°</b>
     </div>
   </div>
 </div>
@@ -1374,8 +1371,9 @@ $("armement").addEventListener("click", e=>{
    cosmétique tant qu'aucun automate "machine" n'est branché — le vrai
    sera lu par Modbus le jour où plc/program.st aura ce sous-programme. */
 const btnMachine = $("btn-machine"), viewMachine = $("machine-view"), viewConsole = $("console-view");
-btnMachine.onclick = () => { viewConsole.hidden = true; viewMachine.hidden = false; };
+btnMachine.onclick = () => { viewConsole.hidden = true; viewMachine.hidden = false; mesurerBridge(); };
 $("m-back").onclick = () => { viewMachine.hidden = true; viewConsole.hidden = false; };
+window.addEventListener("resize", () => { if(!viewMachine.hidden) mesurerBridge(); });
 
 // Aiguille triangulaire pleine plutôt qu'un trait à bout rond — se lit
 // comme une vraie aiguille d'instrument. `needlePoly` construit le
@@ -1602,7 +1600,33 @@ $("electrical-pane").addEventListener("click", e=>{
    coque de la taille d'une frégate, pas une portée optique calculée. */
 const BV_FOV = 30;      // degrés de part et d'autre de l'axe du porteur
 const BV_RANGE = 15;    // NM
-const BV_CX = 130, BV_HALFW = 120, BV_HORIZON_Y = 50;
+// Géométrie de la vue en unités d'écran réelles (pas un viewBox figé) —
+// le bloc prend maintenant tout l'espace sous le cadran de cap, sa
+// taille dépend du viewport, mesurerBridge() la recalcule.
+let bvCX = 130, bvHalfW = 120, bvHorizonY = 50;
+
+function ondeHorizon(y, opacity, w){
+  const amp = 8, periode = 40, x0 = -w, x1 = w*2;
+  let d = `M ${x0} ${y}`;
+  for(let x=x0; x<x1; x+=periode) d += ` Q ${x+periode/2} ${y-amp} ${x+periode} ${y}`;
+  return `<path d="${d}" stroke="rgba(255,255,255,${opacity})" stroke-width="1.2" fill="none"/>`;
+}
+// Le fond (ciel/mer/vagues) doit largement déborder le cadre visible :
+// avec le roulis/tangage qui tourne le groupe entier, un fond pile à la
+// taille du cadre laisserait des coins vides dès que ça penche.
+function mesurerBridge(){
+  const wrap = $("bv-wrap");
+  const w = Math.max(80, wrap.clientWidth), h = Math.max(60, wrap.clientHeight);
+  bvCX = w/2; bvHorizonY = h*0.34; bvHalfW = w*0.46;
+  $("bv-svg").setAttribute("viewBox", `0 0 ${w} ${h}`);
+  const mw = w*2, mh = h*2;
+  $("bv-horizon").innerHTML =
+    `<rect x="${-mw/2}" y="${bvHorizonY-mh}" width="${w+mw}" height="${mh}" fill="#c3e0f2"/>`+
+    `<rect x="${-mw/2}" y="${bvHorizonY}" width="${w+mw}" height="${mh}" fill="#0b5a86"/>`+
+    `<line x1="${-mw/2}" y1="${bvHorizonY}" x2="${w+mw/2}" y2="${bvHorizonY}" stroke="#04202f" stroke-width="2"/>`+
+    ondeHorizon(bvHorizonY+18, .45, w) + ondeHorizon(bvHorizonY+50, .28, w) +
+    `<g id="bv-land"></g>`;
+}
 (function(){
   const g = $("bv-roll-ticks");
   [-40,-20,20,40].forEach(a=>{
@@ -1622,14 +1646,15 @@ const BV_CX = 130, BV_HALFW = 120, BV_HORIZON_Y = 50;
    un repère "il y a de la terre par là", proportionné à la distance. */
 function silhouetteCotes(crs){
   if(!geoOk() || !COAST || !COAST.lignes) return "";
+  const hMin = 4, hMax = bvHorizonY*0.85;
   let out = "";
   COAST.lignes.forEach(ln=>{
     let run = [];
     const flush = () => {
       if(run.length >= 2){
-        let d = `M ${run[0].x.toFixed(1)} ${BV_HORIZON_Y} `;
+        let d = `M ${run[0].x.toFixed(1)} ${bvHorizonY} `;
         run.forEach(p => d += `L ${p.x.toFixed(1)} ${p.y.toFixed(1)} `);
-        d += `L ${run[run.length-1].x.toFixed(1)} ${BV_HORIZON_Y} Z`;
+        d += `L ${run[run.length-1].x.toFixed(1)} ${bvHorizonY} Z`;
         out += `<path d="${d}" fill="#122a1e" opacity=".82"/>`;
       }
       run = [];
@@ -1639,9 +1664,9 @@ function silhouetteCotes(crs){
       const brg = (Math.atan2(q.x,q.y)*180/Math.PI+360)%360;
       const rel = ((brg-crs+540)%360)-180;
       if(dist <= BV_RANGE && Math.abs(rel) <= BV_FOV){
-        const x = BV_CX + (rel/BV_FOV)*BV_HALFW;
-        const h = Math.max(4, Math.min(58, 6+56*(1-dist/BV_RANGE)));
-        run.push({x, y: BV_HORIZON_Y - h});
+        const x = bvCX + (rel/BV_FOV)*bvHalfW;
+        const h = Math.max(hMin, Math.min(hMax, hMin+(hMax-hMin)*(1-dist/BV_RANGE)));
+        run.push({x, y: bvHorizonY - h});
       } else flush();
     });
     flush();
@@ -1660,15 +1685,17 @@ function renderBridge(){
 
 /* Roulis/tangage synthétiques (houle) — Ownship n'a aujourd'hui ni
    tangage ni roulis réels (voir sim/entities.py), donc rien à brancher
-   sur de la vraie physique de plateforme pour l'instant. Rythmé sur
-   simT() plutôt que performance.now() pour suivre la vitesse du rejeu
-   comme le reste de l'affichage. */
+   sur de la vraie physique de plateforme pour l'instant. Amplitude
+   modeste et période lente : une coque de la taille d'une frégate n'a
+   pas le roulis vif d'un petit bâtiment. Rythmé sur simT() plutôt que
+   performance.now() pour suivre la vitesse du rejeu comme le reste de
+   l'affichage. */
 function animerBridge(){
   const s = simT();
-  const roll = Math.sin(s*0.35)*4 + Math.sin(s*0.9)*1.2;
-  const pitch = Math.sin(s*0.5)*6 + Math.sin(s*1.3)*1.5;
-  $("bv-horizon").setAttribute("transform", `translate(0,${pitch.toFixed(2)}) rotate(${roll.toFixed(2)} ${BV_CX} ${BV_HORIZON_Y})`);
-  $("bv-pitch").textContent = (pitch>=0?"+":"")+(pitch/10).toFixed(1)+"°";
+  const roll = Math.sin(s*0.15)*1.8 + Math.sin(s*0.4)*0.6;
+  const pitch = Math.sin(s*0.18)*2.0 + Math.sin(s*0.45)*0.6;
+  $("bv-horizon").setAttribute("transform", `translate(0,${pitch.toFixed(2)}) rotate(${roll.toFixed(2)} ${bvCX} ${bvHorizonY})`);
+  $("bv-pitch").textContent = (pitch>=0?"+":"")+pitch.toFixed(1)+"°";
   $("bv-roll-lbl").textContent = (roll>=0?"+":"")+roll.toFixed(1)+"°";
 }
 
