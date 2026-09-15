@@ -1678,20 +1678,24 @@ function silhouetteCotes(crs){
   return out;
 }
 
-/* Silhouette de navire générique — coque + passerelle + mât, posée sur
-   la ligne d'horizon (waterline en y=0 dans son propre repère local,
-   avant mise à l'échelle/translation). Une seule forme pour toutes les
-   affiliations, recolorée par piste : à cette distance et cette taille
-   d'icône, la coque suffit à dire "c'est un navire", l'inférence
-   ami/hostile reste au gisement/à la couleur, pas à la silhouette. */
-function navireSVG(cx, baseY, s, col){
+/* Silhouette de navire générique — profil bas et effilé façon frégate
+   moderne (étrave élancée, mât/tourelle intégrée unique plutôt qu'un
+   mât fin + bloc passerelle séparés), posée sur la ligne d'horizon
+   (waterline en y=0 dans son propre repère local, avant mise à
+   l'échelle/translation). Gris/noir uni, pas de code couleur par
+   affiliation — à cette taille d'icône la silhouette suffit à dire
+   "c'est un navire", elle n'a pas à dire lequel. */
+const NAVIRE_COL = "#3a4650", NAVIRE_TRAIT = "#141a1f";
+function navireSVG(cx, baseY, s){
   const X = x => (cx + x*s).toFixed(1), Y = y => (baseY + y*s).toFixed(1);
-  const coque = `M ${X(-18)} ${Y(0)} Q ${X(-20)} ${Y(-3)} ${X(-16)} ${Y(-4)} `+
-    `L ${X(-6)} ${Y(-4)} L ${X(-6)} ${Y(-10)} L ${X(4)} ${Y(-10)} L ${X(4)} ${Y(-4)} `+
-    `L ${X(12)} ${Y(-4)} Q ${X(20)} ${Y(-2)} ${X(20)} ${Y(0)} Z`;
-  const mat = `M ${X(-1)} ${Y(-10)} L ${X(-1)} ${Y(-14)}`;
-  return `<path d="${coque}" fill="${col}" stroke="#0a1622" stroke-width="${Math.max(.6,s).toFixed(1)}"/>`+
-         `<path d="${mat}" stroke="${col}" stroke-width="${Math.max(.6,.9*s).toFixed(1)}"/>`;
+  const coque = `M ${X(-22)} ${Y(0)} L ${X(-22)} ${Y(-3)} L ${X(-12)} ${Y(-5)} `+
+    `L ${X(-4)} ${Y(-5)} L ${X(-4)} ${Y(-7)} L ${X(6)} ${Y(-7)} L ${X(6)} ${Y(-5)} `+
+    `L ${X(15)} ${Y(-5)} L ${X(20)} ${Y(-3)} Q ${X(24)} ${Y(-1)} ${X(24)} ${Y(0)} Z`;
+  const tour = `M ${X(-2)} ${Y(-7)} L ${X(-3)} ${Y(-19)} L ${X(0)} ${Y(-22)} L ${X(3)} ${Y(-19)} L ${X(2)} ${Y(-7)} Z`;
+  const canon = `M ${X(16)} ${Y(-5)} L ${X(18.5)} ${Y(-5)} L ${X(18.5)} ${Y(-7)} L ${X(16)} ${Y(-7)} Z`;
+  return `<path d="${coque}" fill="${NAVIRE_COL}" stroke="${NAVIRE_TRAIT}" stroke-width="${Math.max(.5,.7*s).toFixed(1)}"/>`+
+         `<path d="${tour}" fill="${NAVIRE_COL}" stroke="${NAVIRE_TRAIT}" stroke-width="${Math.max(.4,.5*s).toFixed(1)}"/>`+
+         `<path d="${canon}" fill="${NAVIRE_COL}"/>`;
 }
 /* Navires visibles devant le porteur — même principe que le relief des
    côtes (gisement/distance réels, filtrés au champ de vision et à la
@@ -1713,8 +1717,7 @@ function silhouetteNavires(crs){
     if(Math.abs(rel) > BV_FOV) return;
     const x = bvCX + (rel/BV_FOV)*bvHalfW;
     const scale = (bvHorizonY/50) * (1.5 - 1.1*(dist/BV_RANGE));
-    const col = (AFF[t.aff]||AFF.unknown).c;
-    out += navireSVG(x, bvHorizonY, Math.max(.5,scale), col);
+    out += navireSVG(x, bvHorizonY, Math.max(.5,scale));
   });
   return out;
 }
