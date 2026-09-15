@@ -134,38 +134,50 @@ PROGRAM armement
     (* Dotations initiales et maximales — mêmes valeurs que sim/tewa.py
        Effector.rounds, pour rester cohérent avec le modèle logiciel qu'on
        remplace ici. Le rechargement automatique ne dépasse jamais cette
-       borne : un magasin ne grossit pas tout seul. *)
+       borne : un magasin ne grossit pas tout seul.
+
+       CIWS et artillerie sont des accumulateurs REAL, pas INT : ce sont
+       des canons à tir continu, le magasin doit se vider *progressivement*
+       pendant la rafale (voir plus bas) et pas d'un coup au front de
+       commande — un saut instantané -225 ne se lit pas comme un tir en
+       cours sur le panneau électrique. Même motif accumulateur+pas par
+       cycle que la rampe RPM de PROGRAM machine. *)
     muni_sam   : INT := 16;
-    muni_ciws  : INT := 999;
-    muni_gun   : INT := 120;
+    muni_ciws  : REAL := 999.0;
+    muni_gun   : REAL := 120.0;
     muni_ssm   : INT := 8;
 
-    (* Temps de recyclage du canal après un coup — à ajuster librement,
-       aucune valeur du domaine ne les impose. *)
+    (* SAM/SSM : missile à l'unité, pas de tir continu — le motif
+       TON+R_TRIG classique suffit, pas besoin d'accumulateur. *)
     tempo_sam  : TON;
-    tempo_ciws : TON;
-    tempo_gun  : TON;
     tempo_ssm  : TON;
-
     front_sam  : R_TRIG;
-    front_ciws : R_TRIG;
-    front_gun  : R_TRIG;
     front_ssm  : R_TRIG;
-
-    (* Rechargement automatique : un coup revient tout seul après un délai
-       qui dépend du type d'arme — un canon à chargeur (CIWS) recharge vite,
-       un missile antinavire (SSM) est le plus lourd à remettre en œuvre.
-       Un seul TON par effecteur, qui se réarme lui-même via le front de son
-       propre passage à vrai : le motif classique d'oscillateur à un seul
-       bloc fonction, pas deux appels du même bloc dans un même cycle. *)
     tempo_rech_sam  : TON;
-    tempo_rech_ciws : TON;
-    tempo_rech_gun  : TON;
     tempo_rech_ssm  : TON;
     front_rech_sam  : R_TRIG;
-    front_rech_ciws : R_TRIG;
-    front_rech_gun  : R_TRIG;
     front_rech_ssm  : R_TRIG;
+
+    (* CIWS/artillerie : rafale de BURST_S=3s (sim/tewa.py) au front de
+       cmd_effecteur, muni_* décroît à chaque cycle pendant la rafale au
+       lieu d'un saut. Hors rafale, le magasin remonte à sa dotation
+       pleine en 5s (PAS_RECH_*), pas coup par coup après un délai fixe —
+       recharge continue elle aussi, mêmes raisons. pret_* sert à la fois
+       de "canal libre" et de fin de rafale : pas de commande acceptée
+       tant que la rafale précédente tourne encore. *)
+    front_ciws    : R_TRIG;
+    rafale_ciws   : BOOL;
+    tir_ciws      : TON;
+    front_gun     : R_TRIG;
+    rafale_gun    : BOOL;
+    tir_gun       : TON;
+
+    (* Coups/scan à 50 ms : régime de tir / 60 * 0,05 pour la rafale,
+       dotation pleine / 5 s * 0,05 pour la recharge. *)
+    PAS_TIR_CIWS  : REAL := 3.75;   (* 4500 c/min *)
+    PAS_RECH_CIWS : REAL := 9.99;   (* 999 coups en 5 s *)
+    PAS_TIR_GUN   : REAL := 0.1;    (* 120 c/min *)
+    PAS_RECH_GUN  : REAL := 1.2;    (* 120 coups en 5 s *)
   END_VAR
 
   front_sam(CLK := cmd_effecteur = 0);
@@ -184,45 +196,51 @@ PROGRAM armement
   defaut_sam   := FALSE;
   out_muni_sam := muni_sam;
 
-  (* Rafale au régime de tir réel (4500 c/min) sur BURST_S=3s côté
-     sim/tewa.py rounds_per_shot() : 225 coups par engagement, pas un
-     coup à l'unité — sinon 999 coups durent 999 engagements au lieu
-     d'une grosse poignée de rafales avant de vider le magasin. *)
+  (* Rafale au régime de tir réel (4500 c/min), 3s, décompte progressif —
+     225 coups au total (sim/tewa.py rounds_per_shot()), pas un saut. *)
   front_ciws(CLK := cmd_effecteur = 1);
-  IF front_ciws.Q AND muni_ciws > 0 AND NOT tempo_ciws.Q THEN
-    muni_ciws := muni_ciws - 225;
-    IF muni_ciws < 0 THEN muni_ciws := 0; END_IF;
+  IF front_ciws.Q AND NOT rafale_ciws AND muni_ciws > 0.0 THEN
+    rafale_ciws := TRUE;
   END_IF;
-  tempo_ciws(IN := front_ciws.Q, PT := T#3S);
-
-  front_rech_ciws(CLK := tempo_rech_ciws.Q);
-  IF front_rech_ciws.Q AND muni_ciws < 999 THEN
-    muni_ciws := muni_ciws + 1;
+  tir_ciws(IN := rafale_ciws, PT := T#3S);
+  IF tir_ciws.Q THEN
+    rafale_ciws := FALSE;
   END_IF;
-  tempo_rech_ciws(IN := muni_ciws < 999 AND NOT tempo_rech_ciws.Q, PT := T#5S);
 
-  pret_ciws     := muni_ciws > 0 AND NOT tempo_ciws.Q;
+  IF rafale_ciws AND muni_ciws > 0.0 THEN
+    muni_ciws := muni_ciws - PAS_TIR_CIWS;
+    IF muni_ciws < 0.0 THEN muni_ciws := 0.0; END_IF;
+  ELSIF NOT rafale_ciws AND muni_ciws < 999.0 THEN
+    muni_ciws := muni_ciws + PAS_RECH_CIWS;
+    IF muni_ciws > 999.0 THEN muni_ciws := 999.0; END_IF;
+  END_IF;
+
+  pret_ciws     := muni_ciws > 0.0 AND NOT rafale_ciws;
   defaut_ciws   := FALSE;
-  out_muni_ciws := muni_ciws;
+  out_muni_ciws := REAL_TO_INT(muni_ciws);
 
-  (* Même principe que le CIWS : rafale au régime de tir (120 c/min) sur
-     BURST_S=3s, soit 6 coups par engagement. *)
+  (* Même principe que le CIWS, au régime de l'artillerie (120 c/min) :
+     6 coups au total sur la rafale de 3s. *)
   front_gun(CLK := cmd_effecteur = 2);
-  IF front_gun.Q AND muni_gun > 0 AND NOT tempo_gun.Q THEN
-    muni_gun := muni_gun - 6;
-    IF muni_gun < 0 THEN muni_gun := 0; END_IF;
+  IF front_gun.Q AND NOT rafale_gun AND muni_gun > 0.0 THEN
+    rafale_gun := TRUE;
   END_IF;
-  tempo_gun(IN := front_gun.Q, PT := T#3S);
-
-  front_rech_gun(CLK := tempo_rech_gun.Q);
-  IF front_rech_gun.Q AND muni_gun < 120 THEN
-    muni_gun := muni_gun + 1;
+  tir_gun(IN := rafale_gun, PT := T#3S);
+  IF tir_gun.Q THEN
+    rafale_gun := FALSE;
   END_IF;
-  tempo_rech_gun(IN := muni_gun < 120 AND NOT tempo_rech_gun.Q, PT := T#10S);
 
-  pret_gun     := muni_gun > 0 AND NOT tempo_gun.Q;
+  IF rafale_gun AND muni_gun > 0.0 THEN
+    muni_gun := muni_gun - PAS_TIR_GUN;
+    IF muni_gun < 0.0 THEN muni_gun := 0.0; END_IF;
+  ELSIF NOT rafale_gun AND muni_gun < 120.0 THEN
+    muni_gun := muni_gun + PAS_RECH_GUN;
+    IF muni_gun > 120.0 THEN muni_gun := 120.0; END_IF;
+  END_IF;
+
+  pret_gun     := muni_gun > 0.0 AND NOT rafale_gun;
   defaut_gun   := FALSE;
-  out_muni_gun := muni_gun;
+  out_muni_gun := REAL_TO_INT(muni_gun);
 
   front_ssm(CLK := cmd_effecteur = 3);
   IF front_ssm.Q AND muni_ssm > 0 AND NOT tempo_ssm.Q THEN

@@ -116,41 +116,47 @@ c'est le point d'extension prévu pour un vrai interlock (porte de silo,
 sécurité…).
 
 **Consommation par engagement — une rafale au régime de tir réel, pas un
-coup arbitraire.** SAM et SSM partent à l'unité (`%MW0`) : trop lourds et
-trop chers pour en tirer plusieurs sur un seul engagement. CIWS et
-artillerie sont des canons à tir continu, donc une rafale de `BURST_S`
-secondes (3 s, `sim/tewa.py`) au régime de tir de l'arme :
+coup arbitraire, et qui se vide *progressivement* pour CIWS/artillerie.**
+SAM et SSM partent à l'unité (`%MW0`, décompte instantané) : trop lourds
+et trop chers pour en tirer plusieurs sur un seul engagement. CIWS et
+artillerie sont des canons à tir continu : au front sur `%MW0`, `muni_*`
+(accumulateur `REAL`) décroît à chaque scan (50 ms) pendant `BURST_S`
+secondes (3 s, `sim/tewa.py`) au régime de tir de l'arme — pas un saut
+instantané au total de la rafale, sinon la barre du panneau électrique
+saute d'un coup au lieu de montrer un tir en cours :
 
-| Effecteur | Régime de tir | Coups par engagement |
-| --- | --- | --- |
-| CIWS | 4500 c/min | 225 |
-| Artillerie 76 mm | 120 c/min | 6 |
-| SAM courte portée | — (à l'unité) | 1 |
-| SSM | — (à l'unité) | 1 |
+| Effecteur | Régime de tir | Coups/scan (50 ms) | Total sur la rafale (3 s) |
+| --- | --- | --- | --- |
+| CIWS | 4500 c/min | 3,75 | 225 |
+| Artillerie 76 mm | 120 c/min | 0,1 | 6 |
+| SAM courte portée | — (à l'unité) | — | 1 |
+| SSM | — (à l'unité) | — | 1 |
 
-Voir `sim/tewa.py rounds_per_shot()` côté logiciel — c'est cette valeur,
-pas la taille de salve statistique `salvo_for()` (qui reste réservée au
-Pk affiché), que `PROGRAM armement` doit décompter à chaque front sur
-`%MW0`.
+`pret_ciws`/`pret_gun` restent à `FALSE` toute la rafale (canal occupé),
+pas seulement un délai de recyclage fixe. Voir `sim/tewa.py
+rounds_per_shot()` côté logiciel pour le total — c'est cette valeur, pas
+la taille de salve statistique `salvo_for()` (qui reste réservée au Pk
+affiché), que `PROGRAM armement` décompte au total sur la rafale.
 
-**Rechargement automatique**, +1 munition à intervalle fixe tant que le
-magasin n'est pas plein, jamais au-delà de la dotation initiale — un délai
-par type d'arme, pas une valeur unique :
+**Rechargement automatique**, continu lui aussi pendant que l'arme n'est
+pas en rafale, jamais au-delà de la dotation initiale :
 
-| Effecteur | Délai de rechargement |
+| Effecteur | Rechargement |
 | --- | --- |
-| CIWS | 5 s |
-| Artillerie 76 mm | 10 s |
-| SAM courte portée | 15 s |
-| SSM | 20 s |
+| CIWS | dotation pleine (999) en 5 s, en continu |
+| Artillerie 76 mm | dotation pleine (120) en 5 s, en continu |
+| SAM courte portée | +1 munition toutes les 15 s |
+| SSM | +1 munition toutes les 20 s |
 
-Un seul bloc `TON` par effecteur, qui se réarme lui-même sur le front de
-son propre passage à vrai (motif d'oscillateur classique, un seul appel du
-bloc par cycle — deux appels du même `TON` dans un même scan avec des `IN`
-différents fonctionnerait aussi mais complique la lecture pour rien).
+CIWS/artillerie rechargent par accumulateur `REAL` (même pas par scan que
+la consommation, en sens inverse) — un magasin à moitié vide se remplit
+donc proportionnellement plus vite qu'un magasin presque vide, la
+dotation pleine revient toujours en 5 s depuis n'importe quel niveau,
+pas 5 s par coup manquant. SAM/SSM gardent le motif `TON`+`R_TRIG`
+classique (+1 munition à intervalle fixe) : ce sont des missiles à
+l'unité, pas des canons, rien à rendre progressif.
 Vérifié scan par scan en rejouant la même logique en Python avant
-d'écrire le `.st` : le rythme est bien d'une munition toutes les *n*
-secondes, sans double-incrément ni dépassement du plafond.
+d'écrire le `.st`.
 
 Bobines lues d'un seul bloc contigu, `read_coils(8, 12)` : indices 0-3
 = `%QX1.0-1.3` (prêt), 4-7 = padding inutilisé (`%QX1.4-1.7`), 8-11 =
