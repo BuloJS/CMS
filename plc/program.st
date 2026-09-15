@@ -184,11 +184,16 @@ PROGRAM armement
   defaut_sam   := FALSE;
   out_muni_sam := muni_sam;
 
+  (* Rafale au régime de tir réel (4500 c/min) sur BURST_S=3s côté
+     sim/tewa.py rounds_per_shot() : 225 coups par engagement, pas un
+     coup à l'unité — sinon 999 coups durent 999 engagements au lieu
+     d'une grosse poignée de rafales avant de vider le magasin. *)
   front_ciws(CLK := cmd_effecteur = 1);
   IF front_ciws.Q AND muni_ciws > 0 AND NOT tempo_ciws.Q THEN
-    muni_ciws := muni_ciws - 1;
+    muni_ciws := muni_ciws - 225;
+    IF muni_ciws < 0 THEN muni_ciws := 0; END_IF;
   END_IF;
-  tempo_ciws(IN := front_ciws.Q, PT := T#1S);
+  tempo_ciws(IN := front_ciws.Q, PT := T#3S);
 
   front_rech_ciws(CLK := tempo_rech_ciws.Q);
   IF front_rech_ciws.Q AND muni_ciws < 999 THEN
@@ -200,11 +205,14 @@ PROGRAM armement
   defaut_ciws   := FALSE;
   out_muni_ciws := muni_ciws;
 
+  (* Même principe que le CIWS : rafale au régime de tir (120 c/min) sur
+     BURST_S=3s, soit 6 coups par engagement. *)
   front_gun(CLK := cmd_effecteur = 2);
   IF front_gun.Q AND muni_gun > 0 AND NOT tempo_gun.Q THEN
-    muni_gun := muni_gun - 1;
+    muni_gun := muni_gun - 6;
+    IF muni_gun < 0 THEN muni_gun := 0; END_IF;
   END_IF;
-  tempo_gun(IN := front_gun.Q, PT := T#2S);
+  tempo_gun(IN := front_gun.Q, PT := T#3S);
 
   front_rech_gun(CLK := tempo_rech_gun.Q);
   IF front_rech_gun.Q AND muni_gun < 120 THEN

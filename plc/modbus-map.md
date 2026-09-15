@@ -115,6 +115,24 @@ Les bobines de défaut (`%QX2.x`) ne sont câblées sur rien pour l'instant :
 c'est le point d'extension prévu pour un vrai interlock (porte de silo,
 sécurité…).
 
+**Consommation par engagement — une rafale au régime de tir réel, pas un
+coup arbitraire.** SAM et SSM partent à l'unité (`%MW0`) : trop lourds et
+trop chers pour en tirer plusieurs sur un seul engagement. CIWS et
+artillerie sont des canons à tir continu, donc une rafale de `BURST_S`
+secondes (3 s, `sim/tewa.py`) au régime de tir de l'arme :
+
+| Effecteur | Régime de tir | Coups par engagement |
+| --- | --- | --- |
+| CIWS | 4500 c/min | 225 |
+| Artillerie 76 mm | 120 c/min | 6 |
+| SAM courte portée | — (à l'unité) | 1 |
+| SSM | — (à l'unité) | 1 |
+
+Voir `sim/tewa.py rounds_per_shot()` côté logiciel — c'est cette valeur,
+pas la taille de salve statistique `salvo_for()` (qui reste réservée au
+Pk affiché), que `PROGRAM armement` doit décompter à chaque front sur
+`%MW0`.
+
 **Rechargement automatique**, +1 munition à intervalle fixe tant que le
 magasin n'est pas plein, jamais au-delà de la dotation initiale — un délai
 par type d'arme, pas une valeur unique :
@@ -149,11 +167,11 @@ dans le modèle logiciel. Sans automate (`armement.source == "SIMULÉ"`),
 logiciel décide seul, comme avant.
 
 Chaque tir accepté (opérateur ou doctrine automatique) rejoue vers
-l'automate autant de fronts sur `%MW0` que de coups partis dans la salve
-(`services/server.py`, `commander_tirs_armement` — même principe que le
-rejeu des événements « pompe » scriptés). Le bouton de tir de test du
-panneau reste utile pour valider le séquencement PLC seul, sans faire
-tourner tout un scénario de combat.
+l'automate un seul front sur `%MW0` — un engagement, un front, quel que
+soit l'effecteur (`services/server.py`, `commander_tir_armement` — même
+principe que le rejeu des événements « pompe » scriptés). Le bouton de
+tir de test du panneau reste utile pour valider le séquencement PLC
+seul, sans faire tourner tout un scénario de combat.
 
 ## CMS → automate (machine — `%MW1`-`%MW7`, commande)
 

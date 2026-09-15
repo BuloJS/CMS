@@ -338,8 +338,11 @@ class Sim:
             # Même principe pour chaque tir réel ("engage()", opérateur ou
             # doctrine automatique) : le lanceur doit décompter un coup
             # réellement parti, pas seulement ce que sim/tewa.py croit avoir
-            # tiré. Une salve de n coups vaut n fronts côté automate, pas un
-            # seul — voir commander_tirs_armement.
+            # tiré. Un seul front par engagement, pas un par coup de la
+            # salve statistique `n` (tewa.salvo_for, qui ne sert plus qu'au
+            # Pk affiché) — c'est PROGRAM armement qui décompte maintenant
+            # une rafale entière (ou un missile à l'unité) sur ce seul
+            # front, voir tewa.rounds_per_shot() et plc/program.st.
             with self.lock:
                 seq_max, tirs = self._tir_seq_vu, []
                 for ev in self.engine.events:
@@ -347,10 +350,10 @@ class Sim:
                         break
                     seq_max = max(seq_max, ev["n"])
                     if ev.get("code") == "tir":
-                        tirs.append((ev["p"]["ef"], ev["p"]["n"]))
+                        tirs.append(ev["p"]["ef"])
                 self._tir_seq_vu = seq_max
-            for ef, n in reversed(tirs):
-                self.commander_tirs_armement(ef, n)
+            for ef in reversed(tirs):
+                self.commander_tir_armement(ef)
             if now - pub >= 0.1:
                 pub = now
                 with self.lock:

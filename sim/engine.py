@@ -366,7 +366,11 @@ class Engine:
             return False
         n = tewa.salvo_for(ef.pk)
         ef.busy += 1
-        ef.rounds = max(0, ef.rounds - n)
+        # Munitions réellement consommées : une rafale au régime de tir de
+        # l'arme pour un canon (CIWS/artillerie), pas la taille de salve
+        # statistique `n` ci-dessus — celle-ci ne sert qu'au Pk affiché et
+        # au journal, voir tewa.rounds_per_shot().
+        ef.rounds = max(0, ef.rounds - tewa.rounds_per_shot(ef))
         # Point d'interception résolu au tir : c'est la solution que le tir
         # engage, pas une prédiction recalculée en vol — la cible réelle
         # peut s'en écarter d'ici l'échéance, exactement comme un vrai tir.

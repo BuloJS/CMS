@@ -18,6 +18,12 @@ from .veracite import gravite
 
 REACTION_S = 8.0          # décision + désignation + séquence de mise de feu
 
+# Durée de rafale par engagement pour une arme à tir continu (CIWS,
+# artillerie) — pas une valeur du domaine, un compromis raisonnable dans
+# la fourchette usuelle d'une rafale d'interception (1-5 s pour un CIWS
+# au cadencement).
+BURST_S = 3.0
+
 
 def _clamp(v, a=0.0, b=1.0):
     return max(a, min(b, v))
@@ -64,7 +70,7 @@ class Effector:
 
     def __init__(self, key, label, role, v, rmin, rmax, alt_max=1e9,
                  pk=0.7, rounds=8, channels=2, targets=("air", "missile"),
-                 cost=1):
+                 cost=1, rpm=0):
         self.key, self.label, self.role = key, label, role
         self.cost = cost               # effet gradué : on n'ouvre pas au missile
                                        # antinavire sur une vedette à 9 NM
@@ -76,6 +82,10 @@ class Effector:
         self.channels = channels
         self.busy = 0
         self.targets = targets
+        # Cadence de tir (coups/minute) pour une arme à tir continu — un
+        # canon vide son chargeur en rafale, un missile (rpm=0) part à
+        # l'unité, voir rounds_per_shot().
+        self.rpm = rpm
 
     @property
     def free_channels(self):
@@ -87,12 +97,25 @@ def default_effectors():
         Effector("sam", "SAM courte portée", "défense", 900, 1.5 * NM, 25 * NM,
                  alt_max=20000, pk=0.72, rounds=16, channels=2, cost=8),
         Effector("ciws", "CIWS", "défense", 1100, 200, 2 * NM,
-                 alt_max=3000, pk=0.55, rounds=999, channels=1, cost=2),
+                 alt_max=3000, pk=0.55, rounds=999, channels=1, cost=2, rpm=4500),
         Effector("gun", "Artillerie 76 mm", "attaque", 850, 0.4 * NM, 9 * NM,
-                 pk=0.35, rounds=120, channels=1, targets=("surf",), cost=1),
+                 pk=0.35, rounds=120, channels=1, targets=("surf",), cost=1, rpm=120),
         Effector("ssm", "Missile antinavire", "attaque", 290, 4 * NM, 60 * NM,
                  pk=0.8, rounds=8, channels=2, targets=("surf",), cost=40),
     ]
+
+
+def rounds_per_shot(ef):
+    """Munitions réellement consommées par un engagement — la ressource
+    qui vide vraiment le magasin, distincte de `salvo_for()` qui reste
+    la taille de salve *statistique* utilisée pour le Pk affiché. Un
+    canon à tir continu (CIWS, artillerie) vide une rafale à sa cadence
+    sur BURST_S secondes ; un missile (rpm=0, SAM/SSM) part à l'unité —
+    trop lourd et trop cher pour en tirer plusieurs d'un coup sur un
+    seul engagement."""
+    if not ef.rpm:
+        return 1
+    return max(1, round(ef.rpm / 60.0 * BURST_S))
 
 
 def salvo_for(pk, target_pk=0.90):
@@ -132,7 +155,7 @@ def solutions(tracks_eval, own, effectors, t, doctrine):
 
             if r_int > ef.rmax or r_int < ef.rmin:
                 status = "hors enveloppe"
-            elif ef.rounds < n:
+            elif ef.rounds < rounds_per_shot(ef):
                 status = "munitions insuffisantes"
             elif ef.free_channels < 1:
                 status = "canal occupé"
