@@ -349,7 +349,7 @@ sont des points, pas des emprises.
 `attaque = { arme = "asm", nb = 2, portee_nm = 28, delai_s = 20 }`. `portee_nm`
 est sa **zone** : dès que le porteur y entre il l'illumine (alerte « conduite de
 tir ennemie » avec le relèvement), puis tire `nb` missiles `delai_s` plus tard
-(« départ missile »). `cadence_s` le fait retirer à intervalle régulier tant que
+(« départ missile »). `cibles = ["FFG-ESCORTE", "OWN"]` liste les bâtiments visés, à tour de rôle (les cibles détruites ou hors zone sont sautées ; un missile sur un autre contact le détruit à l'impact, les leurres ne concernent que ceux visant le porteur). `cadence_s` le fait retirer à intervalle régulier tant que
 le porteur reste dans la zone (`tirs_max` limite le nombre de tirs) ; en sortir
 lui fait **perdre le verrou**, à refaire en rentrant. Un contact `connu = true` est
 un **site** (renseignement) : ni piste radar, ni vecteur, ni sillage — un repère
@@ -546,7 +546,7 @@ Voir [`plc/modbus-map.md`](plc/modbus-map.md).
 | `04-veille-trafic-reel` | Aucun contact scripté : le trafic AIS, au milieu du golfe de Finlande | Les grands navires sortent à l'horizon, les petits mobiles de près. La corrélation AIS renseigne les coopératifs |
 | `05-identite-douteuse` | Rail marchand dense, quatre contacts atypiques : un muet, une extinction, une position falsifiée, un MMSI inexistant | Chacun détecté pour ce qu'il est, aucun classé hostile, le trafic honnête indemne |
 | `09-alerte-missile` | Barrage : deux bâtiments à poste, zone de 24 NM chacun ; à l'entrée ils verrouillent puis tirent un missile toutes les 2 min tant que le porteur reste dans la zone — CIWS en manuel, 20 leurres | Alerte conduite de tir puis départ missile ; leurres, SAM ou demi-tour hors de la zone (le verrou est perdu en sortant) ; touché = simulation arrêtée |
-| `10-batterie-cotiere` | Détroit d'Ormuz : une batterie de missiles connue (site fixe à terre, Musandam) avec un radar de 30 NM dont la zone est tracée sur la carte ; à l'entrée elle verrouille, puis tire un missile toutes les 2 min tant que le porteur reste dans la zone | Le missile est suivi dès son départ de la batterie, de A à Z ; leurres, SAM, ou demi-tour hors de la zone pour couper les tirs ; la batterie ne peut pas être détruite |
+| `10-batterie-cotiere` | Détroit d'Ormuz : une batterie de missiles connue (site fixe à terre, Musandam) avec un radar de 30 NM dont la zone est tracée sur la carte ; à l'entrée elle verrouille, puis tire un missile toutes les 2 min, à tour de rôle sur la frégate alliée et sur le porteur (jamais sur le pétrolier civil) | Le missile est suivi dès son départ de la batterie, de A à Z ; leurres, SAM, ou demi-tour hors de la zone pour couper les tirs ; la batterie ne peut pas être détruite |
 | `08-monde-gibraltar` | Même mise en scène que 07, ailleurs : approches de Gibraltar, tous les bâtiments posés en lat/lon sur la carte du monde | Mêmes classements que 07 ; côtes d'Espagne et du Maroc au bon endroit, radar borné par son horizon |
 | `06-plc-armement` | Atelier vide, sans piste ni événement — pour développer et tester le séquencement du lanceur sur un vrai automate | Pas de solution attendue : vérifier que l'automate fait ce qu'il doit, voir `plc/modbus-map.md` |
 | `07-flotte-mixte` | Dix bâtiments sur le rail Helsinki–Tallinn : 2 alliés (IFF), 3 marchands (AIS), 2 silencieux, 3 hostiles dont un qui passe en conduite de tir à 300 s et tire à 720 s | Alliés AMI, marchands NEUTRE, silencieux INCONNU ; hostiles classés par doctrine sauf celui qui n'émet qu'en veille |
@@ -692,3 +692,11 @@ restreindre à la machine locale :
 ```bash
 CMS_HOST=127.0.0.1 python3 services/server.py
 ```
+
+## Interface
+
+La console est en anglais (bascule FR/EN en haut à droite). Les noms des contacts
+des scénarios sont en anglais ; les titres et textes de scénario ont leur
+traduction (`name_en`, `brief_en`, `attendu_en`). Mettre en pause fige le
+balayage radar et l'extrapolation des pistes ; un impact ou un échouement fige
+aussi le scope.

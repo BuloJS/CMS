@@ -67,7 +67,7 @@ ais_data = { mmsi = 538006712, callSign = "V7KP3", imo = 9556201, type = 80, nav
 
 [[contact]]
 id = "PATROL-9"
-name = "Patrouilleur allié"
+name = "Allied patrol boat"
 kind = "surf"
 brg = 300
 rng_nm = 11.0
@@ -83,7 +83,7 @@ ais_data = { mmsi = 230118000, callSign = "OJPA", type = 35, navStat = 0, refA =
 
 [[contact]]
 id = "FAC-1"
-name = "Embarcation rapide"
+name = "Fast craft"
 kind = "surf"
 brg = 15
 rng_nm = 12.5
@@ -94,7 +94,7 @@ intent = "hostile"
 
 [[contact]]
 id = "FAC-2"
-name = "Embarcation rapide"
+name = "Fast craft"
 kind = "surf"
 brg = 25
 rng_nm = 13.8
@@ -104,7 +104,7 @@ rcs = 35
 
 [[contact]]
 id = "AIRLINER"
-name = "Trafic commercial"
+name = "Commercial traffic"
 kind = "air"
 brg = 250
 rng_nm = 48

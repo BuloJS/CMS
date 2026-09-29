@@ -193,22 +193,47 @@ class Engine:
                 self.log("crit", "ALERTE — conduite de tir ennemie sur nous, relèvement %03d°" % round(brg),
                          code="verrouillage", brg=round(brg))
             elif st["prochain"] is not None and self.t >= st["prochain"]:
+                cible = self._choisir_cible(c, st)
+                if cible is None:
+                    st["prochain"] = self.t + (cadence if cadence > 0 else 10.0)
+                    continue
                 st["tirs"] += 1
                 st["prochain"] = self.t + cadence if cadence > 0 else None
                 self._launch({"from": c.uid, "weapon": a.get("arme", "asm"),
-                              "count": int(a.get("nb", 1))})
+                              "count": int(a.get("nb", 1)), "cible": cible})
+
+    def _choisir_cible(self, c, st):
+        """Cible du prochain tir : `attaque.cibles` (uid de contacts, ou
+        "OWN" pour le porteur) parcourue à tour de rôle, en sautant celles qui
+        sont détruites ou hors de la zone du tireur. Sans liste, le porteur."""
+        a = c.attaque
+        cibles = a.get("cibles") or ["OWN"]
+        portee = float(a.get("portee_nm", 25.0)) * NM
+        for k in range(len(cibles)):
+            uid = cibles[(st.get("idx", 0) + k) % len(cibles)]
+            t = self.own if uid == "OWN" else self.world.get(uid)
+            if t is None or (uid != "OWN" and not t.alive):
+                continue
+            if rng(t.x - c.x, t.y - c.y) <= portee:
+                st["idx"] = (st.get("idx", 0) + k + 1) % len(cibles)
+                return uid
+        return None
 
     def _launch(self, e):
         src = self.world.get(e.get("from"))
         if not src:
             return
         spec = WEAPONS.get(e.get("weapon", "asm"), WEAPONS["asm"])
+        cible = e.get("cible", "OWN")
+        tc = self.own if cible == "OWN" else self.world.get(cible)
+        if tc is None:
+            return
         for i in range(int(e.get("count", 1))):
             # Numéro cumulé par tireur : un même navire qui tire toutes les
             # deux minutes ne doit pas écraser son missile précédent.
             self._tirs[src.uid] = self._tirs.get(src.uid, 0) + 1
             uid = "%s-M%d" % (src.uid, self._tirs[src.uid])
-            brg = bearing(self.own.x - src.x, self.own.y - src.y)
+            brg = bearing(tc.x - src.x, tc.y - src.y)
             # Dispersion de salve. Deux munitions tirées au même instant depuis
             # le même point volent en formation parfaite et ne forment qu'une
             # seule piste — ce qui est vrai, mais rend le tableau illisible et
@@ -223,7 +248,7 @@ class Engine:
                 uid=uid, name=spec["name"], kind="missile",
                 x=sx, y=sy, alt=spec["alt"], course=brg,
                 speed=spec["speed"], rcs=spec["rcs"], intent="hostile",
-                target="OWN", launched_at=self.t, tireur=src.uid)
+                target=cible, launched_at=self.t, tireur=src.uid)
         self.log("crit", "Départ missile détecté par ESM — origine %s" % src.name,
                  code="depart_missile", src=src.name)
 
@@ -270,6 +295,7 @@ class Engine:
         self.own.step(dt, target_speed=cible_vit)
 
         tgt = {"OWN": self.own}
+        tgt.update(self.world)      # un missile peut viser un autre contact
         for c in self.world.values():
             c.step(dt, tgt)
         self._tic_terre += 1
@@ -434,16 +460,30 @@ class Engine:
 
     def _impacts(self):
         for c in list(self.world.values()):
-            if c.kind == "missile" and c.alive:
-                if rng(c.x - self.own.x, c.y - self.own.y) < 120:
+            if c.kind != "missile" or not c.alive:
+                continue
+            if c.target and c.target != "OWN":
+                # Missile tiré sur un autre contact (une frégate alliée, par
+                # exemple) : il l'atteint ou, si la cible a disparu, se perd.
+                cible = self.world.get(c.target)
+                if cible is None or not cible.alive:
                     c.alive = False
-                    self.log("crit", "IMPACT sur le porteur — %s" % c.name,
-                             code="impact", nom=c.name)
-                    # Un missile qui arrive au but, c'est fini : tout
-                    # s'arrête, comme pour un échouement. C'est ce qui donne
-                    # son enjeu à la chasse aux leurres.
-                    if self.fin_sur_impact and not self.crash:
-                        self.crash = {"type": "missile", "t": round(self.t, 1)}
+                elif rng(c.x - cible.x, c.y - cible.y) < 120:
+                    c.alive = False
+                    cible.alive = False
+                    cible.speed = 0.0
+                    self.log("crit", "%s détruit par missile" % cible.name,
+                             code="cible_detruite", nom=cible.name)
+                continue
+            if rng(c.x - self.own.x, c.y - self.own.y) < 120:
+                c.alive = False
+                self.log("crit", "IMPACT sur le porteur — %s" % c.name,
+                         code="impact", nom=c.name)
+                # Un missile qui arrive au but, c'est fini : tout
+                # s'arrête, comme pour un échouement. C'est ce qui donne
+                # son enjeu à la chasse aux leurres.
+                if self.fin_sur_impact and not self.crash:
+                    self.crash = {"type": "missile", "t": round(self.t, 1)}
 
     # -- effecteurs ------------------------------------------------------
     def _weapons(self, dt):
@@ -549,7 +589,7 @@ class Engine:
         self.decoys -= 2
         n = 0
         for c in self.world.values():
-            if c.kind == "missile" and c.alive and not c.seduced:
+            if c.kind == "missile" and c.alive and not c.seduced and c.target == "OWN":
                 if rng(c.x - self.own.x, c.y - self.own.y) < DECOY_RANGE:
                     if self.rand.random() < 0.45:
                         c.seduced, n = True, n + 1

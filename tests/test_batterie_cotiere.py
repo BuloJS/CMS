@@ -106,6 +106,52 @@ class TestBatterie(unittest.TestCase):
         d_bat = rng(x - bat.x, y - bat.y) / NM
         self.assertLess(d_bat, 12.0)                          # encore près de son point de départ
 
+    def test_la_batterie_tire_a_tour_de_role_sur_la_fregate_et_le_porteur(self):
+        e = _engine()
+        bat = _en_zone(e, 25.0)
+        fr = e.world["FFG-ESCORTE"]
+        fr.speed = 0.0                                       # immobile, dans la zone
+        fr.x, fr.y = bat.x * 0.3, bat.y * 0.3                # ~ 10 NM de la batterie
+        while e.t < 620:
+            e.step()
+        tirs = sorted((c.launched_at, c.target) for u, c in e.world.items() if u.startswith("BAT-1-M"))
+        cibles = [t for _, t in tirs]
+        self.assertGreaterEqual(len(cibles), 3, cibles)
+        self.assertEqual(cibles[0], "FFG-ESCORTE")           # la frégate d'abord
+        self.assertEqual(cibles[1], "OWN")                   # puis le porteur, à tour de rôle
+        self.assertNotIn("MT-GULF-STAR", cibles)             # le civil n'est jamais visé
+
+    def test_le_missile_sur_la_fregate_la_detruit_et_ne_touche_pas_le_porteur(self):
+        e = _engine()
+        e.fin_sur_impact = True
+        bat = _en_zone(e, 25.0)
+        fr = e.world["FFG-ESCORTE"]
+        fr.speed = 0.0
+        fr.x, fr.y = bat.x * 0.3, bat.y * 0.3
+        # le porteur reste dans la zone ; on n'observe que le premier tir
+        for _ in range(20 * 200):
+            e.step()
+            if not fr.alive:
+                break
+        self.assertFalse(fr.alive, "le premier missile vise la frégate")
+        self.assertIsNone(e.crash)                           # le porteur n'est pas touché
+        codes = [ev.get("code") for ev in e.events]
+        self.assertIn("cible_detruite", codes)
+
+    def test_les_leurres_ne_seduisent_pas_un_missile_vise_sur_un_autre(self):
+        e = _engine()
+        bat = _en_zone(e, 25.0)
+        fr = e.world["FFG-ESCORTE"]
+        fr.speed = 0.0
+        fr.x, fr.y = e.own.x + 500.0, e.own.y                # à côté du porteur
+        while not any(u.startswith("BAT-1-M") for u in e.world):
+            e.step()
+        m = next(c for u, c in e.world.items() if u.startswith("BAT-1-M"))
+        self.assertEqual(m.target, "FFG-ESCORTE")
+        m.x, m.y = e.own.x + 1000.0, e.own.y                 # dans les 5 NM du porteur
+        e.deploy_decoys()
+        self.assertFalse(m.seduced)
+
     def test_sortir_de_la_zone_arrete_les_tirs(self):
         e = _engine()
         bat = _en_zone(e, 25.0)

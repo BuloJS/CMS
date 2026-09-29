@@ -375,7 +375,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       <div class="ov tr" id="cursor-ro"></div>
       <div class="ov bl"><span data-i18n>NORD HAUT</span><br><span id="ring-lbl">ANNEAUX 6.25 NM</span></div>
       <div class="alertes"><div class="alerte" id="alerte" hidden></div><div class="menace" id="menace" hidden></div></div>
-      <div class="crash" id="crash" hidden><b id="crash-t">ÉCHOUEMENT</b><span data-i18n>SIMULATION ARRÊTÉE — REJOUER pour recommencer</span></div>
+      <div class="crash" id="crash" hidden><b id="crash-t">GROUNDING</b><span data-i18n>SIMULATION ARRÊTÉE — REJOUER pour recommencer</span></div>
       <div class="vide" id="vide" hidden></div>
       <div class="brief" id="brief"></div>
       <div class="rangepad" role="group" aria-label="Échelle de portée" data-i18n-label>
@@ -431,7 +431,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 <div id="monde-view" hidden>
   <div class="mv-bar">
     <b data-i18n>CARTE DU MONDE</b>
-    <input id="mv-q" class="mv-q" type="search" autocomplete="off" spellcheck="false" placeholder="Rechercher une ville, une mer…">
+    <input id="mv-q" class="mv-q" type="search" autocomplete="off" spellcheck="false" placeholder="Search a city, a sea…">
     <span id="mv-pos" class="mv-pos"></span>
     <span class="mv-sp"></span>
     <button class="act" id="mv-reset" data-i18n>MONDE ENTIER</button>
@@ -477,7 +477,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       </div>
 
       <div class="bridge">
-        <header><span data-i18n>VUE PASSERELLE</span><b id="bv-hdg">CAP ---°</b></header>
+        <header><span data-i18n>VUE PASSERELLE</span><b id="bv-hdg">HDG ---°</b></header>
         <div class="bv-wrap" id="bv-wrap">
           <!-- contenu de #bv-horizon (ciel/mer/vagues/relief) entièrement
                posé par mesurerBridge()/renderBridge() : dépend de la
@@ -601,6 +601,15 @@ const EN = {
   // -- touches
   "DÉCROCHER":"UNHOOK", "SUIVI":"FOLLOW", "TRACES":"TRAILS", "INCERTITUDE":"UNCERTAINTY",
   "SAM AUTO":"AUTO SAM", "ARRÊT POMPE":"STOP PUMP", "RELANCER POMPE":"RESTART PUMP",
+  "ZONE RADAR":"RADAR ZONE", "tir(s)":"shot(s)", "échec":"failed",
+  "interrogation du flux public":"querying the public feed",
+  "{n} positions, {s} au statique — {f} ({q})":"{n} positions, {s} with static data — {f} ({q})",
+  "Source AIS éteinte, et aucun contact scripté détecté. Un scénario de veille en trafic réel réclame sa source lui-même ; pour le flux public, lancer avec AIS_SOURCE=digitraffic.":
+    "AIS source is off and no scripted contact detected. A live-traffic watch scenario has to ask for its own source; for the public feed, start with AIS_SOURCE=digitraffic.",
+  "Source AIS : {e}.":"AIS source: {e}.",
+  "Flux AIS actif, aucun navire dans le rayon d'ingestion.":"AIS feed active, no vessel within the ingestion radius.",
+  "Flux AIS actif — {n} navire(s) reçu(s), aucun encore détecté au radar. Hors horizon, ou trop faible surface équivalente à cette distance.":
+    "AIS feed active — {n} vessel(s) received, none detected on radar yet. Beyond the horizon, or radar cross-section too small at this range.",
   "CAPTURE AIS":"AIS CAPTURE", "CAPTURE…":"CAPTURING…", "CAPTURE KO":"CAPTURE FAILED",
   "CAPTURÉ":"CAPTURED", "SCÉNARIO":"SCENARIO", "REJOUER":"REPLAY", "pause":"pause",
   // -- affiliations et champs de piste
@@ -714,6 +723,7 @@ const L = {
       verrouillage:p=>"ALERTE — conduite de tir ennemie sur nous, relèvement "+String(p.brg).padStart(3,"0")+"°",
       illumination:p=>p.piste+" — illumination conduite de tir",
       impact:p=>"IMPACT sur le porteur — "+p.nom,
+      cible_detruite:p=>p.nom+" détruit par missile",
       tir:p=>efLabel(p.ef)+" — tir x"+p.n+" sur "+p.piste+(p.auto?" (doctrine)":""),
       piste_perdue:p=>p.piste+" — piste perdue avant interception",
       plus_de_cible:p=>p.piste+" — plus de cible à l'interception",
@@ -772,6 +782,7 @@ const L = {
       verrouillage:p=>"ALERT — enemy fire control on us, bearing "+String(p.brg).padStart(3,"0")+"°",
       illumination:p=>p.piste+" — fire-control illumination",
       impact:p=>"IMPACT on own ship — "+p.nom,
+      cible_detruite:p=>p.nom+" destroyed by missile",
       tir:p=>efLabel(p.ef)+" — fired x"+p.n+" at "+p.piste+(p.auto?" (doctrine)":""),
       piste_perdue:p=>p.piste+" — track lost before intercept",
       plus_de_cible:p=>p.piste+" — no target left at intercept",
@@ -887,7 +898,15 @@ let hooked = null;
 let suivi = false;
 let followOffset = {x: 0, y: 0};   // NM, relatif au porteur ; {0,0} = porteur au centre
 
-function age(){ return (performance.now() - tRecv)/1000 * (F && F.rate ? F.rate : 1); }
+/* Temps écoulé depuis la dernière trame, en secondes de simulation. Nul en
+   pause (rate = 0) et après un impact/échouement (temps figé) : sans cela le
+   balayage radar et l'extrapolation des pistes continuent de tourner 0,1 s
+   entre deux trames puis reviennent en arrière — un scope qui « saute ». */
+function age(){
+  if(!F || F.crash) return 0;
+  const r = typeof F.rate === "number" ? F.rate : 1;
+  return (performance.now() - tRecv)/1000 * r;
+}
 function simT(){ return F ? F.t + age() : 0; }
 
 /* extrapolation : les trames arrivent à 10 Hz (1 Hz en rejeu), l'écran
@@ -1470,7 +1489,7 @@ function drawScope(){
     g.moveTo(p.x,p.y-s2-3); g.lineTo(p.x,p.y+s2+3); g.stroke();
     g.font='9.5px "IBM Plex Mono", monospace'; g.textAlign="left";
     g.fillStyle="rgba(255,210,77,.5)";
-    g.fillText((o.nom||o.mmsi||"AIS")+" (sans écho)", p.x+s2+5, p.y+3);
+    g.fillText((o.nom||o.mmsi||"AIS")+" "+t("(sans écho)"), p.x+s2+5, p.y+3);
   });
 
   // munitions en vol : position réelle interpolée départ -> solution de
@@ -2613,23 +2632,32 @@ function renderEvents(){
 
    Rien pendant les trente premières secondes : une veille qui n'a pas
    encore accroché est le cas normal, pas une anomalie à signaler. */
+/* Les états de la source AIS viennent du serveur en français : mis en anglais
+   ici, mot à mot, pour la seule infobulle et le message de scope vide. */
+function tAis(x){
+  if(LANG !== "en") return x;
+  return String(x).replace("SYNTHÉTIQUE","SYNTHETIC").replace("RÉEL","LIVE").replace("ÉTEINT","OFF")
+    .replace("CAPTURE","CAPTURE").replace(/ navires?/," vessels").replace("jamais interrogé","never polled")
+    .replace("démarrage","starting").replace("fichier","file").replace("indisponible","unavailable")
+    .replace("illisible","unreadable").replace("éteint","off");
+}
 function renderVide(){
   const box = $("vide");
   if(!F || F.tracks.length || F.t < 30){ box.hidden = true; return; }
   const af = F.ais_feed;
   let quoi;
   if(!af || af.etat === "éteint"){
-    quoi = "Source AIS éteinte, et aucun contact scripté détecté. " +
-           "Un scénario de veille en trafic réel réclame sa source lui-même ; " +
-           "pour le flux public, lancer avec AIS_SOURCE=digitraffic.";
+    quoi = t("Source AIS éteinte, et aucun contact scripté détecté. " +
+             "Un scénario de veille en trafic réel réclame sa source lui-même ; " +
+             "pour le flux public, lancer avec AIS_SOURCE=digitraffic.");
   } else if(/indisponible|illisible|origine/.test(af.etat)){
-    quoi = "Source AIS : " + af.etat + ".";
+    quoi = t("Source AIS : {e}.").replace("{e}", tAis(af.etat));
   } else if(!af.n){
-    quoi = "Flux AIS actif, aucun navire dans le rayon d'ingestion.";
+    quoi = t("Flux AIS actif, aucun navire dans le rayon d'ingestion.");
   } else {
-    quoi = "Flux AIS actif — " + af.n + " navire" + (af.n>1?"s":"") +
-           " reçus, aucun encore détecté au radar. Hors horizon, " +
-           "ou trop faible surface équivalente à cette distance.";
+    quoi = t("Flux AIS actif — {n} navire(s) reçu(s), aucun encore détecté au radar. " +
+             "Hors horizon, ou trop faible surface équivalente à cette distance.")
+             .replace("{n}", af.n);
   }
   box.innerHTML = "<b>"+t("AUCUNE PISTE")+"</b><span>" + quoi + "</span>";
   box.hidden = false;
@@ -2642,16 +2670,16 @@ function renderCapture(){
           b.removeAttribute("title"); return; }
   if(c.etat === "en cours"){
     lbl.textContent = t("CAPTURE…"); b.disabled = true;
-    b.title = "interrogation du flux public"; return;
+    b.title = t("interrogation du flux public"); return;
   }
   b.disabled = !PILOTABLE;
   if(c.ok){
     lbl.textContent = t("CAPTURÉ") + " " + c.n;
-    b.title = c.n + " positions, " + c.statique + " au statique — " +
-              c.fichier + " (" + c.quand + ")";
+    b.title = t("{n} positions, {s} au statique — {f} ({q})").replace("{n}", c.n)
+              .replace("{s}", c.statique).replace("{f}", c.fichier).replace("{q}", c.quand);
   } else {
     lbl.textContent = t("CAPTURE KO");
-    b.title = c.erreur || "échec";
+    b.title = c.erreur || t("échec");
   }
 }
 
@@ -2713,7 +2741,7 @@ function renderTop(){
                                           : t(nat.toLowerCase())) + '</small>';
     $("ais-src").style.color = ko ? "var(--crit)"
       : (nat === "RÉEL" ? "var(--ok)" : "var(--unknown)");
-    $("stat-ais").title = af.etat;
+    $("stat-ais").title = tAis(af.etat);
   }
 }
 
@@ -2729,7 +2757,7 @@ function loop(now){
   // la butée descend en continu, elle ne peut pas attendre la trame suivante
   document.querySelectorAll(".butee").forEach(el=>{
     const b = parseFloat(el.dataset.butee) - age();
-    el.textContent = "BUTÉE " + Math.max(0,b).toFixed(0) + "s";
+    el.textContent = t("BUTÉE") + " " + Math.max(0,b).toFixed(0) + "s";
     el.classList.toggle("hot", b < 20);
   });
   requestAnimationFrame(loop);

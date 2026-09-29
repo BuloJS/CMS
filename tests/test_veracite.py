@@ -206,7 +206,7 @@ class TestScenario(unittest.TestCase):
             cls.par_nom[(tr.ais or {}).get("name", tr.num)] = tr
 
     def test_les_quatre_cas_sont_detectes(self):
-        attendu = {"Embarcation déclarée": "mmsi_invalide",
+        attendu = {"Declared craft": "mmsi_invalide",
                    "MV ARGO": "extinction",
                    "MV KAIRA": "ecart_position"}
         for nom, code in attendu.items():
@@ -233,13 +233,13 @@ class TestScenario(unittest.TestCase):
     def test_une_declaration_douteuse_ne_vaut_pas_classement(self):
         """Le cœur de l'affaire : un fraudeur ne doit pas obtenir
         gratuitement le statut de neutre que sa fraude vise."""
-        tr = self.par_nom["Embarcation déclarée"]
+        tr = self.par_nom["Declared craft"]
         self.assertIn("AIS", tr.sources)
         self.assertEqual(tr.aff, "unknown")
 
     def test_le_doute_pese_sur_le_score_sans_le_dominer(self):
         par = {th["track"].num: th for th in self.eng.threats}
-        tr = self.par_nom["Embarcation déclarée"]
+        tr = self.par_nom["Declared craft"]
         f = par[tr.num]["eval"]["facteurs"]
         self.assertGreater(f.get("veracite", 0), 0)
         self.assertLess(f["veracite"], 0.16)   # plafonné : jamais décisif

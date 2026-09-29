@@ -4,8 +4,9 @@ côte de la presqu'île de Musandam, une batterie de missiles antinavires ennemi
 est signalée par le renseignement : c'est une installation fixe, à terre, dont
 la position et la portée radar — trente milles — sont portées sur la carte. Dès
 que le porteur entre dans cette zone, elle le verrouille, laisse trente
-secondes, puis tire un missile toutes les deux minutes tant qu'il y reste. Un
-pétrolier et une frégate alliée sont dans les parages."""
+secondes, puis tire un missile toutes les deux minutes sur les bâtiments
+militaires de sa zone, à tour de rôle : la frégate alliée d'abord, puis le
+porteur. Le pétrolier civil n'est pas une cible."""
 attendu = """La batterie ne bouge pas et ne se « détruit » pas : on lit sa zone sur la
 carte et on l'évite, ou on y entre en connaissance de cause. Alerte « conduite
 de tir ennemie » à l'entrée (avec le relèvement), puis « départ missile ». Les
@@ -18,8 +19,9 @@ brief_en = """Own ship heads for the Strait of Hormuz through the Gulf of Oman. 
 coast of the Musandam peninsula, an enemy anti-ship missile battery is reported
 by intelligence: a fixed shore installation whose position and radar range —
 thirty miles — are plotted on the chart. As soon as own ship enters this zone
-it locks on, waits thirty seconds, then fires one missile every two minutes for
-as long as own ship stays in. A tanker and an allied frigate are around."""
+it locks on, waits thirty seconds, then fires one missile every two minutes at
+the military vessels in its zone, in turn: the allied frigate first, then own
+ship. The civilian tanker is not a target."""
 attendu_en = """The battery does not move and cannot be "destroyed": read its zone on
 the chart and avoid it, or enter knowingly. "Enemy fire control" alert on entry
 (with a bearing), then "missile launch". Missiles are tracked from the moment
@@ -46,7 +48,7 @@ leurres = 20
 # sillage. Antenne en hauteur : sa zone de trente milles est couverte.
 [[contact]]
 id = "BAT-1"
-name = "Batterie côtière"
+name = "Coastal battery"
 kind = "land"
 connu = true
 lat = 26.25
@@ -55,7 +57,9 @@ alt_ft = 260
 rcs = 300
 emitters = ["search"]
 intent = "hostile"
-attaque = { arme = "asm", nb = 1, portee_nm = 30, delai_s = 30, cadence_s = 120 }
+# Elle vise les bâtiments militaires de sa zone, à tour de rôle : la frégate
+# alliée d'abord, puis le porteur. Le pétrolier civil n'est pas une cible.
+attaque = { arme = "asm", nb = 1, portee_nm = 30, delai_s = 30, cadence_s = 120, cibles = ["FFG-ESCORTE", "OWN"] }
 
 [[contact]]
 id = "MT-GULF-STAR"
@@ -72,7 +76,7 @@ ais_data = { mmsi = 538005432, callSign = "V7GS", imo = 9478815, type = 80, navS
 
 [[contact]]
 id = "FFG-ESCORTE"
-name = "Frégate alliée"
+name = "Allied frigate"
 kind = "surf"
 lat = 25.78
 lon = 56.62

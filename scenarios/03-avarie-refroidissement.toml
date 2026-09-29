@@ -36,7 +36,7 @@ mast_m = 30
 
 [[contact]]
 id = "AIR-1"
-name = "Aéronef non identifié"
+name = "Unidentified aircraft"
 kind = "air"
 brg = 318
 rng_nm = 46
@@ -49,7 +49,7 @@ intent = "hostile"
 
 [[contact]]
 id = "AIR-2"
-name = "Aéronef non identifié"
+name = "Unidentified aircraft"
 kind = "air"
 brg = 333
 rng_nm = 49

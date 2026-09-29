@@ -38,7 +38,7 @@ mast_m = 30
 # --- alliés ------------------------------------------------------------
 [[contact]]
 id = "FFG-ESCORTE"
-name = "Frégate alliée"
+name = "Allied frigate"
 kind = "surf"
 lat = 35.99
 lon = -6.42
@@ -50,7 +50,7 @@ emitters = ["nav"]
 
 [[contact]]
 id = "PB-GARDE"
-name = "Patrouilleur allié"
+name = "Allied patrol boat"
 kind = "surf"
 lat = 35.90
 lon = -6.44
@@ -102,7 +102,7 @@ ais_data = { mmsi = 242118000, callSign = "CNTE", imo = 9345601, type = 60, navS
 # --- inconnus ----------------------------------------------------------
 [[contact]]
 id = "UNK-1"
-name = "Contact non coopératif"
+name = "Non-cooperative contact"
 kind = "surf"
 lat = 36.20
 lon = -6.70
@@ -112,7 +112,7 @@ rcs = 150
 
 [[contact]]
 id = "UNK-2"
-name = "Contact non coopératif"
+name = "Non-cooperative contact"
 kind = "surf"
 lat = 35.70
 lon = -6.75
@@ -124,7 +124,7 @@ emitters = ["nav"]
 # --- hostiles ----------------------------------------------------------
 [[contact]]
 id = "HST-1"
-name = "Vedette lance-missiles"
+name = "Missile boat"
 kind = "surf"
 lat = 35.98
 lon = -6.05
@@ -136,7 +136,7 @@ intent = "hostile"
 
 [[contact]]
 id = "HST-2"
-name = "Corvette hostile"
+name = "Hostile corvette"
 kind = "surf"
 lat = 36.06
 lon = -6.15
@@ -148,7 +148,7 @@ intent = "hostile"
 
 [[contact]]
 id = "HST-3"
-name = "Bâtiment hostile"
+name = "Hostile vessel"
 kind = "surf"
 lat = 35.86
 lon = -6.22

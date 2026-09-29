@@ -77,7 +77,7 @@ ais_data = { mmsi = 275339000, callSign = "YLBS", imo = 9478815, type = 80, navS
 # --- le barrage : deux bâtiments à poste, un tir toutes les deux minutes -----
 [[contact]]
 id = "HST-1"
-name = "Bâtiment de barrage nord"
+name = "North barrier vessel"
 kind = "surf"
 brg = 78
 rng_nm = 25
@@ -91,7 +91,7 @@ attaque = { arme = "asm", nb = 1, portee_nm = 24, delai_s = 25, cadence_s = 120 
 
 [[contact]]
 id = "HST-2"
-name = "Bâtiment de barrage sud"
+name = "South barrier vessel"
 kind = "surf"
 brg = 102
 rng_nm = 25.5
