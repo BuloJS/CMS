@@ -427,6 +427,7 @@ Voir [`plc/modbus-map.md`](plc/modbus-map.md).
 | `04-veille-trafic-reel` | Aucun contact scripté : le trafic AIS, au milieu du golfe de Finlande | Les grands navires sortent à l'horizon, les petits mobiles de près. La corrélation AIS renseigne les coopératifs |
 | `05-identite-douteuse` | Rail marchand dense, quatre contacts atypiques : un muet, une extinction, une position falsifiée, un MMSI inexistant | Chacun détecté pour ce qu'il est, aucun classé hostile, le trafic honnête indemne |
 | `06-plc-armement` | Atelier vide, sans piste ni événement — pour développer et tester le séquencement du lanceur sur un vrai automate | Pas de solution attendue : vérifier que l'automate fait ce qu'il doit, voir `plc/modbus-map.md` |
+| `07-flotte-mixte` | Dix bâtiments sur le rail Helsinki–Tallinn : 2 alliés (IFF), 3 marchands (AIS), 2 silencieux, 3 hostiles dont un qui passe en conduite de tir à 300 s et tire à 720 s | Alliés AMI, marchands NEUTRE, silencieux INCONNU ; hostiles classés par doctrine sauf celui qui n'émet qu'en veille |
 
 Les scénarios sont en TOML, en unités du domaine (milles nautiques, nœuds,
 pieds), convertis en SI à l'entrée. Une graine fixée les rend reproductibles

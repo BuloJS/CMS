@@ -1,0 +1,184 @@
+name = "Flotte mixte — dix bâtiments"
+brief = """Rail Helsinki–Tallinn, dix bâtiments autour du porteur, une de chaque
+affiliation que la console sait afficher : deux alliés qui répondent à l'IFF,
+trois marchands honnêtes qui déclarent leur identité par AIS, deux contacts
+silencieux qui ne disent rien, et trois bâtiments hostiles dont l'un allume sa
+conduite de tir en cours de route. Rien n'est étiqueté : c'est aux senseurs et
+à l'opérateur de faire le tri."""
+attendu = """Les alliés passent AMI dès qu'ils sont pistés et interrogés ; les
+marchands passent NEUTRE par leur AIS. Les deux silencieux restent INCONNUS —
+c'est le comportement correct, l'absence de réponse n'est pas une hostilité.
+Parmi les hostiles, ceux qui émettent en conduite de tir sont classés par
+doctrine ; le troisième ne s'annonce que par son radar de veille et reste à
+l'opérateur. À 720 s, l'un d'eux tire deux missiles antinavires."""
+
+name_en = "Mixed fleet — ten vessels"
+brief_en = """Helsinki–Tallinn lane, ten vessels around own ship, covering every
+affiliation the console can show: two allies that answer IFF, three honest
+merchants declaring their identity over AIS, two silent contacts that say
+nothing, and three hostile vessels, one of which lights up its fire control
+along the way. Nothing is labelled: sensors and operator have to sort it out."""
+attendu_en = """Allies turn FRIEND as soon as they are tracked and interrogated;
+merchants turn NEUTRAL from their AIS. The two silent ones stay UNKNOWN — the
+correct behaviour, no answer is not hostility. Among the hostiles, those
+radiating in fire control are classified by doctrine; the third only shows its
+search radar and is left to the operator. At 720 s one of them fires two
+anti-ship missiles."""
+
+seed = 7007
+duration = 900
+
+# Même théâtre que les scénarios 01 à 05 : quinze milles d'eau libre dans
+# toutes les directions. Les contacts sont posés surtout dans l'axe est-ouest,
+# la côte finlandaise et la côte estonienne étant à ~15 et ~20 milles au nord
+# et au sud — vérifié avec tools/eaux.py.
+[origine]
+lat = 59.90
+lon = 25.25
+
+[ownship]
+course = 90
+speed_kt = 12
+mast_m = 30
+
+# --- alliés : répondent à l'IFF, pas d'AIS (bâtiments de guerre) --------
+[[contact]]
+id = "FFG-HORIZON"
+name = "Frégate alliée"
+kind = "surf"
+brg = 60
+rng_nm = 6
+course = 90
+speed_kt = 12
+rcs = 4000
+iff = true
+emitters = ["nav"]
+
+[[contact]]
+id = "PB-KARHU"
+name = "Patrouilleur allié"
+kind = "surf"
+brg = 200
+rng_nm = 5
+course = 90
+speed_kt = 12
+rcs = 900
+iff = true
+
+# --- neutres : trafic marchand honnête, identité déclarée par AIS ------
+[[contact]]
+id = "MV-KOTKA"
+name = "MV KOTKA"
+kind = "surf"
+brg = 340
+rng_nm = 9
+course = 80
+speed_kt = 13
+rcs = 9000
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 230512000, callSign = "OJKO", imo = 9411223, type = 70, navStat = 0, refA = 140, refB = 30, refC = 14, refD = 12, draught = 80, destination = "KOTKA" }
+
+[[contact]]
+id = "MT-BALTIC-STAR"
+name = "MT BALTIC STAR"
+kind = "surf"
+brg = 130
+rng_nm = 12
+course = 260
+speed_kt = 11
+rcs = 15000
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 275339000, callSign = "YLBS", imo = 9478815, type = 80, navStat = 0, refA = 190, refB = 40, refC = 20, refD = 18, draught = 115, destination = "PORVOO" }
+
+[[contact]]
+id = "MS-EUROPA"
+name = "MS EUROPA"
+kind = "surf"
+brg = 250
+rng_nm = 7
+course = 0
+speed_kt = 22
+rcs = 12000
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 276712000, callSign = "ESEU", imo = 9345601, type = 60, navStat = 0, refA = 170, refB = 35, refC = 16, refD = 14, draught = 62, destination = "HELSINKI" }
+
+# --- inconnus : aucun IFF, aucun AIS -----------------------------------
+[[contact]]
+id = "UNK-1"
+name = "Contact non coopératif"
+kind = "surf"
+brg = 300
+rng_nm = 14
+course = 120
+speed_kt = 8
+rcs = 150
+
+[[contact]]
+id = "UNK-2"
+name = "Contact non coopératif"
+kind = "surf"
+brg = 160
+rng_nm = 18
+course = 340
+speed_kt = 10
+rcs = 900
+emitters = ["nav"]
+
+# --- hostiles ----------------------------------------------------------
+# HST-1 : vedette lance-missiles qui vient droit sur le porteur, conduite de
+# tir allumée dès le départ — la doctrine la classe sans attendre.
+[[contact]]
+id = "HST-1"
+name = "Vedette lance-missiles"
+kind = "surf"
+brg = 75
+rng_nm = 22
+course = 260
+speed_kt = 28
+rcs = 400
+emitters = ["fc"]
+intent = "hostile"
+
+# HST-2 : corvette qui ne s'annonce d'abord que par son radar de veille et
+# passe en conduite de tir à 300 s (événement plus bas).
+[[contact]]
+id = "HST-2"
+name = "Corvette hostile"
+kind = "surf"
+brg = 100
+rng_nm = 17
+course = 265
+speed_kt = 22
+rcs = 2500
+emitters = ["search"]
+intent = "hostile"
+
+# HST-3 : reste en veille radar toute la durée. Rien ne la classe seul, c'est
+# à l'opérateur de le faire (et de décider s'il en a les éléments).
+[[contact]]
+id = "HST-3"
+name = "Bâtiment hostile"
+kind = "surf"
+brg = 45
+rng_nm = 15
+course = 200
+speed_kt = 18
+rcs = 1800
+emitters = ["search"]
+intent = "hostile"
+
+[[event]]
+at = 300
+type = "emitter"
+from = "HST-2"
+emitters = ["fc"]
+
+[[event]]
+at = 720
+type = "launch"
+from = "HST-1"
+weapon = "asm"
+count = 2
