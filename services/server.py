@@ -24,6 +24,7 @@ Il n'agit que sur un scénario portant un bloc [origine] — sans point de
 référence géographique, une position AIS n'a nulle part où aller.
 """
 import json
+import math
 import os
 import sys
 import threading
@@ -74,15 +75,23 @@ class Sim:
         self.ais_cfg = None
         self.capture = None          # compte rendu de la dernière capture
         self.capture_en_cours = False
+        self.origine_forcee = None
         self._pompe_seq_vu = 0
         self._tir_seq_vu = 0
         self.load(DEFAULT_SC)
 
-    def load(self, fname):
+    def load(self, fname, origine=None):
+        """`origine` = (lat, lon) : déplace tout le scénario sur la carte.
+        Les contacts sont relatifs au porteur une fois chargés, il suffit donc
+        de ré-ancrer le plan tangent ailleurs — ils suivent, qu'ils aient été
+        écrits en gisement/distance ou en lat/lon."""
         path = SCEN / Path(fname).name
         if not path.exists():
             return False
         sc = load(path)
+        if origine is not None:
+            sc["origine"] = {"lat": origine[0], "lon": origine[1]}
+        self.origine_forcee = origine
         with self.lock:
             self.engine = Engine(sc)
             self.engine.platform.timescale = FIELD_TIMESCALE
@@ -190,7 +199,20 @@ class Sim:
         if k == "scenario":
             return {"ok": self.load(c.get("fichier", ""))}
         if k == "restart":
-            return {"ok": self.load(self.name)}
+            # Rejouer garde la position choisie sur la carte du monde.
+            return {"ok": self.load(self.name, self.origine_forcee)}
+        if k == "relocate":
+            try:
+                lat, lon = float(c["lat"]), float(c["lon"])
+            except (KeyError, TypeError, ValueError):
+                return {"ok": False}
+            if not (math.isfinite(lat) and math.isfinite(lon)):
+                return {"ok": False}
+            # Pas au-delà de 85° : la projection locale n'a plus de sens
+            # aux pôles (un degré de longitude y tend vers zéro mètre).
+            lat = max(-85.0, min(85.0, lat))
+            lon = (lon + 540.0) % 360.0 - 180.0
+            return {"ok": self.load(self.name, (lat, lon))}
         return {"ok": True}
 
     def lancer_capture(self):

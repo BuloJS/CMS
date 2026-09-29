@@ -299,11 +299,18 @@ curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/ge
 python3 tools/monde.py ne_50m_coastline.geojson ne_50m_land.geojson -o web/monde.json
 ```
 
-**Radar.** La console ne suppose plus de portée : elle dessine ce que le
-simulateur annonce (`radar.max_nm`, portée instrumentée, 110 NM) et l'**horizon
-radio sur une coque de surface** (`radar.horizon_nm`, ~19 NM pour un mât de
-30 m) — au-delà, la courbure de la Terre cache un navire quel que soit le
-radar. Les deux rayons sont fixes en NM : zoomer n'y change rien.
+**Choisir la zone.** Le bouton *CARTE MONDE* de la barre du bas ouvre le
+planisphère entier (molette pour zoomer, glisser pour se déplacer). Un clic
+choisit une position — refusée si elle tombe à terre — et *PLACER ICI* recharge
+le scénario courant ancré là (commande `relocate`) : les contacts suivent le
+porteur. *REJOUER* garde la position choisie ; changer de scénario la remet à
+zéro. La projection s'arrête à ±85° de latitude.
+
+**Radar.** La console ne suppose plus de portée : elle dessine un seul cercle,
+celui de la portée que le simulateur annonce (`radar.max_nm`, 110 NM), fixe en
+NM — zoomer n'y change rien. Le snapshot expose aussi `radar.horizon_nm`,
+l'horizon radio sur une coque de surface (~19 NM pour un mât de 30 m), que la
+console ne dessine pas.
 
 Le fond de carte fin est du Natural Earth 10 m découpé pour la zone
 d'opérations, en deux couches : le trait de côte pour le dessin, et les

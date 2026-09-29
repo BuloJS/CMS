@@ -60,6 +60,17 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 .pane > header em{font-style:normal;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.08em;color:var(--dimmest)}
 .body{overflow:auto;min-height:0}
 
+
+/* ---- carte du monde (choix de la zone) ---- */
+#monde-view{position:fixed;inset:0;z-index:60;background:#04101f;display:flex;flex-direction:column}
+#monde-view[hidden]{display:none}
+.mv-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);font-family:var(--f-disp);font-size:11px;letter-spacing:.13em;color:var(--dim)}
+.mv-bar b{color:var(--text);font-weight:600}
+.mv-pos{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.04em;color:var(--phos)}
+.mv-sp{flex:1}
+#mv-cv{flex:1;width:100%;min-height:0;display:block;cursor:crosshair}
+.mv-hint{position:absolute;left:14px;bottom:10px;font-family:var(--f-mono);font-size:10.5px;color:var(--dim);pointer-events:none}
+
 /* ---- scope ---- */
 .scopewrap{position:relative;background:#04101f;min-height:0;min-width:0}
 #scope{display:block;width:100%;height:100%;cursor:crosshair}
@@ -175,7 +186,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 
 /* ---- pied ---- */
 .softkeys{background:var(--bezel);display:flex;align-items:stretch;gap:1px;flex-wrap:wrap}
-.sk{background:var(--panel);border:0;border-top:1px solid var(--line-soft);padding:7px 13px 8px;cursor:pointer;color:var(--dim);display:flex;flex-direction:column;gap:1px;align-items:center;min-width:92px;flex:1}
+.sk{background:var(--panel);border:0;border-top:1px solid var(--line-soft);padding:7px 8px 8px;cursor:pointer;color:var(--dim);display:flex;flex-direction:column;gap:1px;align-items:center;min-width:78px;flex:1;white-space:nowrap}
 .sk u{text-decoration:none;font-family:var(--f-mono);font-size:9.5px;color:var(--dim);letter-spacing:.09em}
 .sk span{font-family:var(--f-disp);font-size:13px;letter-spacing:.12em;font-weight:500}
 .sk:hover:not(:disabled){background:var(--panel-2);color:#e8f4ff}
@@ -378,6 +389,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
     <button class="sk" id="sk-autosam"><u>F9</u><span data-i18n>SAM AUTO</span></button>
     <button class="sk sim" id="sk-pump"><u>F10</u><span>ARRÊT POMPE</span></button>
     <button class="sk sim" id="sk-capture"><u>F2</u><span>CAPTURE AIS</span></button>
+    <button class="sk" id="sk-monde"><u>⌖</u><span data-i18n>CARTE MONDE</span></button>
     <div class="foot-sel">
       <label for="sel-sc" data-i18n>SCÉNARIO</label>
       <select id="sel-sc"></select>
@@ -389,6 +401,19 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       </select>
     </div>
   </div>
+</div>
+
+<div id="monde-view" hidden>
+  <div class="mv-bar">
+    <b data-i18n>CARTE DU MONDE</b>
+    <span id="mv-pos" class="mv-pos"></span>
+    <span class="mv-sp"></span>
+    <button class="act" id="mv-reset" data-i18n>MONDE ENTIER</button>
+    <button class="act" id="mv-go" disabled data-i18n>PLACER ICI</button>
+    <button class="act" id="mv-close" data-i18n>FERMER</button>
+  </div>
+  <canvas id="mv-cv"></canvas>
+  <div class="mv-hint" data-i18n>Molette : zoom · Glisser : déplacer · Clic : choisir la position du porteur</div>
 </div>
 
 <div id="machine-view" class="mview" hidden>
@@ -589,6 +614,11 @@ const EN = {
   "(sans écho)":"(no echo)", "entrées":"entries", "enregistrement embarqué":"embedded recording",
   // -- vraisemblance
   "éteint":"off", "ÉTEINT":"OFF", "GIS":"BRG", "DIST":"RNG",
+  "CARTE MONDE":"WORLD MAP", "CARTE DU MONDE":"WORLD MAP", "PLACER ICI":"PLACE HERE",
+  "FERMER":"CLOSE", "MONDE ENTIER":"WHOLE WORLD", "À TERRE":"ON LAND", "EN MER":"AT SEA",
+  "Molette : zoom · Glisser : déplacer · Clic : choisir la position du porteur":
+    "Wheel: zoom · Drag: pan · Click: pick own-ship position",
+  "carte du monde indisponible":"world map unavailable",
   "ANNEAUX":"RINGS", "ROTATION 15 tr/min":"15 rpm SWEEP", "OUVR.":"OPENING",
   "SAM courte portée":"Short-range SAM", "Artillerie 76 mm":"76 mm gun",
   "Missile antinavire":"Anti-ship missile", "CIWS":"CIWS",
@@ -961,23 +991,18 @@ function resize(){
 new ResizeObserver(resize).observe(cv.parentElement);
 const px = p => ({x: cx + (p.x-followOffset.x)/range*R, y: cy - (p.y-followOffset.y)/range*R});
 /* Le radar est un objet du monde, pas du cadre : sa portée (sim/sensors.py
-   Radar.max_range = 110 NM) et ses anneaux de distance sont fixes en NM.
-   Zoomer ne fait que changer la fenêtre qu'on ouvre dessus — les anneaux ne
-   se redéfinissent pas, le bord de couverture ne « rétrécit » pas, et un
-   contact n'est jamais hors radar parce qu'on a zoomé. */
-let RADAR_NM = 110, HORIZON_NM = 0;   // remplacés par F.radar dès la première trame
-const PAS_ANNEAUX = [1,2,5,10,20,25,50];
-// Plus petit pas « rond » qui garde les anneaux à ≥ 70 px les uns des autres.
-function pasAnneaux(){
-  return PAS_ANNEAUX.find(v => v/range*R >= 70) || PAS_ANNEAUX[PAS_ANNEAUX.length-1];
-}
+   Radar.max_range, annoncée dans F.radar) est fixe en NM. Zoomer ne fait que
+   changer la fenêtre qu'on ouvre dessus — le cercle de couverture ne
+   « rétrécit » pas, et un contact n'est jamais hors radar parce qu'on a
+   zoomé. */
+let RADAR_NM = 110;   // remplacé par F.radar.max_nm dès la première trame
 
 function drawScope(){
   g.clearRect(0,0,W,H);
   if (R<=10) return;
   if(F && F.geo) choisirCarte(F.geo.lat0, F.geo.lon0);
   // Portée du radar : celle que le simulateur annonce, pas un chiffre en dur.
-  if(F && F.radar){ RADAR_NM = F.radar.max_nm; HORIZON_NM = F.radar.horizon_nm; }
+  if(F && F.radar) RADAR_NM = F.radar.max_nm;
 
   // Recentrage : la vue suit la piste accrochée tant que F4 est actif. Le
   // porteur n'est alors plus au centre du scope — c'est le prix du suivi,
@@ -1055,42 +1080,10 @@ function drawScope(){
     });
   }
 
-  // Anneaux de distance fixes en NM, ancrés sur le porteur. Un anneau
-  // trop grand pour être visible (rayon > 3 cadres) n'apporte rien et
-  // coûte un arc énorme : on saute.
-  const pas = pasAnneaux(), rMaxPx = 3*Math.max(W,H);
-  g.font='9.5px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
-  for(let d=pas; d<RADAR_NM; d+=pas){
-    const rp = d/range*R;
-    if(rp > rMaxPx) break;
-    g.strokeStyle="rgba(96,168,240,.30)"; g.lineWidth=1;
-    g.beginPath(); g.arc(op.x,op.y,rp,0,7); g.stroke();
-    // Étiquette au premier gisement où l'anneau est à l'écran.
-    for(const a of [40,320,140,220,90,270]){
-      const ax=op.x+Math.sin(a*Math.PI/180)*rp, ay=op.y-Math.cos(a*Math.PI/180)*rp;
-      if(ax>18 && ax<W-18 && ay>10 && ay<H-10){
-        g.fillStyle="rgba(150,200,245,.7)"; g.fillText(d+" NM", ax, ay-8); break;
-      }
-    }
-  }
-  // Horizon radio sur une coque de surface : au-delà, la courbure de la
-  // Terre cache un navire quelle que soit la puissance du radar. C'est ce
-  // rayon-là, pas la portée instrumentée, qui borne la veille surface.
-  if(HORIZON_NM > 0 && HORIZON_NM < RADAR_NM){
-    const rh = HORIZON_NM/range*R;
-    if(rh <= rMaxPx){
-      g.save(); g.setLineDash([3,5]); g.strokeStyle="rgba(255,210,120,.5)"; g.lineWidth=1.2;
-      g.beginPath(); g.arc(op.x,op.y,rh,0,7); g.stroke(); g.restore();
-      for(const a of [315,45,225,135]){
-        const ax=op.x+Math.sin(a*Math.PI/180)*rh, ay=op.y-Math.cos(a*Math.PI/180)*rh;
-        if(ax>70 && ax<W-70 && ay>10 && ay<H-10){
-          g.font='9.5px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
-          g.fillStyle="rgba(255,215,140,.85)";
-          g.fillText("HORIZON "+HORIZON_NM.toFixed(0)+" NM", ax, ay-8); break;
-        }
-      }
-    }
-  }
+  // Un anneau trop grand pour être visible (rayon > 3 cadres) coûte un
+  // arc énorme pour rien : le cercle radar et les rayons s'arrêtent là.
+  const rMaxPx = 3*Math.max(W,H);
+
   /* Le cercle du radar, avec sa graduation en gisement, est un objet de la
      carte au même titre que les anneaux : rayon RADAR_NM, il grandit et
      rétrécit avec le zoom au lieu de rester collé au cadre. Zoomé, il sort
@@ -1295,9 +1288,11 @@ function drawScope(){
   g.strokeStyle="rgba(8,28,50,.55)"; g.lineWidth=.8; g.stroke();
   g.fillStyle="rgba(8,28,50,.4)"; g.fillRect(-1.6,-1.5,3.2,4.5);
   g.restore();
-  g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(crs*Math.PI/180)*R, op.y-Math.cos(crs*Math.PI/180)*R);
+  // Ligne de cap jusqu'au bord du radar. Plus de cercle à rayon d'écran
+  // ici : le seul cercle est celui de la portée radar, en NM.
+  const Lcap = Math.min(RADAR_NM/range*R, 3*Math.max(W,H));
+  g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(crs*Math.PI/180)*Lcap, op.y-Math.cos(crs*Math.PI/180)*Lcap);
   g.strokeStyle="rgba(191,234,255,.28)"; g.lineWidth=1; g.setLineDash([2,6]); g.stroke(); g.setLineDash([]);
-  g.beginPath(); g.arc(op.x,op.y,R,0,7); g.strokeStyle="rgba(150,210,255,.5)"; g.lineWidth=1.2; g.stroke();
 }
 
 /* ---------------- panneaux ---------------- */
@@ -1767,6 +1762,182 @@ $("electrical-pane").addEventListener("click", e=>{
   else if(b.id === "e-brk-off") SRC.send({cmd:"elec", disjoncteur:false});
 });
 
+/* ---------------- carte du monde : choix de la zone ----------------
+   Planisphère plat (équirectangulaire) tracé depuis monde.json, avec zoom et
+   déplacement. Un clic choisit une position ; « PLACER ICI » recharge le
+   scénario courant ancré là (commande relocate) — les contacts suivent le
+   porteur. Un point à terre est refusé : le carte le sait, autant le dire
+   avant que le porteur y soit posé. */
+const mvView = $("monde-view"), mvCv = $("mv-cv"), mg = mvCv.getContext("2d");
+let mvW=0, mvH=0, mv={lon:0,lat:0,s:1,fit:1}, mvSel=null, mvDrag=null, mvBb=null, mvHover=null;
+
+async function assurerMonde(){
+  if(MONDE) return true;
+  try{ const r = await fetch("monde.json"); if(!r.ok) return false; MONDE = await r.json(); monde_demande = true; }
+  catch(e){ return false; }
+  return true;
+}
+function mvPrepare(){
+  if(mvBb || !MONDE) return;
+  mvBb = MONDE.terres.map(poly=>{
+    let a=1e9,b=1e9,c=-1e9,d=-1e9;
+    for(const p of poly[0]){ if(p[0]<a)a=p[0]; if(p[0]>c)c=p[0]; if(p[1]<b)b=p[1]; if(p[1]>d)d=p[1]; }
+    return [a,b,c,d];
+  });
+}
+function mvTerre(lat, lon){
+  let n = 0;
+  MONDE.terres.forEach((poly,i)=>{
+    const bb = mvBb[i];
+    if(lon<bb[0]||lon>bb[2]||lat<bb[1]||lat>bb[3]) return;
+    for(const ring of poly){
+      let dedans = false;
+      for(let a=0,b=ring.length-1;a<ring.length;b=a++){
+        const [xi,yi]=ring[a], [xj,yj]=ring[b];
+        if((yi>lat)!==(yj>lat) && lon < (xj-xi)*(lat-yi)/(yj-yi)+xi) dedans = !dedans;
+      }
+      if(dedans) n++;
+    }
+  });
+  return n%2===1;
+}
+const mvX = lon => mvW/2 + (lon-mv.lon)*mv.s;
+const mvY = lat => mvH/2 - (lat-mv.lat)*mv.s;
+function mvInv(x, y){
+  const lon = mv.lon + (x-mvW/2)/mv.s, lat = mv.lat - (y-mvH/2)/mv.s;
+  return {lat: Math.max(-90,Math.min(90,lat)), lon: ((lon+540)%360+360)%360-180};
+}
+function mvClamp(){
+  mv.s = Math.max(mv.fit, Math.min(600, mv.s));
+  const demi = (mvH/2)/mv.s, lim = 90-demi;
+  mv.lat = lim > 0 ? Math.max(-lim, Math.min(lim, mv.lat)) : 0;
+  mv.lon = ((mv.lon+540)%360+360)%360-180;
+}
+function mvResize(){
+  const r = mvCv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio||1, 2);
+  mvW = r.width; mvH = r.height;
+  mvCv.width = Math.round(mvW*dpr); mvCv.height = Math.round(mvH*dpr);
+  mg.setTransform(dpr,0,0,dpr,0,0);
+  mv.fit = Math.min(mvW/360, mvH/180);
+}
+function mvDraw(){
+  mg.clearRect(0,0,mvW,mvH);
+  // Mer : tout le cadre ; le planisphère ne couvre que ±180/±90.
+  mg.fillStyle = "#0d3062"; mg.fillRect(0,0,mvW,mvH);
+  if(!MONDE || !mvBb) return;
+  // Graticule, au pas rond le plus fin qui reste lisible.
+  const pas = [1,2,5,10,15,30,45].find(v => v*mv.s >= 55) || 45;
+  mg.strokeStyle = "rgba(120,180,240,.18)"; mg.lineWidth = 1;
+  mg.font = '10px "IBM Plex Mono", monospace'; mg.fillStyle = "rgba(160,210,250,.6)";
+  mg.textAlign = "left"; mg.textBaseline = "top";
+  for(let lo=-180; lo<=180; lo+=pas){
+    for(const sh of [-360,0,360]){
+      const x = mvX(lo+sh); if(x<-1||x>mvW+1) continue;
+      mg.beginPath(); mg.moveTo(x,0); mg.lineTo(x,mvH); mg.stroke();
+      if(sh===0) mg.fillText(lo+"°", x+3, 3);
+    }
+  }
+  mg.textBaseline = "bottom";
+  for(let la=-90; la<=90; la+=pas){
+    const y = mvY(la); if(y<-1||y>mvH+1) continue;
+    mg.beginPath(); mg.moveTo(0,y); mg.lineTo(mvW,y); mg.stroke();
+    mg.fillText(la+"°", 3, y-2);
+  }
+  // Terres, en trois copies décalées de 360° pour passer l'antiméridien.
+  mg.fillStyle = "#22382c"; mg.strokeStyle = "rgba(150,170,110,.6)"; mg.lineWidth = .8; mg.lineJoin = "round";
+  for(const sh of [-360,0,360]){
+    const xa = mvX(-180+sh), xb = mvX(180+sh);
+    if(xb < 0 || xa > mvW) continue;
+    MONDE.terres.forEach((poly,i)=>{
+      const bb = mvBb[i], x0 = mvX(bb[0]+sh), x1 = mvX(bb[2]+sh), y0 = mvY(bb[3]), y1 = mvY(bb[1]);
+      if(x1<0||x0>mvW||y1<0||y0>mvH) return;
+      mg.beginPath();
+      for(const ring of poly){
+        for(let k=0;k<ring.length;k++){
+          const x = mvX(ring[k][0]+sh), y = mvY(ring[k][1]);
+          k ? mg.lineTo(x,y) : mg.moveTo(x,y);
+        }
+        mg.closePath();
+      }
+      mg.fill("evenodd"); mg.stroke();
+    });
+  }
+  // Position actuelle du porteur, et sélection en cours.
+  const marque = (lat, lon, col, croix) => {
+    for(const sh of [-360,0,360]){
+      const x = mvX(lon+sh), y = mvY(lat);
+      if(x<-10||x>mvW+10||y<-10||y>mvH+10) continue;
+      mg.strokeStyle = col; mg.lineWidth = 1.6;
+      mg.beginPath(); mg.arc(x,y,7,0,7); mg.stroke();
+      if(croix){ mg.beginPath(); mg.moveTo(x-13,y); mg.lineTo(x+13,y); mg.moveTo(x,y-13); mg.lineTo(x,y+13); mg.stroke(); }
+    }
+  };
+  if(F && F.geo) marque(F.own.lat, F.own.lon, "#7ee0ff", false);
+  if(mvSel) marque(mvSel.lat, mvSel.lon, "#ffd24d", true);
+}
+function mvLabel(pt){
+  if(!pt) return "";
+  const terre = MONDE && mvBb ? mvTerre(pt.lat, pt.lon) : null;
+  return fmtLatLon(pt.lat, pt.lon) + (terre===null ? "" : " · " + t(terre ? "À TERRE" : "EN MER"));
+}
+function mvMajBouton(){
+  $("mv-go").disabled = !(PILOTABLE && mvSel && MONDE && !mvTerre(mvSel.lat, mvSel.lon));
+}
+async function mvOuvrir(){
+  mvView.hidden = false;
+  mvSel = null; $("mv-go").disabled = true; $("mv-pos").textContent = "";
+  mvResize();
+  if(!(await assurerMonde())){ $("mv-pos").textContent = t("carte du monde indisponible"); return; }
+  mvPrepare();
+  mv.s = mv.fit; mv.lon = 0; mv.lat = 0; mvClamp();
+  mvDraw();
+}
+function mvFermer(){ mvView.hidden = true; }
+$("sk-monde").onclick = mvOuvrir;
+$("mv-close").onclick = mvFermer;
+$("mv-reset").onclick = () => { mv.s = mv.fit; mv.lon = 0; mv.lat = 0; mvClamp(); mvDraw(); };
+$("mv-go").onclick = () => {
+  if(!mvSel || $("mv-go").disabled) return;
+  SRC.send({cmd:"relocate", lat:+mvSel.lat.toFixed(4), lon:+mvSel.lon.toFixed(4)});
+  mvFermer();
+};
+window.addEventListener("keydown", e => { if(e.key === "Escape" && !mvView.hidden) mvFermer(); });
+window.addEventListener("resize", () => { if(!mvView.hidden){ mvResize(); mvClamp(); mvDraw(); } });
+mvCv.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = mvCv.getBoundingClientRect(), x = e.clientX-r.left, y = e.clientY-r.top;
+  const avant = mvInv(x, y);
+  mv.s *= e.deltaY > 0 ? 1/1.25 : 1.25;
+  mv.s = Math.max(mv.fit, Math.min(600, mv.s));
+  // Le point sous le curseur reste sous le curseur.
+  mv.lon = avant.lon - (x-mvW/2)/mv.s; mv.lat = avant.lat + (y-mvH/2)/mv.s;
+  mvClamp(); mvDraw();
+}, {passive:false});
+mvCv.addEventListener("mousedown", e => {
+  const r = mvCv.getBoundingClientRect();
+  mvDrag = {x:e.clientX, y:e.clientY, lon:mv.lon, lat:mv.lat, bouge:false, dernier:{x:e.clientX-r.left, y:e.clientY-r.top}};
+});
+window.addEventListener("mouseup", () => { if(mvDrag && !mvDrag.bouge && !mvView.hidden && MONDE) mvChoisir(mvDrag.dernier); mvDrag = null; });
+mvCv.addEventListener("mousemove", e => {
+  const r = mvCv.getBoundingClientRect(), x = e.clientX-r.left, y = e.clientY-r.top;
+  if(mvDrag){
+    mvDrag.dernier = {x, y};
+    const dx = e.clientX-mvDrag.x, dy = e.clientY-mvDrag.y;
+    if(!mvDrag.bouge && Math.hypot(dx,dy) > 4) mvDrag.bouge = true;
+    if(mvDrag.bouge){
+      mv.lon = mvDrag.lon - dx/mv.s; mv.lat = mvDrag.lat + dy/mv.s;
+      mvClamp(); mvDraw();
+    }
+  }
+  if(MONDE && mvBb && !mvSel) $("mv-pos").textContent = mvLabel(mvInv(x, y));
+});
+function mvChoisir(p){
+  if(!p) return;
+  mvSel = mvInv(p.x, p.y);
+  $("mv-pos").textContent = mvLabel(mvSel);
+  mvMajBouton(); mvDraw();
+}
+
 /* ---------------- vue passerelle ----------------
    Horizon artificiel avec relief des côtes réellement projeté — pas
    encore les pistes (prochaine étape). Portée visuelle et champ de
@@ -2011,7 +2182,7 @@ function renderTop(){
     $("brief").innerHTML = "<b>"+(m.name || F.meta.scenario)+"</b>"+
                            (m.brief || F.meta.brief).replace(/\n/g," ");
   }
-  $("ring-lbl").textContent = t2("ANNEAUX") + " " + pasAnneaux() + " NM";
+  $("ring-lbl").textContent = "RADAR " + RADAR_NM + " NM";
   renderVide();
   renderCapture();
   if(F.meta && F.meta.fichier && $("sel-sc").options.length > 1
