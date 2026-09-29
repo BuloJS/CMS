@@ -34,6 +34,9 @@ def load(path):
         "seed": int(data.get("seed", 1)),
         "duration": float(data.get("duration", 900)),
         "ownship": data.get("ownship", {}),
+        # Surcharge de doctrine propre au scénario (auto_ciws, auto_sam…) :
+        # un scénario de leurres n'a pas de sens si le CIWS règle tout seul.
+        "doctrine": data.get("doctrine", {}),
         # Ancre le plan tangent local sur la carte. Sans elle le scénario
         # reste purement relatif — ce qui suffisait tant que rien de réel
         # n'entrait dans le système.
@@ -74,5 +77,6 @@ def load(path):
             # navire réel doivent être indiscernables en aval.
             ais_static=decode_ais(c.get("ais_data", {})) if c.get("ais_data") else {},
             emitters=list(c.get("emitters", [])),
+            attaque=dict(c.get("attaque", {})),
             intent=c.get("intent", "neutral")))
     return sc

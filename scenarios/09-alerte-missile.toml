@@ -1,0 +1,114 @@
+name = "Alerte missile — verrouillage et salve"
+brief = """Veille dans le golfe de Finlande, trafic marchand autour. Trois bâtiments
+ennemis convergent sur le porteur : deux vedettes qui se sont tenues sous
+l'horizon radio, et un avion de patrouille maritime. Personne ne tire à une
+heure fixée : chacun illumine dès qu'il est à portée de tir, laisse un délai
+de verrouillage, puis tire sa salve. La chronologie dépend de la route du
+porteur."""
+attendu = """L'alerte arrive en deux temps : d'abord « conduite de tir ennemie »
+(l'ESM entend l'illumination, avec le relèvement), puis « départ missile ». Les
+missiles rasants ne sont pistés qu'à l'horizon radio, environ deux minutes
+avant l'impact, et les leurres n'agissent que dans les cinq derniers milles :
+il faut suivre la menace (SUIVI), attendre la fenêtre et larguer, plusieurs fois
+si besoin — chaque largage n'en séduit que 45 %. Trop tôt, il ne se passe rien ;
+trop tard, le porteur est touché et la simulation s'arrête. Le SAM et le CIWS
+sont l'autre réponse."""
+
+name_en = "Missile alert — lock-on and salvo"
+brief_en = """Watch in the Gulf of Finland, merchant traffic around. Three enemy
+units converge on own ship: two fast boats that stayed under the radio horizon,
+and a maritime patrol aircraft. Nobody fires at a set time: each illuminates as
+soon as it is within firing range, waits a lock-on delay, then fires its salvo.
+The timeline depends on own ship's course."""
+attendu_en = """The alert comes in two steps: first "enemy fire control on us" (ESM
+hears the illumination, with a bearing), then "missile launch". Sea-skimming
+missiles are only tracked at the radio horizon, about two minutes before
+impact, and decoys only work in the last five miles: follow the threat
+(FOLLOW), wait for the window and deploy, several times if needed — each
+deployment seduces only 45% of them. Too early, nothing happens; too late, own
+ship is hit and the simulation stops. SAM and CIWS are the other answer."""
+
+seed = 909
+duration = 900
+
+# Le CIWS ne tire pas seul : ce scénario est celui des leurres et du SAM.
+[doctrine]
+auto_ciws = false
+
+[origine]
+lat = 59.90
+lon = 25.25
+
+[ownship]
+course = 90
+speed_kt = 14
+mast_m = 30
+leurres = 20
+
+# --- trafic honnête ----------------------------------------------------
+[[contact]]
+id = "MV-KOTKA"
+name = "MV KOTKA"
+kind = "surf"
+brg = 340
+rng_nm = 9
+course = 80
+speed_kt = 13
+rcs = 9000
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 230512000, callSign = "OJKO", imo = 9411223, type = 70, navStat = 0, refA = 140, refB = 30, refC = 14, refD = 12, draught = 80, destination = "KOTKA" }
+
+[[contact]]
+id = "MT-BALTIC-STAR"
+name = "MT BALTIC STAR"
+kind = "surf"
+brg = 130
+rng_nm = 12
+course = 260
+speed_kt = 11
+rcs = 15000
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 275339000, callSign = "YLBS", imo = 9478815, type = 80, navStat = 0, refA = 190, refB = 40, refC = 20, refD = 18, draught = 115, destination = "PORVOO" }
+
+# --- les attaquants : chacun décide seul ---------------------------------
+[[contact]]
+id = "HST-1"
+name = "Vedette lance-missiles"
+kind = "surf"
+brg = 85
+rng_nm = 31
+course = 270
+speed_kt = 32
+rcs = 400
+emitters = ["search"]
+intent = "hostile"
+attaque = { arme = "asm", nb = 2, portee_nm = 28, delai_s = 20 }
+
+[[contact]]
+id = "HST-2"
+name = "Corvette hostile"
+kind = "surf"
+brg = 100
+rng_nm = 31
+course = 280
+speed_kt = 26
+rcs = 2500
+emitters = ["search"]
+intent = "hostile"
+attaque = { arme = "asm", nb = 1, portee_nm = 27, delai_s = 90 }
+
+[[contact]]
+id = "AIR-1"
+name = "Avion de patrouille"
+kind = "air"
+brg = 20
+rng_nm = 62
+course = 200
+speed_kt = 300
+alt_ft = 15000
+rcs = 8
+emitters = ["search"]
+intent = "hostile"
+attaque = { arme = "asm", nb = 1, portee_nm = 45, delai_s = 30 }

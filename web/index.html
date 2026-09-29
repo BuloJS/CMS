@@ -61,6 +61,13 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 .body{overflow:auto;min-height:0}
 
 
+.alertes{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;max-width:92%}
+.alerte,.menace{font-family:var(--f-disp);letter-spacing:.1em;text-align:center;padding:8px 18px;border:2px solid #ff5a5a;color:#fff}
+.alerte{background:rgba(140,14,24,.94);font-size:15px;animation:clign 0.7s steps(2,start) infinite}
+.menace{background:rgba(70,8,14,.92);font-size:13px}
+.alerte[hidden],.menace[hidden]{display:none}
+@keyframes clign{50%{background:rgba(220,40,50,.96)}}
+@media (prefers-reduced-motion:reduce){.alerte{animation:none}}
 .crash{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:5;text-align:center;background:rgba(120,10,20,.92);border:2px solid #ff5a5a;color:#fff;padding:14px 28px;font-family:var(--f-disp);letter-spacing:.14em;box-shadow:0 0 30px rgba(255,60,60,.5)}
 .crash[hidden]{display:none}
 .crash b{display:block;font-size:22px;margin-bottom:6px}
@@ -367,7 +374,8 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       <div class="ov tl"><span data-i18n>VEILLE AIR/SURFACE</span><br><u id="sweep-lbl" data-i18n>ROTATION 15 tr/min</u><span data-i18n>MOUVEMENT RELATIF</span><br><span id="zone-lbl"></span></div>
       <div class="ov tr" id="cursor-ro"></div>
       <div class="ov bl"><span data-i18n>NORD HAUT</span><br><span id="ring-lbl">ANNEAUX 6.25 NM</span></div>
-      <div class="crash" id="crash" hidden><b data-i18n>ÉCHOUEMENT</b><span data-i18n>SIMULATION ARRÊTÉE — REJOUER pour recommencer</span></div>
+      <div class="alertes"><div class="alerte" id="alerte" hidden></div><div class="menace" id="menace" hidden></div></div>
+      <div class="crash" id="crash" hidden><b id="crash-t">ÉCHOUEMENT</b><span data-i18n>SIMULATION ARRÊTÉE — REJOUER pour recommencer</span></div>
       <div class="vide" id="vide" hidden></div>
       <div class="brief" id="brief"></div>
       <div class="rangepad" role="group" aria-label="Échelle de portée" data-i18n-label>
@@ -639,7 +647,11 @@ const EN = {
   "Molette : zoom · Glisser : déplacer · Clic : choisir la position du porteur":
     "Wheel: zoom · Drag: pan · Click: pick own-ship position",
   "carte du monde indisponible":"world map unavailable",
-  "ÉCHOUEMENT":"GROUNDING", "SIMULATION ARRÊTÉE — REJOUER pour recommencer":"SIMULATION HALTED — press REPLAY to start over",
+  "ÉCHOUEMENT":"GROUNDING", "TOUCHÉ":"HIT",
+  "ALERTE — CONDUITE DE TIR ENNEMIE · relèvement {brg}°":"ALERT — ENEMY FIRE CONTROL LOCK · bearing {brg}°",
+  "ALERTE MISSILE — DÉPART DÉTECTÉ · NOUS SOMMES CIBLÉS":"MISSILE ALERT — LAUNCH DETECTED · WE ARE TARGETED",
+  "MISSILE EN APPROCHE":"MISSILE INBOUND", "IMPACT DANS":"IMPACT IN",
+  "F8 LEURRES · F9 SAM AUTO":"F8 DECOYS · F9 AUTO SAM", "autre(s)":"more", "SIMULATION ARRÊTÉE — REJOUER pour recommencer":"SIMULATION HALTED — press REPLAY to start over",
   "ZONES PRÉDÉFINIES":"PRESET ZONES", "Rechercher une ville, une mer…":"Search a city, a sea…",
   "Le porteur serait à terre":"Own ship would be on land",
   "Trop près de la côte : 3 NM d'eau libre requis":"Too close to the coast: 3 NM of open water required",
@@ -698,6 +710,7 @@ const L = {
       manoeuvre:()=>"Manœuvre du porteur ordonnée",
       echouement:()=>"ÉCHOUEMENT — le porteur a touché la côte",
       depart_missile:p=>"Départ missile détecté par ESM — origine "+p.src,
+      verrouillage:p=>"ALERTE — conduite de tir ennemie sur nous, relèvement "+String(p.brg).padStart(3,"0")+"°",
       illumination:p=>p.piste+" — illumination conduite de tir",
       impact:p=>"IMPACT sur le porteur — "+p.nom,
       tir:p=>efLabel(p.ef)+" — tir x"+p.n+" sur "+p.piste+(p.auto?" (doctrine)":""),
@@ -755,6 +768,7 @@ const L = {
       manoeuvre:()=>"Own ship manoeuvre ordered",
       echouement:()=>"GROUNDING — own ship has touched the coast",
       depart_missile:p=>"Missile launch detected by ESM — origin "+p.src,
+      verrouillage:p=>"ALERT — enemy fire control on us, bearing "+String(p.brg).padStart(3,"0")+"°",
       illumination:p=>p.piste+" — fire-control illumination",
       impact:p=>"IMPACT on own ship — "+p.nom,
       tir:p=>efLabel(p.ef)+" — fired x"+p.n+" at "+p.piste+(p.auto?" (doctrine)":""),
@@ -1459,6 +1473,51 @@ function drawScope(){
   const Lcap = Math.min(RADAR_NM/range*R, 3*Math.max(W,H));
   g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(crs*Math.PI/180)*Lcap, op.y-Math.cos(crs*Math.PI/180)*Lcap);
   g.strokeStyle="rgba(191,234,255,.28)"; g.lineWidth=1; g.setLineDash([2,6]); g.stroke(); g.setLineDash([]);
+}
+
+/* ---------------- alertes de menace ----------------
+   Deux niveaux, comme dans un CIC. (1) Les événements d'alerte du journal —
+   conduite de tir ennemie, départ missile — s'affichent en gros pendant
+   quelques secondes : l'ESM a parlé, il faut le voir même en regardant ailleurs.
+   (2) Dès qu'une piste rapide (> 400 nœuds) fonce sur le porteur, la console
+   l'accroche et la suit d'elle-même — la première chose que ferait
+   l'opérateur — et une barre affiche le temps avant impact. Les leurres et le
+   SAM restent à faire à la main : la console ne décide pas du tir. */
+let alerte_n = null, alerte_t = 0, alerte_fin = 0;
+const menace_vues = new Set();
+function majAlertes(){
+  const evs = F.events || [];
+  if(F.t < alerte_t){ alerte_n = null; menace_vues.clear(); }      // rejouer / nouveau scénario
+  alerte_t = F.t;
+  if(alerte_n === null) alerte_n = evs.length ? evs[0].n : 0;      // pas d'historique à la connexion
+  for(const e of [...evs].reverse()){
+    if(e.n <= alerte_n) continue;
+    alerte_n = e.n;
+    let msg = null;
+    if(e.code === "verrouillage") msg = t("ALERTE — CONDUITE DE TIR ENNEMIE · relèvement {brg}°").replace("{brg}", String(e.p.brg).padStart(3,"0"));
+    else if(e.code === "depart_missile") msg = t("ALERTE MISSILE — DÉPART DÉTECTÉ · NOUS SOMMES CIBLÉS");
+    if(msg){ $("alerte").textContent = msg; alerte_fin = performance.now() + 9000; }
+  }
+  $("alerte").hidden = !(performance.now() < alerte_fin) || !!F.crash;
+
+  const entrants = F.tracks.filter(x => x.spd > 400 && x.tcpa > 0 && x.cpa < 3)
+                           .sort((a,b) => a.tcpa - b.tcpa);
+  const nouveaux = entrants.filter(x => !menace_vues.has(x.id));
+  if(nouveaux.length){
+    nouveaux.forEach(x => menace_vues.add(x.id));
+    hooked = nouveaux[0].id;                       // la plus pressante d'abord
+    suivi = true;
+    $("sk-suivi").setAttribute("aria-pressed", "true");
+    $("sk-suivi").disabled = false;
+    zoomSur(nouveaux[0]);
+  }
+  const m = $("menace");
+  if(!entrants.length || F.crash){ m.hidden = true; return; }
+  const tti = Math.max(0, Math.round(entrants[0].tcpa - age()));
+  m.textContent = t("MISSILE EN APPROCHE")+" "+entrants[0].id+" · "+t("IMPACT DANS")+" "+tti+" s"
+    + (entrants.length > 1 ? " · +"+(entrants.length-1)+" "+t("autre(s)") : "")
+    + " · " + t("F8 LEURRES · F9 SAM AUTO");
+  m.hidden = false;
 }
 
 /* ---------------- panneaux ---------------- */
@@ -2527,6 +2586,8 @@ function renderTop(){
   }
   $("ring-lbl").textContent = "RADAR " + RADAR_NM + " NM";
   $("crash").hidden = !F.crash;
+  if(F.crash) $("crash-t").textContent = t(F.crash.type === "missile" ? "TOUCHÉ" : "ÉCHOUEMENT");
+  majAlertes();
   // « Où suis-je » : au plus une fois par seconde de simulation, ça parcourt
   // les contours de mers et les 1 200 villes.
   if(LIEUX && geoOk()){

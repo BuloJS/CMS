@@ -34,6 +34,12 @@ class Contact:
     ais_declare: dict = field(default_factory=dict)
     emitters: list = field(default_factory=list)   # ["nav", "search", "fc"]
     intent: str = "neutral"   # neutral | hostile | friend — vérité, jamais affichée
+    # Comportement offensif autonome, pour les scénarios où l'ennemi décide
+    # seul : {"arme": "asm", "nb": 2, "portee_nm": 28, "delai_s": 20}. Dès
+    # que le porteur est à portée il l'illumine (conduite de tir), puis
+    # tire `nb` missiles `delai_s` plus tard. Vide = ne tire jamais de
+    # lui-même (les tirs restent alors à la charge des événements scriptés).
+    attaque: dict = field(default_factory=dict)
     alive: bool = True
     # missiles seulement
     target: str = ""

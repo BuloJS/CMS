@@ -65,7 +65,7 @@ def main():
             "doctrine": {"auto_id": a.auto_id, "auto_sam": a.auto_sam},
         }}, ensure_ascii=False) + "\n")
         i = 0
-        while eng.t < end:
+        while eng.t < end and not eng.crash:
             eng.step()
             i += 1
             if i % every == 0 and eng.t >= a.t0:

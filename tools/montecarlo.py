@@ -28,6 +28,7 @@ def run(path, seed, doctrine):
     sc["seed"] = seed
     e = Engine(sc)
     e.doctrine.update(doctrine)
+    e.fin_sur_impact = False      # on compte toute la salve, pas seulement le premier impact
     while e.t < sc["duration"]:
         e.step()
     impacts = sum(1 for ev in e.events if "IMPACT" in ev["txt"])

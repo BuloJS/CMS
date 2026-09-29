@@ -71,6 +71,10 @@ class Engine:
         self.terre = None
         self.crash = None
         self._tic_terre = 0
+        self._attaques = {}       # uid -> {"acquis": t ou None, "fait": bool}
+        # Un impact met fin à la simulation. Le Monte-Carlo (tools/montecarlo.py)
+        # le désactive : il compte les impacts d'une salve entière, pas le premier.
+        self.fin_sur_impact = True
         self.radar = Radar()
         self.esm, self.iff, self.ais = Esm(), Iff(), Ais()
         self.tracker = Tracker()
@@ -79,12 +83,13 @@ class Engine:
         self.machine = Machine()
         self.effectors = tewa.default_effectors()
         self.doctrine = {"auto_ciws": True, "auto_sam": False, "auto_id": False}
+        self.doctrine.update({k: bool(v) for k, v in sc.get("doctrine", {}).items()})
         self.shots = []
         self.events = []
         self.solutions = []
         self.threats = []
         self.pending = list(sc["events"])
-        self.decoys = 12
+        self.decoys = int(o.get("leurres", 12))
         self.hooked = None
         self.ais_orphelins = []          # déclarations sans écho radar
         self._anomalies_dites = {}       # pour ne journaliser qu'une fois
@@ -145,6 +150,34 @@ class Engine:
                                             float(e["ecart_nm"]) * NM)
                     if "declare" in e:
                         c.ais_declare = dict(e["declare"])
+
+    def _attaquer(self):
+        """Les contacts à comportement offensif (`attaque`) : à portée du
+        porteur, ils l'illuminent — l'ESM l'entend et le journal alerte —
+        puis tirent leur salve après le délai de verrouillage. Rien n'est
+        scripté à l'instant près : la chronologie dépend de la route du
+        porteur, ce qui laisse à l'opérateur le temps d'agir… ou pas."""
+        for c in list(self.world.values()):      # _launch() ajoute des missiles
+            if not c.attaque or not c.alive:
+                continue
+            st = self._attaques.setdefault(c.uid, {"acquis": None, "fait": False})
+            if st["fait"]:
+                continue
+            d = rng(c.x - self.own.x, c.y - self.own.y)
+            if d > float(c.attaque.get("portee_nm", 25.0)) * NM:
+                continue
+            if st["acquis"] is None:
+                st["acquis"] = self.t
+                c.emitters = ["fc"]
+                # Le relèvement seulement : ce que l'ESM donne, pas le nom du
+                # navire qui nous illumine.
+                brg = bearing(c.x - self.own.x, c.y - self.own.y)
+                self.log("crit", "ALERTE — conduite de tir ennemie sur nous, relèvement %03d°" % round(brg),
+                         code="verrouillage", brg=round(brg))
+            elif self.t - st["acquis"] >= float(c.attaque.get("delai_s", 20.0)):
+                st["fait"] = True
+                self._launch({"from": c.uid, "weapon": c.attaque.get("arme", "asm"),
+                              "count": int(c.attaque.get("nb", 1))})
 
     def _launch(self, e):
         src = self.world.get(e.get("from"))
@@ -217,6 +250,8 @@ class Engine:
         for c in self.world.values():
             c.step(dt, tgt)
         self._tic_terre += 1
+        if self._tic_terre % 20 == 0:
+            self._attaquer()
         if self.terre is not None and self._tic_terre % 10 == 0:
             self._verifier_terre()
             if self.crash:
@@ -348,6 +383,11 @@ class Engine:
                     c.alive = False
                     self.log("crit", "IMPACT sur le porteur — %s" % c.name,
                              code="impact", nom=c.name)
+                    # Un missile qui arrive au but, c'est fini : tout
+                    # s'arrête, comme pour un échouement. C'est ce qui donne
+                    # son enjeu à la chasse aux leurres.
+                    if self.fin_sur_impact and not self.crash:
+                        self.crash = {"type": "missile", "t": round(self.t, 1)}
 
     # -- effecteurs ------------------------------------------------------
     def _weapons(self, dt):

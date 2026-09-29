@@ -263,7 +263,7 @@ class TestPasDeFauxPositifs(unittest.TestCase):
                 sc["seed"] += graine
                 e = Engine(sc)
                 e.doctrine["auto_id"] = True
-                while e.t < 400:
+                while e.t < 400 and not e.crash:
                     e.step()
                 for tr in e.tracker.confirmed():
                     self.assertEqual(
