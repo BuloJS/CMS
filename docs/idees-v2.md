@@ -21,3 +21,12 @@ Reste à faire :
 3. **Longues traversées.** Le plan tangent local se dégrade au-delà de ~150 NM
    de l'origine ; un porteur qui fait route plusieurs heures devrait
    ré-ancrer sa projection en cours de route.
+
+## Radar masqué par la terre
+
+Pas fait, et pas nécessaire pour les scénarios à missiles : un missile rasant
+(5 m) est déjà limité par l'horizon radio (~17 NM), la terre ne change rien à
+ce qui est vu. Ça ne compterait que pour les scénarios côtiers — un navire
+derrière un cap, un tir depuis l'arrière d'une île. À reprendre si de tels
+scénarios arrivent : tester si le segment porteur→contact traverse un polygone
+de terre (`sim/terre.py` a déjà le test de point).

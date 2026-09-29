@@ -300,11 +300,23 @@ python3 tools/monde.py ne_50m_coastline.geojson ne_50m_land.geojson -o web/monde
 ```
 
 **Choisir la zone.** Le bouton *CARTE MONDE* de la barre du bas ouvre le
-planisphère entier (molette pour zoomer, glisser pour se déplacer). Un clic
-choisit une position — refusée si elle tombe à terre — et *PLACER ICI* recharge
-le scénario courant ancré là (commande `relocate`) : les contacts suivent le
-porteur. *REJOUER* garde la position choisie ; changer de scénario la remet à
-zéro. La projection s'arrête à ±85° de latitude.
+planisphère entier (molette pour zoomer, glisser pour se déplacer) avec une
+liste de **zones prédéfinies** (`web/zones.json` : golfe de Finlande, Gibraltar,
+mer d'Oman, mer de Chine, Atlantique nord…). Chacune est testée
+(`tests/test_terre.py`) : tous les scénarios à contacts relatifs y tiennent dans
+l'eau. Un clic libre marche aussi, mais le serveur **refuse** le placement si le
+scénario ne tient pas — porteur à terre ou à moins de 3 NM d'une côte, contact
+posé à terre ou dont la route s'y échoue avant la fin — et la console dit
+lequel. *PLACER ICI* recharge alors le scénario ancré là (commande `relocate`) ;
+les contacts suivent le porteur. *REJOUER* garde la position choisie ; changer
+de scénario la remet à zéro. La projection s'arrête à ±85° de latitude.
+
+**Échouement.** `sim/terre.py` teste le porteur contre les contours de terre
+toutes les 0,5 s. S'il touche la côte, tout s'arrête (temps figé, bandeau
+« ÉCHOUEMENT ») jusqu'à *REJOUER*. Un contact de surface qui atteint la terre
+s'y immobilise. Sans carte disponible, le simulateur reste tel qu'avant : la
+mer est partout. Le 50 m ne porte pas les îlots — « pas à terre » veut dire
+« pas sur un polygone connu ».
 
 **Radar.** La console ne suppose plus de portée : elle dessine un seul cercle,
 celui de la portée que le simulateur annonce (`radar.max_nm`, 110 NM), fixe en

@@ -61,7 +61,17 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 .body{overflow:auto;min-height:0}
 
 
+.crash{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:5;text-align:center;background:rgba(120,10,20,.92);border:2px solid #ff5a5a;color:#fff;padding:14px 28px;font-family:var(--f-disp);letter-spacing:.14em;box-shadow:0 0 30px rgba(255,60,60,.5)}
+.crash[hidden]{display:none}
+.crash b{display:block;font-size:22px;margin-bottom:6px}
+.crash span{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.06em}
 /* ---- carte du monde (choix de la zone) ---- */
+.mv-zones{position:absolute;left:12px;top:56px;bottom:34px;width:230px;overflow:auto;background:rgba(6,20,40,.88);border:1px solid var(--line);border-radius:3px;padding:6px}
+.mv-zones h4{margin:2px 4px 6px;font-family:var(--f-disp);font-size:10.5px;letter-spacing:.13em;color:var(--dim);font-weight:500}
+.mv-zones button{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:2px;padding:5px 8px;color:var(--text);font-family:var(--f-mono);font-size:11.5px;cursor:pointer}
+.mv-zones button:hover{background:rgba(96,168,240,.16)}
+.mv-zones button[aria-pressed="true"]{background:var(--phos);color:#03101f;font-weight:600}
+.mv-pos.err{color:#ff8a8a}
 #monde-view{position:fixed;inset:0;z-index:60;background:#04101f;display:flex;flex-direction:column}
 #monde-view[hidden]{display:none}
 .mv-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);font-family:var(--f-disp);font-size:11px;letter-spacing:.13em;color:var(--dim)}
@@ -186,7 +196,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 
 /* ---- pied ---- */
 .softkeys{background:var(--bezel);display:flex;align-items:stretch;gap:1px;flex-wrap:wrap}
-.sk{background:var(--panel);border:0;border-top:1px solid var(--line-soft);padding:7px 8px 8px;cursor:pointer;color:var(--dim);display:flex;flex-direction:column;gap:1px;align-items:center;min-width:78px;flex:1;white-space:nowrap}
+.sk{background:var(--panel);border:0;border-top:1px solid var(--line-soft);padding:7px 8px 8px;cursor:pointer;color:var(--dim);display:flex;flex-direction:column;gap:1px;align-items:center;min-width:78px;flex:1}
 .sk u{text-decoration:none;font-family:var(--f-mono);font-size:9.5px;color:var(--dim);letter-spacing:.09em}
 .sk span{font-family:var(--f-disp);font-size:13px;letter-spacing:.12em;font-weight:500}
 .sk:hover:not(:disabled){background:var(--panel-2);color:#e8f4ff}
@@ -351,6 +361,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
       <div class="ov tl"><span data-i18n>VEILLE AIR/SURFACE</span><br><u id="sweep-lbl" data-i18n>ROTATION 15 tr/min</u><span data-i18n>MOUVEMENT RELATIF</span></div>
       <div class="ov tr" id="cursor-ro"></div>
       <div class="ov bl"><span data-i18n>NORD HAUT</span><br><span id="ring-lbl">ANNEAUX 6.25 NM</span></div>
+      <div class="crash" id="crash" hidden><b data-i18n>ÉCHOUEMENT</b><span data-i18n>SIMULATION ARRÊTÉE — REJOUER pour recommencer</span></div>
       <div class="vide" id="vide" hidden></div>
       <div class="brief" id="brief"></div>
       <div class="rangepad" role="group" aria-label="Échelle de portée" data-i18n-label>
@@ -413,6 +424,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
     <button class="act" id="mv-close" data-i18n>FERMER</button>
   </div>
   <canvas id="mv-cv"></canvas>
+  <div class="mv-zones" id="mv-zones"></div>
   <div class="mv-hint" data-i18n>Molette : zoom · Glisser : déplacer · Clic : choisir la position du porteur</div>
 </div>
 
@@ -619,6 +631,14 @@ const EN = {
   "Molette : zoom · Glisser : déplacer · Clic : choisir la position du porteur":
     "Wheel: zoom · Drag: pan · Click: pick own-ship position",
   "carte du monde indisponible":"world map unavailable",
+  "ÉCHOUEMENT":"GROUNDING", "SIMULATION ARRÊTÉE — REJOUER pour recommencer":"SIMULATION HALTED — press REPLAY to start over",
+  "ZONES PRÉDÉFINIES":"PRESET ZONES",
+  "Le porteur serait à terre":"Own ship would be on land",
+  "Trop près de la côte : 3 NM d'eau libre requis":"Too close to the coast: 3 NM of open water required",
+  "La route du porteur s'échoue à t+{t} s":"Own ship's route runs aground at t+{t} s",
+  "{id} serait posé à terre":"{id} would be placed on land",
+  "{id} s'échoue à t+{t} s":"{id} runs aground at t+{t} s",
+  "Choisissez plutôt une zone prédéfinie":"Pick a preset zone instead",
   "ANNEAUX":"RINGS", "ROTATION 15 tr/min":"15 rpm SWEEP", "OUVR.":"OPENING",
   "SAM courte portée":"Short-range SAM", "Artillerie 76 mm":"76 mm gun",
   "Missile antinavire":"Anti-ship missile", "CIWS":"CIWS",
@@ -668,6 +688,7 @@ const L = {
       pompe_instructeur:p=>"IPMS — pompe "+(p.marche?"relancée":"arrêtée")+
         " depuis le poste instructeur",
       manoeuvre:()=>"Manœuvre du porteur ordonnée",
+      echouement:()=>"ÉCHOUEMENT — le porteur a touché la côte",
       depart_missile:p=>"Départ missile détecté par ESM — origine "+p.src,
       illumination:p=>p.piste+" — illumination conduite de tir",
       impact:p=>"IMPACT sur le porteur — "+p.nom,
@@ -724,6 +745,7 @@ const L = {
       pompe_instructeur:p=>"IPMS — pump "+(p.marche?"restarted":"stopped")+
         " from the instructor station",
       manoeuvre:()=>"Own ship manoeuvre ordered",
+      echouement:()=>"GROUNDING — own ship has touched the coast",
       depart_missile:p=>"Missile launch detected by ESM — origin "+p.src,
       illumination:p=>p.piste+" — fire-control illumination",
       impact:p=>"IMPACT on own ship — "+p.nom,
@@ -1769,7 +1791,7 @@ $("electrical-pane").addEventListener("click", e=>{
    porteur. Un point à terre est refusé : le carte le sait, autant le dire
    avant que le porteur y soit posé. */
 const mvView = $("monde-view"), mvCv = $("mv-cv"), mg = mvCv.getContext("2d");
-let mvW=0, mvH=0, mv={lon:0,lat:0,s:1,fit:1}, mvSel=null, mvDrag=null, mvBb=null, mvHover=null;
+let mvW=0, mvH=0, mv={lon:0,lat:0,s:1,fit:1}, mvSel=null, mvDrag=null, mvBb=null, mvHover=null, ZONES=[];
 
 async function assurerMonde(){
   if(MONDE) return true;
@@ -1862,6 +1884,18 @@ function mvDraw(){
       mg.fill("evenodd"); mg.stroke();
     });
   }
+  // Zones prédéfinies : petits losanges, nom à partir d'un zoom lisible.
+  mg.font = '10.5px "IBM Plex Mono", monospace'; mg.textAlign = "left"; mg.textBaseline = "middle";
+  for(const z of ZONES){
+    for(const sh of [-360,0,360]){
+      const x = mvX(z.lon+sh), y = mvY(z.lat);
+      if(x<-10||x>mvW+10||y<-10||y>mvH+10) continue;
+      const sel = mvSel && mvSel.zone === z.id;
+      mg.fillStyle = sel ? "#ffd24d" : "rgba(126,224,255,.9)";
+      mg.beginPath(); mg.moveTo(x,y-5); mg.lineTo(x+5,y); mg.lineTo(x,y+5); mg.lineTo(x-5,y); mg.closePath(); mg.fill();
+      if(mv.s >= mv.fit*2.2 || sel){ mg.fillStyle = "rgba(210,238,255,.9)"; mg.fillText(nomZone(z), x+9, y); }
+    }
+  }
   // Position actuelle du porteur, et sélection en cours.
   const marque = (lat, lon, col, croix) => {
     for(const sh of [-360,0,360]){
@@ -1883,10 +1917,38 @@ function mvLabel(pt){
 function mvMajBouton(){
   $("mv-go").disabled = !(PILOTABLE && mvSel && MONDE && !mvTerre(mvSel.lat, mvSel.lon));
 }
+const nomZone = z => (LANG === "en" && z.nom_en) ? z.nom_en : z.nom;
+function mvListeZones(){
+  $("mv-zones").innerHTML = "<h4>"+t("ZONES PRÉDÉFINIES")+"</h4>" + ZONES.map(z =>
+    '<button data-z="'+z.id+'" aria-pressed="'+(!!(mvSel && mvSel.zone===z.id))+'">'+nomZone(z)+'</button>').join("");
+}
+function mvZone(z){
+  mvSel = {lat:z.lat, lon:z.lon, zone:z.id};
+  // Cadre la zone : ~40° de large, sans jamais dézoomer sous la vue monde.
+  mv.s = Math.max(mv.fit, mvW/40); mv.lon = z.lon; mv.lat = z.lat; mvClamp();
+  $("mv-pos").className = "mv-pos"; $("mv-pos").textContent = nomZone(z)+" · "+mvLabel(mvSel);
+  mvListeZones(); mvMajBouton(); mvDraw();
+}
+$("mv-zones").addEventListener("click", e => {
+  const b = e.target.closest("button[data-z]"); if(!b) return;
+  const z = ZONES.find(x => x.id === b.dataset.z); if(z) mvZone(z);
+});
+function libProbleme(p){
+  const cle = {porteur_terre:"Le porteur serait à terre",
+               porteur_cote:"Trop près de la côte : 3 NM d'eau libre requis",
+               porteur_echoue:"La route du porteur s'échoue à t+{t} s",
+               contact_terre:"{id} serait posé à terre",
+               contact_echoue:"{id} s'échoue à t+{t} s"}[p.code] || p.code;
+  return t(cle).replace("{id}", p.id).replace("{t}", p.t);
+}
 async function mvOuvrir(){
   mvView.hidden = false;
-  mvSel = null; $("mv-go").disabled = true; $("mv-pos").textContent = "";
+  mvSel = null; $("mv-go").disabled = true; $("mv-pos").textContent = ""; $("mv-pos").className = "mv-pos";
   mvResize();
+  if(!ZONES.length){
+    try{ const r = await fetch("zones.json"); if(r.ok) ZONES = await r.json(); }catch(e){}
+  }
+  mvListeZones();
   if(!(await assurerMonde())){ $("mv-pos").textContent = t("carte du monde indisponible"); return; }
   mvPrepare();
   mv.s = mv.fit; mv.lon = 0; mv.lat = 0; mvClamp();
@@ -1896,10 +1958,22 @@ function mvFermer(){ mvView.hidden = true; }
 $("sk-monde").onclick = mvOuvrir;
 $("mv-close").onclick = mvFermer;
 $("mv-reset").onclick = () => { mv.s = mv.fit; mv.lon = 0; mv.lat = 0; mvClamp(); mvDraw(); };
-$("mv-go").onclick = () => {
+$("mv-go").onclick = async () => {
   if(!mvSel || $("mv-go").disabled) return;
-  SRC.send({cmd:"relocate", lat:+mvSel.lat.toFixed(4), lon:+mvSel.lon.toFixed(4)});
-  mvFermer();
+  $("mv-go").disabled = true;
+  let j = {ok:false, problemes:[]};
+  try{
+    const r = await SRC.send({cmd:"relocate", lat:+mvSel.lat.toFixed(4), lon:+mvSel.lon.toFixed(4)});
+    j = await r.json();
+  }catch(e){}
+  if(j.ok){ mvFermer(); return; }
+  // Refus du serveur : le scénario ne tient pas dans l'eau ici. On le dit,
+  // sans fermer — l'opérateur choisit une autre zone.
+  const pb = j.problemes || [];
+  $("mv-pos").className = "mv-pos err";
+  $("mv-pos").textContent = pb.slice(0,2).map(libProbleme).join(" · ")
+    + (pb.length > 2 ? " (+"+(pb.length-2)+")" : "") + " — " + t("Choisissez plutôt une zone prédéfinie");
+  mvMajBouton();
 };
 window.addEventListener("keydown", e => { if(e.key === "Escape" && !mvView.hidden) mvFermer(); });
 window.addEventListener("resize", () => { if(!mvView.hidden){ mvResize(); mvClamp(); mvDraw(); } });
@@ -1933,7 +2007,14 @@ mvCv.addEventListener("mousemove", e => {
 });
 function mvChoisir(p){
   if(!p) return;
+  // Un clic à moins de 10 px d'un losange choisit la zone elle-même.
+  for(const z of ZONES){
+    for(const sh of [-360,0,360]){
+      if(Math.hypot(mvX(z.lon+sh)-p.x, mvY(z.lat)-p.y) < 10){ mvZone(z); return; }
+    }
+  }
   mvSel = mvInv(p.x, p.y);
+  $("mv-pos").className = "mv-pos"; mvListeZones();
   $("mv-pos").textContent = mvLabel(mvSel);
   mvMajBouton(); mvDraw();
 }
@@ -2183,6 +2264,7 @@ function renderTop(){
                            (m.brief || F.meta.brief).replace(/\n/g," ");
   }
   $("ring-lbl").textContent = "RADAR " + RADAR_NM + " NM";
+  $("crash").hidden = !F.crash;
   renderVide();
   renderCapture();
   if(F.meta && F.meta.fichier && $("sel-sc").options.length > 1

@@ -65,6 +65,12 @@ class Engine:
         self.proj = (Projection(og["lat"], og["lon"])
                      if "lat" in og and "lon" in og else None)
         self.world = {c.uid: c for c in sc["contacts"]}
+        # Contours de terre (sim/terre.py), posés par le serveur quand la
+        # carte est disponible. Sans eux le simulateur reste tel qu'il
+        # était : la mer est partout, rien ne s'échoue.
+        self.terre = None
+        self.crash = None
+        self._tic_terre = 0
         self.radar = Radar()
         self.esm, self.iff, self.ais = Esm(), Iff(), Ais()
         self.tracker = Tracker()
@@ -166,7 +172,30 @@ class Engine:
                  code="depart_missile", src=src.name)
 
     # -- tick ------------------------------------------------------------
+    def _verifier_terre(self):
+        """Toutes les demi-secondes : un navire à 30 nœuds fait 8 m dans ce
+        laps, largement sous l'incertitude d'un trait de côte à 50 m."""
+        if self.terre.a_terre(self.own.x, self.own.y):
+            # Échouement : le porteur s'arrête et tout s'arrête avec lui —
+            # continuer à dérouler un scénario dont le héros est sur les
+            # cailloux n'apprend rien. La console le dit en gros.
+            self.own.speed = 0.0
+            self.own.ordered_speed = 0.0
+            self.crash = {"type": "terre", "t": round(self.t, 1)}
+            self.log("crit", "ÉCHOUEMENT — le porteur a touché la côte",
+                     code="echouement")
+            return
+        for c in self.world.values():
+            # Un contact de surface qui atteint la terre s'y arrête. Les
+            # scénarios sont vérifiés à la pose (tools/eaux.py), donc ceci ne
+            # sert que passé leur durée, ou pour un ordre de manœuvre.
+            if c.alive and c.kind == "surf" and c.speed > 0 \
+                    and self.terre.a_terre(c.x, c.y):
+                c.speed = 0.0
+
     def step(self):
+        if self.crash:
+            return
         dt = DT
         self.t += dt
         self._fire_events()
@@ -187,6 +216,11 @@ class Engine:
         tgt = {"OWN": self.own}
         for c in self.world.values():
             c.step(dt, tgt)
+        self._tic_terre += 1
+        if self.terre is not None and self._tic_terre % 10 == 0:
+            self._verifier_terre()
+            if self.crash:
+                return
 
         prev = self.radar.step(dt)
         scan_done = self.radar.sweep < prev
@@ -537,6 +571,7 @@ class Engine:
             # Ce que le radar est réellement : sa portée instrumentée et son
             # horizon sur une coque de surface (10 m au-dessus de l'eau).
             # La console dessine ces deux rayons plutôt qu'un chiffre en dur.
+            "crash": self.crash,
             "radar": {"max_nm": round(self.radar.max_range / NM, 1),
                       "horizon_nm": round(radar_horizon(self.own.mast_height, 10.0) / NM, 1)},
             "geo": geo,

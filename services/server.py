@@ -40,6 +40,8 @@ from services.modbus import ModbusTcp                     # noqa: E402
 from sim.engine import DT, Engine                         # noqa: E402
 from sim.geo import KT                                    # noqa: E402
 from sim.scenario import load                             # noqa: E402
+from sim.terre import Terre                               # noqa: E402
+from tools.eaux import carte_pour, verifier_placement     # noqa: E402
 
 WEB = ROOT / "web"
 SCEN = ROOT / "scenarios"
@@ -94,6 +96,7 @@ class Sim:
         self.origine_forcee = origine
         with self.lock:
             self.engine = Engine(sc)
+            self.engine.terre = self._terre(self.engine)
             self.engine.platform.timescale = FIELD_TIMESCALE
             self.engine.doctrine["auto_id"] = True
             self._pompe_seq_vu = 0
@@ -104,6 +107,19 @@ class Sim:
                          "en": sc.get("en") or {}}
             self.ais_cfg = self._resoudre_ais(sc)
         return True
+
+    @staticmethod
+    def _terre(engine):
+        """Les contours de terre autour de l'origine, ou None si la carte
+        manque : le simulateur perd alors l'échouement, pas la simulation."""
+        if engine.proj is None:
+            return None
+        try:
+            carte = carte_pour(engine.proj.lat0, engine.proj.lon0)
+            return Terre.depuis_carte(carte, engine.proj)
+        except (OSError, ValueError, KeyError) as e:
+            print("carte de terre indisponible :", e, file=sys.stderr)
+            return None
 
     @staticmethod
     def _resoudre_ais(sc):
@@ -212,6 +228,17 @@ class Sim:
             # aux pôles (un degré de longitude y tend vers zéro mètre).
             lat = max(-85.0, min(85.0, lat))
             lon = (lon + 540.0) % 360.0 - 180.0
+            # Refusé si le scénario ne tient pas dans l'eau à cet endroit :
+            # porteur à terre ou collé à la côte, contact posé sur la terre
+            # ou dont la route s'y échoue avant la fin. Des codes, que la
+            # console met en mots — la carte des zones prédéfinies existe
+            # pour ne pas tomber dessus (web/zones.json).
+            try:
+                problemes = verifier_placement(SCEN / Path(self.name).name, lat, lon)
+            except (OSError, ValueError, KeyError):
+                problemes = []           # pas de carte : on ne bloque pas
+            if problemes:
+                return {"ok": False, "problemes": problemes}
             return {"ok": self.load(self.name, (lat, lon))}
         return {"ok": True}
 

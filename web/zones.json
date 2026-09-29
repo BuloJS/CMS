@@ -1,0 +1,191 @@
+[
+ {
+  "id": "golfe-finlande",
+  "nom": "Golfe de Finlande",
+  "nom_en": "Gulf of Finland",
+  "lat": 59.9,
+  "lon": 25.25
+ },
+ {
+  "id": "baltique",
+  "nom": "Baltique centrale",
+  "nom_en": "Central Baltic",
+  "lat": 57.0,
+  "lon": 19.5
+ },
+ {
+  "id": "mer-du-nord",
+  "nom": "Mer du Nord",
+  "nom_en": "North Sea",
+  "lat": 56.0,
+  "lon": 3.0
+ },
+ {
+  "id": "manche-ouest",
+  "nom": "Approches de la Manche",
+  "nom_en": "Western Approaches",
+  "lat": 49.2,
+  "lon": -6.0
+ },
+ {
+  "id": "norvege",
+  "nom": "Mer de Norvège",
+  "nom_en": "Norwegian Sea",
+  "lat": 68.0,
+  "lon": 5.0
+ },
+ {
+  "id": "gibraltar",
+  "nom": "Approches de Gibraltar",
+  "nom_en": "Approaches to Gibraltar",
+  "lat": 35.95,
+  "lon": -6.5
+ },
+ {
+  "id": "med-centre",
+  "nom": "Méditerranée centrale",
+  "nom_en": "Central Mediterranean",
+  "lat": 35.0,
+  "lon": 18.0
+ },
+ {
+  "id": "med-est",
+  "nom": "Méditerranée orientale",
+  "nom_en": "Eastern Mediterranean",
+  "lat": 33.5,
+  "lon": 30.5
+ },
+ {
+  "id": "mer-noire",
+  "nom": "Mer Noire",
+  "nom_en": "Black Sea",
+  "lat": 43.5,
+  "lon": 34.0
+ },
+ {
+  "id": "mer-rouge",
+  "nom": "Mer Rouge",
+  "nom_en": "Red Sea",
+  "lat": 20.5,
+  "lon": 38.5
+ },
+ {
+  "id": "golfe-aden",
+  "nom": "Golfe d'Aden",
+  "nom_en": "Gulf of Aden",
+  "lat": 12.5,
+  "lon": 47.0
+ },
+ {
+  "id": "golfe-oman",
+  "nom": "Golfe d'Oman",
+  "nom_en": "Gulf of Oman",
+  "lat": 24.8,
+  "lon": 58.6
+ },
+ {
+  "id": "golfe-persique",
+  "nom": "Golfe Persique",
+  "nom_en": "Persian Gulf",
+  "lat": 27.0,
+  "lon": 51.5
+ },
+ {
+  "id": "mer-arabie",
+  "nom": "Mer d'Arabie",
+  "nom_en": "Arabian Sea",
+  "lat": 16.0,
+  "lon": 65.0
+ },
+ {
+  "id": "ocean-indien",
+  "nom": "Océan Indien",
+  "nom_en": "Indian Ocean",
+  "lat": -10.0,
+  "lon": 75.0
+ },
+ {
+  "id": "andaman",
+  "nom": "Mer d'Andaman",
+  "nom_en": "Andaman Sea",
+  "lat": 9.5,
+  "lon": 95.0
+ },
+ {
+  "id": "mer-chine-sud",
+  "nom": "Mer de Chine méridionale",
+  "nom_en": "South China Sea",
+  "lat": 14.0,
+  "lon": 114.0
+ },
+ {
+  "id": "mer-chine-est",
+  "nom": "Mer de Chine orientale",
+  "nom_en": "East China Sea",
+  "lat": 29.0,
+  "lon": 124.5
+ },
+ {
+  "id": "mer-du-japon",
+  "nom": "Mer du Japon",
+  "nom_en": "Sea of Japan",
+  "lat": 39.0,
+  "lon": 135.0
+ },
+ {
+  "id": "mer-de-corail",
+  "nom": "Mer de Corail",
+  "nom_en": "Coral Sea",
+  "lat": -16.0,
+  "lon": 153.0
+ },
+ {
+  "id": "pacifique-nord",
+  "nom": "Pacifique nord",
+  "nom_en": "North Pacific",
+  "lat": 30.0,
+  "lon": -150.0
+ },
+ {
+  "id": "bering",
+  "nom": "Mer de Béring",
+  "nom_en": "Bering Sea",
+  "lat": 57.0,
+  "lon": -178.0
+ },
+ {
+  "id": "golfe-mexique",
+  "nom": "Golfe du Mexique",
+  "nom_en": "Gulf of Mexico",
+  "lat": 25.5,
+  "lon": -90.0
+ },
+ {
+  "id": "caraibes",
+  "nom": "Mer des Caraïbes",
+  "nom_en": "Caribbean Sea",
+  "lat": 15.0,
+  "lon": -72.0
+ },
+ {
+  "id": "atlantique-nord",
+  "nom": "Atlantique nord",
+  "nom_en": "North Atlantic",
+  "lat": 45.0,
+  "lon": -30.0
+ },
+ {
+  "id": "atlantique-sud",
+  "nom": "Atlantique sud",
+  "nom_en": "South Atlantic",
+  "lat": -25.0,
+  "lon": -15.0
+ },
+ {
+  "id": "golfe-guinee",
+  "nom": "Golfe de Guinée",
+  "nom_en": "Gulf of Guinea",
+  "lat": 1.0,
+  "lon": 3.0
+ }
+]

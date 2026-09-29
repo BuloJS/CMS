@@ -47,6 +47,18 @@ def dans_la_zone(doc, lat, lon, marge_nm=PORTEE_NM):
     return math.hypot(dx, dy) + marge_nm <= doc["rayon_nm"]
 
 
+_MONDE = None
+
+
+def _monde():
+    """web/monde.json, lu une seule fois : 1,8 Mo de JSON qu'un serveur
+    rejouerait sinon à chaque placement."""
+    global _MONDE
+    if _MONDE is None:
+        _MONDE = json.loads(MONDE.read_text(encoding="utf-8"))
+    return _MONDE
+
+
 def carte_pour(lat, lon, fine=None):
     """La carte que la console afficherait pour cette origine : le
     découpage fin de la zone d'opérations s'il la couvre, sinon le monde
@@ -56,8 +68,7 @@ def carte_pour(lat, lon, fine=None):
     if dans_la_zone(fine, lat, lon):
         return fine
     from tools.monde import decouper
-    monde = json.loads(MONDE.read_text(encoding="utf-8"))
-    return decouper(monde, lat, lon, 300.0)
+    return decouper(_monde(), lat, lon, 300.0)
 
 
 def _anneaux(doc):
@@ -208,6 +219,42 @@ def inspecter_capture(chemin, doc):
     return 0
 
 
+MARGE_PLACEMENT_NM = 3.0    # eau libre exigée autour du porteur à la pose
+
+
+def verifier_placement(chemin, lat, lon, fine=None):
+    """Le scénario `chemin`, ancré en (lat, lon), tient-il dans l'eau ?
+
+    Rend une liste de problèmes {"code", "id", "t"} — vide si tout va bien.
+    Utilisé par le serveur avant d'accepter un déplacement sur la carte du
+    monde, et par les tests pour garantir que chaque zone prédéfinie accueille
+    chaque scénario. Contrairement à `contacts_du_scenario`, aucune distance
+    n'est calculée : un simple test de point contre les polygones de terre,
+    assez léger pour répondre pendant que l'opérateur attend.
+    """
+    from sim.geo import vel
+    from sim.terre import Terre, problemes_de_route
+    sc = charger(chemin)
+    carte = carte_pour(lat, lon, fine)
+    terre = Terre.depuis_carte(carte, Projection(lat, lon))
+    duree = min(float(sc.get("duration", 600)), 1800.0)
+    out = []
+    if terre.a_terre(0.0, 0.0):
+        out.append({"code": "porteur_terre", "id": "", "t": 0})
+    elif not terre.eau_libre(0.0, 0.0, MARGE_PLACEMENT_NM * NM):
+        out.append({"code": "porteur_cote", "id": "", "t": 0})
+    else:
+        o = sc["ownship"]
+        vx, vy = vel(float(o.get("course", 0)), float(o.get("speed_kt", 0)) * KT)
+        t = 30.0
+        while t <= duree:
+            if terre.a_terre(vx * t, vy * t):
+                out.append({"code": "porteur_echoue", "id": "", "t": int(t)})
+                break
+            t += 30.0
+    return out + problemes_de_route(terre, sc["contacts"], duree)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--carte", default=str(CARTE))
@@ -262,3 +309,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
