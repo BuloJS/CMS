@@ -700,3 +700,50 @@ des scénarios sont en anglais ; les titres et textes de scénario ont leur
 traduction (`name_en`, `brief_en`, `attendu_en`). Mettre en pause fige le
 balayage radar et l'extrapolation des pistes ; un impact ou un échouement fige
 aussi le scope.
+
+## Signal K (optionnel)
+
+Le simulateur peut se publier comme une source [Signal K](https://signalk.org) :
+OpenCPN (via son greffon Signal K), Kip, WilhelmSK ou n'importe quel tableau de
+bord Signal K voient alors le porteur, les pistes et les alertes. **Désactivé par
+défaut** : le stack de base ne change pas.
+
+```bash
+# stack de base, sans Signal K
+docker compose up --build
+
+# avec Signal K (même port 8000, rien d'autre à ouvrir)
+docker compose -f docker-compose.yml -f docker-compose.signalk.yml up --build
+
+# avec l'automate réel en plus
+docker compose -f docker-compose.yml -f docker-compose.plc.yml \
+  -f docker-compose.signalk.yml --profile plc up --build
+
+# hors Docker
+SIGNALK=1 python3 services/server.py
+```
+
+| URL | Contenu |
+|---|---|
+| `http://localhost:8000/signalk` | découverte (points d'accès REST et WebSocket) |
+| `http://localhost:8000/signalk/v1/api/` | modèle complet ; `…/vessels/self/navigation/position` pour une valeur |
+| `ws://localhost:8000/signalk/v1/stream` | deltas ; `?subscribe=self` (défaut), `all` (pistes et sites), `none` ; `&period=0.5` (secondes) |
+
+Correspondances (`services/signalk.py`, unités SI) :
+
+| CMS-Lab | Signal K |
+|---|---|
+| porteur | `vessels.self` : `navigation.position`, `courseOverGroundTrue` et `headingTrue` (rad), `speedOverGround` (m/s), `steering.autopilot.target.headingTrue` |
+| barre, RPM, tableau électrique (automate ou modèle logiciel) | `steering.rudderAngle` (rad), `propulsion.main.revolutions` (Hz), `propulsion.main.state`, `electrical.switches.{battery,generator,breaker}.state` |
+| piste radar | `vessels.urn:mrn:cms:track:T012` : position, cap, vitesse ; identité AIS si elle existe (`mmsi`, `communication.callsignVhf`, `registrations.imo`, `design.*`) |
+| site connu (batterie…) | `atons.urn:mrn:cms:site:BAT-1` avec `cms.zoneRadius` (m) et `cms.state` |
+| alertes (verrouillage, départ missile, impact, échouement, cible détruite) | `notifications.cms.*` sur le porteur (`alarm` / `emergency` / `alert`) |
+| affiliation, qualité de piste, TCPA/CPA, score de menace | extension `cms.*` — Signal K n'a pas d'équivalent tactique, les clients standard l'ignorent |
+
+Une piste qui disparaît reçoit `cms.status = "lost"`. Seules les valeurs
+modifiées repartent à chaque période.
+
+Vérifié ici avec un client écrit à la main (découverte, REST, WebSocket) et la
+suite de tests ; **pas encore essayé contre un vrai serveur Signal K ni OpenCPN**.
+Pour brancher un serveur Signal K existant : *Server → Connections → Add* →
+type *SignalK*, WebSocket, hôte de CMS-Lab, port 8000.

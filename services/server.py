@@ -48,6 +48,9 @@ SCEN = ROOT / "scenarios"
 HOST = os.environ.get("CMS_HOST", "0.0.0.0")
 PORT = int(os.environ.get("CMS_PORT", "8000"))
 PLC_HOST = os.environ.get("PLC_HOST", "")
+# Signal K (services/signalk.py) : l'instantané publié en REST + WebSocket sur
+# /signalk/…. Désactivé par défaut — docker-compose.signalk.yml l'active.
+SIGNALK = os.environ.get("SIGNALK", "").lower() in ("1", "true", "yes", "on")
 PLC_PORT = int(os.environ.get("PLC_PORT", "502"))
 FIELD_HOST = os.environ.get("FIELD_HOST", "")
 FIELD_PORT = int(os.environ.get("FIELD_PORT", "5020"))
@@ -566,6 +569,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlparse(self.path).path
+        if SIGNALK and path.startswith("/signalk"):
+            from services.signalk import repondre
+            if repondre(self, SIM, self.path):
+                return
         if path == "/stream":
             return self.sse()
         if path == "/api/scenarios":
@@ -624,6 +631,9 @@ def main():
              "Modbus " + PLC_HOST if PLC_HOST else "simulé",
              AIS_SOURCE or "éteint"),
           flush=True)
+    if SIGNALK:
+        print("           Signal K : http://%s:%d/signalk  (flux ws://%s:%d/signalk/v1/stream)"
+              % (visible, PORT, visible, PORT), flush=True)
     if visible != HOST:
         print("           écoute sur %s:%d — accessible aussi depuis le réseau local"
               % (HOST, PORT), flush=True)

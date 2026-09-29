@@ -14,9 +14,9 @@ from .geo import FT, KT, NM, Projection, to_xy
 
 WEAPONS = {
     # missile antinavire rasant : c'est lui qui définit le tempo du domaine
-    "asm": dict(kind="missile", rcs=0.09, alt=5.0, speed=270.0, name="Missile antinavire"),
+    "asm": dict(kind="missile", rcs=0.09, alt=5.0, speed=270.0, name="Anti-ship missile"),
     "asm_supersonic": dict(kind="missile", rcs=0.15, alt=12.0, speed=680.0,
-                           name="Missile antinavire supersonique"),
+                           name="Supersonic anti-ship missile"),
 }
 
 

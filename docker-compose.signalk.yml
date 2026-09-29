@@ -1,0 +1,23 @@
+# Surcharge « Signal K ».
+#
+# Le stack par défaut ne publie rien de tel. Cette surcharge active, sur le
+# port 8000 déjà ouvert, l'API Signal K de CMS-Lab (services/signalk.py) :
+#
+#   http://localhost:8000/signalk                    découverte
+#   http://localhost:8000/signalk/v1/api/            modèle complet (REST)
+#   ws://localhost:8000/signalk/v1/stream            deltas (?subscribe=self|all)
+#
+# Lancement :
+#
+#   docker compose -f docker-compose.yml -f docker-compose.signalk.yml up --build
+#
+# Elle se combine avec l'automate réel :
+#
+#   docker compose -f docker-compose.yml -f docker-compose.plc.yml \
+#     -f docker-compose.signalk.yml --profile plc up --build
+#
+# Aucun port supplémentaire : Signal K passe par le serveur HTTP existant.
+services:
+  cms:
+    environment:
+      SIGNALK: "1"
