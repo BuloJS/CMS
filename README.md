@@ -311,6 +311,27 @@ lequel. *PLACER ICI* recharge alors le scénario ancré là (commande `relocate`
 les contacts suivent le porteur. *REJOUER* garde la position choisie ; changer
 de scénario la remet à zéro. La projection s'arrête à ±85° de latitude.
 
+**Lieux.** `web/lieux.json` (629 ko, `tools/lieux.py`, Natural Earth) porte les
+215 capitales, ~1 250 villes de plus de 400 000 habitants et 300 étendues d'eau
+nommées (océans, mers, golfes, détroits, canaux) avec leur contour, en français
+et en anglais. Sur le scope, les villes visibles s'affichent avec leur nom
+(carré pour une capitale), et une ligne « où suis-je » donne l'étendue d'eau
+la plus précise autour du porteur et la ville la plus proche avec sa distance et
+son gisement (« Détroit de Gibraltar · Tanger 12 NM 190° »). Sur la carte du
+monde, les noms de mers et de villes apparaissent selon le zoom (sans se
+chevaucher), le survol donne la même information, et un champ de recherche
+saute à une ville ou une mer.
+
+```bash
+curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_populated_places.geojson
+curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_geography_marine_polys.geojson
+python3 tools/lieux.py ne_10m_populated_places.geojson ne_10m_geography_marine_polys.geojson -o web/lieux.json
+```
+
+Limites : les contours de mers sont arrondis (0,1° ; 0,01° pour les petits),
+donc la frontière entre deux étendues est à quelques milles près ; les villes
+sont des points, pas des emprises.
+
 **Échouement.** `sim/terre.py` teste le porteur contre les contours de terre
 toutes les 0,5 s. S'il touche la côte, tout s'arrête (temps figé, bandeau
 « ÉCHOUEMENT ») jusqu'à *REJOUER*. Un contact de surface qui atteint la terre

@@ -72,6 +72,12 @@ body{background:var(--ink);color:var(--text);font-family:var(--f-sans);-webkit-f
 .mv-zones button:hover{background:rgba(96,168,240,.16)}
 .mv-zones button[aria-pressed="true"]{background:var(--phos);color:#03101f;font-weight:600}
 .mv-pos.err{color:#ff8a8a}
+.mv-q{width:270px;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:2px;padding:5px 8px;font-family:var(--f-mono);font-size:11.5px}
+.mv-res{position:absolute;left:14px;top:44px;width:300px;z-index:3;background:rgba(6,20,40,.96);border:1px solid var(--line);border-radius:3px}
+.mv-res[hidden]{display:none}
+.mv-res button{display:block;width:100%;text-align:left;background:transparent;border:0;padding:5px 9px;color:var(--text);font-family:var(--f-mono);font-size:11.5px;cursor:pointer}
+.mv-res button:hover{background:rgba(96,168,240,.18)}
+.mv-res small{color:var(--dim);margin-left:6px}
 #monde-view{position:fixed;inset:0;z-index:60;background:#04101f;display:flex;flex-direction:column}
 #monde-view[hidden]{display:none}
 .mv-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);font-family:var(--f-disp);font-size:11px;letter-spacing:.13em;color:var(--dim)}
@@ -358,7 +364,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 
     <div class="scopewrap">
       <canvas id="scope"></canvas>
-      <div class="ov tl"><span data-i18n>VEILLE AIR/SURFACE</span><br><u id="sweep-lbl" data-i18n>ROTATION 15 tr/min</u><span data-i18n>MOUVEMENT RELATIF</span></div>
+      <div class="ov tl"><span data-i18n>VEILLE AIR/SURFACE</span><br><u id="sweep-lbl" data-i18n>ROTATION 15 tr/min</u><span data-i18n>MOUVEMENT RELATIF</span><br><span id="zone-lbl"></span></div>
       <div class="ov tr" id="cursor-ro"></div>
       <div class="ov bl"><span data-i18n>NORD HAUT</span><br><span id="ring-lbl">ANNEAUX 6.25 NM</span></div>
       <div class="crash" id="crash" hidden><b data-i18n>ÉCHOUEMENT</b><span data-i18n>SIMULATION ARRÊTÉE — REJOUER pour recommencer</span></div>
@@ -417,6 +423,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
 <div id="monde-view" hidden>
   <div class="mv-bar">
     <b data-i18n>CARTE DU MONDE</b>
+    <input id="mv-q" class="mv-q" type="search" autocomplete="off" spellcheck="false" placeholder="Rechercher une ville, une mer…">
     <span id="mv-pos" class="mv-pos"></span>
     <span class="mv-sp"></span>
     <button class="act" id="mv-reset" data-i18n>MONDE ENTIER</button>
@@ -425,6 +432,7 @@ button.act.danger:hover:not(:disabled){background:#5a1a25}
   </div>
   <canvas id="mv-cv"></canvas>
   <div class="mv-zones" id="mv-zones"></div>
+  <div class="mv-res" id="mv-res" hidden></div>
   <div class="mv-hint" data-i18n>Molette : zoom · Glisser : déplacer · Clic : choisir la position du porteur</div>
 </div>
 
@@ -632,7 +640,7 @@ const EN = {
     "Wheel: zoom · Drag: pan · Click: pick own-ship position",
   "carte du monde indisponible":"world map unavailable",
   "ÉCHOUEMENT":"GROUNDING", "SIMULATION ARRÊTÉE — REJOUER pour recommencer":"SIMULATION HALTED — press REPLAY to start over",
-  "ZONES PRÉDÉFINIES":"PRESET ZONES",
+  "ZONES PRÉDÉFINIES":"PRESET ZONES", "Rechercher une ville, une mer…":"Search a city, a sea…",
   "Le porteur serait à terre":"Own ship would be on land",
   "Trop près de la côte : 3 NM d'eau libre requis":"Too close to the coast: 3 NM of open water required",
   "La route du porteur s'échoue à t+{t} s":"Own ship's route runs aground at t+{t} s",
@@ -993,6 +1001,71 @@ function choisirCarte(lat0, lon0){
   }
 }
 
+/* ---------------- lieux : villes, capitales, mers ----------------
+   web/lieux.json (tools/lieux.py) : ~1 200 villes et 300 mers/détroits/golfes
+   avec leur contour. Sert à dire où l'on est — « détroit de Gibraltar, Tanger
+   à 12 NM » — et à étiqueter la carte. Chargé une fois ; son absence n'est
+   pas une erreur, la console fonctionne sans noms. */
+let LIEUX = null, lieux_bb = null;
+fetch("lieux.json").then(r => r.ok ? r.json() : null).then(d => {
+  if(!d) return;
+  LIEUX = d;
+  lieux_bb = d.mers.map(m => m.poly.map(r => {
+    let a=1e9,b=1e9,c=-1e9,e=-1e9;
+    for(const p of r){ if(p[0]<a)a=p[0]; if(p[0]>c)c=p[0]; if(p[1]<b)b=p[1]; if(p[1]>e)e=p[1]; }
+    return [a,b,c,e];
+  }));
+}).catch(() => {});
+const nomVille = v => (LANG === "fr" && v[1]) ? v[1] : v[0];
+const nomMer = m => (LANG === "fr" && m.f) ? m.f : m.n;
+/* Plus petite étendue d'eau nommée qui contient le point (les mers sont
+   triées de la plus petite à la plus grande : détroit avant mer avant océan). */
+function merA(lat, lon){
+  if(!LIEUX) return null;
+  for(let i=0;i<LIEUX.mers.length;i++){
+    const m = LIEUX.mers[i];
+    for(let k=0;k<m.poly.length;k++){
+      const bb = lieux_bb[i][k];
+      if(lon<bb[0]||lon>bb[2]||lat<bb[1]||lat>bb[3]) continue;
+      const ring = m.poly[k]; let dedans = false;
+      for(let a=0,b=ring.length-1;a<ring.length;b=a++){
+        const [xi,yi]=ring[a], [xj,yj]=ring[b];
+        if((yi>lat)!==(yj>lat) && lon < (xj-xi)*(lat-yi)/(yj-yi)+xi) dedans = !dedans;
+      }
+      if(dedans) return m;
+    }
+  }
+  return null;
+}
+/* Distance (NM) et gisement initial de 1 vers 2, grand cercle. */
+function distGisement(la1, lo1, la2, lo2){
+  const r = Math.PI/180, p1 = la1*r, p2 = la2*r, dl = (lo2-lo1)*r;
+  const a = Math.sin((p2-p1)/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  const d = 2*Math.asin(Math.min(1, Math.sqrt(a))) * 3440.065;
+  const b = (Math.atan2(Math.sin(dl)*Math.cos(p2), Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl))/r+360)%360;
+  return {d, b};
+}
+function villeProche(lat, lon, seulementCapitales){
+  if(!LIEUX) return null;
+  let best = null, bd = 1e9;
+  for(const v of LIEUX.villes){
+    if(seulementCapitales && !v[5]) continue;
+    // Filtre grossier avant le grand cercle : ~1 200 villes, appelé chaque seconde.
+    if(Math.abs(v[2]-lat) > 25) continue;
+    const dd = distGisement(lat, lon, v[2], v[3]);
+    if(dd.d < bd){ bd = dd.d; best = {v, d: dd.d, b: dd.b}; }
+  }
+  return best;
+}
+/* « Détroit de Gibraltar · Tanger 12 NM 190° » */
+function ouSuisJe(lat, lon){
+  const m = merA(lat, lon), c = villeProche(lat, lon, false);
+  const parts = [];
+  if(m) parts.push(nomMer(m));
+  if(c) parts.push(nomVille(c.v)+" "+c.d.toFixed(c.d<10?1:0)+" NM "+String(Math.round(c.b)%360).padStart(3,"0")+"°");
+  return parts.join(" · ");
+}
+
 /* ---------------- scope ---------------- */
 const cv = $("scope"), g = cv.getContext("2d");
 let W=0,H=0,cx=0,cy=0,R=0;
@@ -1017,6 +1090,7 @@ const px = p => ({x: cx + (p.x-followOffset.x)/range*R, y: cy - (p.y-followOffse
    changer la fenêtre qu'on ouvre dessus — le cercle de couverture ne
    « rétrécit » pas, et un contact n'est jamais hors radar parce qu'on a
    zoomé. */
+let zone_sec = -1;
 let RADAR_NM = 110;   // remplacé par F.radar.max_nm dès la première trame
 
 function drawScope(){
@@ -1100,6 +1174,28 @@ function drawScope(){
       }
       g.stroke();
     });
+  }
+
+  // Villes et capitales dans la fenêtre : repère + nom, sous les pistes.
+  // Le radar voit à travers la terre (documenté), ces repères ne sont que de
+  // la géographie de fond — comme le trait de côte.
+  if(LIEUX && geoOk()){
+    const dl = range/60*1.2, dL = dl/Math.max(Math.cos(F.own.lat*Math.PI/180), .2);
+    const pris = [];
+    g.font='9.5px "IBM Plex Mono", monospace'; g.textAlign="left"; g.textBaseline="middle";
+    for(const v of LIEUX.villes){
+      if(Math.abs(v[2]-F.own.lat) > dl || Math.abs(v[3]-F.own.lon) > dL) continue;
+      const P = px(toLocal(v[3], v[2]));
+      if(P.x<6||P.x>W-6||P.y<6||P.y>H-6) continue;
+      g.fillStyle = v[5] ? "#ffe9a8" : "rgba(225,235,205,.85)";
+      if(v[5]){ g.strokeStyle="#ffe9a8"; g.lineWidth=1.2; g.strokeRect(P.x-3.5,P.y-3.5,7,7); }
+      else { g.beginPath(); g.arc(P.x,P.y,2.4,0,7); g.fill(); }
+      const nom = nomVille(v), w = g.measureText(nom).width + 4;
+      const r = [P.x+6, P.y-7, P.x+6+w, P.y+7];
+      if(pris.some(q => r[0]<q[2] && r[2]>q[0] && r[1]<q[3] && r[3]>q[1])) continue;
+      pris.push(r);
+      g.fillText(nom, P.x+7, P.y);
+    }
   }
 
   // Un anneau trop grand pour être visible (rayon > 3 cadres) coûte un
@@ -1884,6 +1980,7 @@ function mvDraw(){
       mg.fill("evenodd"); mg.stroke();
     });
   }
+  mvNoms();
   // Zones prédéfinies : petits losanges, nom à partir d'un zoom lisible.
   mg.font = '10.5px "IBM Plex Mono", monospace'; mg.textAlign = "left"; mg.textBaseline = "middle";
   for(const z of ZONES){
@@ -1909,10 +2006,86 @@ function mvDraw(){
   if(F && F.geo) marque(F.own.lat, F.own.lon, "#7ee0ff", false);
   if(mvSel) marque(mvSel.lat, mvSel.lon, "#ffd24d", true);
 }
+/* Noms sur le planisphère : mers/océans (italique bleu) puis capitales et
+   grandes villes, par ordre de priorité, en sautant tout nom qui en chevauche
+   un déjà posé. Le niveau de zoom (1 = monde entier) décide de ce qui paraît. */
+function mvNoms(){
+  if(!LIEUX) return;
+  const niveau = 1 + Math.log2(mv.s/mv.fit);
+  const pris = [];
+  const libre = r => !pris.some(q => r[0]<q[2] && r[2]>q[0] && r[1]<q[3] && r[3]>q[1]);
+  mg.textBaseline = "middle";
+  for(const m of [...LIEUX.mers].sort((a,b) => (a.z||9)-(b.z||9))){
+    if(!m.z || m.z > niveau+.3 || niveau > m.z+4.5) continue;
+    const oc = m.c === "ocean";
+    mg.font = (oc ? 'italic 13px' : 'italic 11px')+' "IBM Plex Mono", monospace';
+    mg.textAlign = "center";
+    const nom = nomMer(m), w = mg.measureText(nom).width;
+    for(const sh of [-360,0,360]){
+      const x = mvX(m.p[1]+sh), y = mvY(m.p[0]);
+      if(x<w/2||x>mvW-w/2||y<12||y>mvH-12) continue;
+      const r = [x-w/2-2,y-8,x+w/2+2,y+8];
+      if(!libre(r)) continue;
+      pris.push(r);
+      mg.fillStyle = oc ? "rgba(140,190,240,.8)" : "rgba(150,205,255,.72)";
+      mg.fillText(nom, x, y);
+    }
+  }
+  mg.font = '10.5px "IBM Plex Mono", monospace'; mg.textAlign = "left";
+  for(const v of LIEUX.villes){
+    // Seuils de population selon le zoom ; les capitales dès qu'on s'approche.
+    const seuil = niveau<2 ? 1e9 : niveau<3 ? 5e6 : niveau<4 ? 1.5e6 : 4e5;
+    if(!v[5] && v[4] < seuil) continue;
+    for(const sh of [-360,0,360]){
+      const x = mvX(v[3]+sh), y = mvY(v[2]);
+      if(x<0||x>mvW||y<0||y>mvH) continue;
+      mg.fillStyle = v[5] ? "#ffe9a8" : "rgba(225,235,205,.9)";
+      if(v[5]){ mg.strokeStyle = "#ffe9a8"; mg.lineWidth = 1.2; mg.strokeRect(x-3,y-3,6,6); }
+      else { mg.beginPath(); mg.arc(x,y,2.2,0,7); mg.fill(); }
+      const nom = nomVille(v), w = mg.measureText(nom).width;
+      const r = [x+5,y-7,x+8+w,y+7];
+      if(!libre(r)) continue;
+      pris.push(r);
+      mg.fillText(nom, x+7, y);
+    }
+  }
+}
+function mvRecherche(q){
+  const norm = x => (x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  q = norm(q.trim());
+  if(q.length < 2 || !LIEUX) return [];
+  const out = [];
+  for(const m of LIEUX.mers) if(norm(m.n).includes(q) || norm(m.f).includes(q)) out.push({k:"mer", nom:nomMer(m), sous:m.c, lat:m.p[0], lon:m.p[1]});
+  for(const v of LIEUX.villes) if(norm(v[0]).includes(q) || norm(v[1]).includes(q)) out.push({k:"ville", nom:nomVille(v), sous:v[6], lat:v[2], lon:v[3], cap:v[5]});
+  return out.slice(0, 9);
+}
+$("mv-q").addEventListener("input", e => {
+  const res = mvRecherche(e.target.value);
+  $("mv-res").hidden = !res.length;
+  $("mv-res").innerHTML = res.map((r,i) =>
+    '<button data-i="'+i+'">'+(r.cap?"★ ":"")+r.nom+'<small>'+r.sous+'</small></button>').join("");
+  $("mv-res")._res = res;
+});
+$("mv-res").addEventListener("click", e => {
+  const b = e.target.closest("button[data-i]"); if(!b) return;
+  const r = $("mv-res")._res[+b.dataset.i];
+  $("mv-res").hidden = true; $("mv-q").value = "";
+  // Une mer se sélectionne (son point d'étiquette est en eau) ; une ville est
+  // à terre : on centre dessus, et l'opérateur clique la mer d'à côté.
+  mv.s = Math.max(mv.fit, mvW/(r.k==="mer" ? 30 : 8)); mv.lon = r.lon; mv.lat = r.lat; mvClamp();
+  // Le point d'étiquette d'un détroit étroit peut tomber sur la côte du 50 m :
+  // dans ce cas on centre seulement, sans proposer une position à terre.
+  const enMer = r.k === "mer" && MONDE && mvBb && !mvTerre(r.lat, r.lon);
+  if(enMer){ mvSel = {lat:r.lat, lon:r.lon}; mvListeZones(); mvMajBouton(); }
+  $("mv-pos").className = "mv-pos";
+  $("mv-pos").textContent = r.nom + (enMer ? " · "+mvLabel(mvSel) : "");
+  mvDraw();
+});
 function mvLabel(pt){
   if(!pt) return "";
   const terre = MONDE && mvBb ? mvTerre(pt.lat, pt.lon) : null;
-  return fmtLatLon(pt.lat, pt.lon) + (terre===null ? "" : " · " + t(terre ? "À TERRE" : "EN MER"));
+  const ou = ouSuisJe(pt.lat, pt.lon);
+  return fmtLatLon(pt.lat, pt.lon) + (terre===null ? "" : " · " + t(terre ? "À TERRE" : "EN MER")) + (ou ? " · " + ou : "");
 }
 function mvMajBouton(){
   $("mv-go").disabled = !(PILOTABLE && mvSel && MONDE && !mvTerre(mvSel.lat, mvSel.lon));
@@ -1944,6 +2117,7 @@ function libProbleme(p){
 async function mvOuvrir(){
   mvView.hidden = false;
   mvSel = null; $("mv-go").disabled = true; $("mv-pos").textContent = ""; $("mv-pos").className = "mv-pos";
+  $("mv-q").placeholder = t("Rechercher une ville, une mer…");
   mvResize();
   if(!ZONES.length){
     try{ const r = await fetch("zones.json"); if(r.ok) ZONES = await r.json(); }catch(e){}
@@ -1954,7 +2128,7 @@ async function mvOuvrir(){
   mv.s = mv.fit; mv.lon = 0; mv.lat = 0; mvClamp();
   mvDraw();
 }
-function mvFermer(){ mvView.hidden = true; }
+function mvFermer(){ mvView.hidden = true; $("mv-res").hidden = true; }
 $("sk-monde").onclick = mvOuvrir;
 $("mv-close").onclick = mvFermer;
 $("mv-reset").onclick = () => { mv.s = mv.fit; mv.lon = 0; mv.lat = 0; mvClamp(); mvDraw(); };
@@ -2265,6 +2439,12 @@ function renderTop(){
   }
   $("ring-lbl").textContent = "RADAR " + RADAR_NM + " NM";
   $("crash").hidden = !F.crash;
+  // « Où suis-je » : au plus une fois par seconde de simulation, ça parcourt
+  // les contours de mers et les 1 200 villes.
+  if(LIEUX && geoOk()){
+    const sec = Math.floor(F.t);
+    if(sec !== zone_sec){ zone_sec = sec; $("zone-lbl").textContent = ouSuisJe(F.own.lat, F.own.lon); }
+  }
   renderVide();
   renderCapture();
   if(F.meta && F.meta.fichier && $("sel-sc").options.length > 1
