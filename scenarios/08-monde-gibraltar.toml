@@ -1,0 +1,172 @@
+name = "Approches de Gibraltar — positions en lat/lon"
+brief = """Le porteur fait route vers le détroit de Gibraltar, à l'ouest de la
+péninsule, dans le trafic du dispositif de séparation du cap Trafalgar. Même
+mise en scène que « Flotte mixte » — deux alliés, trois marchands qui déclarent
+leur identité, deux silencieux, trois hostiles — mais chaque bâtiment est posé
+par sa vraie latitude/longitude, sur la carte du monde, et non plus par un
+gisement et une distance depuis le porteur."""
+attendu = """Le comportement de classement est celui du scénario 07 : alliés AMI,
+marchands NEUTRE, silencieux INCONNUS, hostiles classés par doctrine dès qu'ils
+allument leur conduite de tir. Ce qui change, c'est le décor : trait de côte
+d'Espagne et du Maroc au bon endroit, et le radar qui s'arrête à son horizon
+plutôt qu'à un rayon arbitraire."""
+
+name_en = "Approaches to Gibraltar — lat/lon positions"
+brief_en = """Own ship heads for the Strait of Gibraltar, west of the peninsula, in
+the Cape Trafalgar traffic separation scheme. Same set-up as "Mixed fleet" — two
+allies, three merchants declaring their identity, two silent contacts, three
+hostiles — but every vessel is placed by its real latitude/longitude on the
+world map, no longer by a bearing and range from own ship."""
+attendu_en = """Classification behaves as in scenario 07: allies FRIEND, merchants
+NEUTRAL, silent ones UNKNOWN, hostiles classified by doctrine once they light
+their fire control. What changes is the setting: Spanish and Moroccan coasts in
+the right place, and the radar stopping at its horizon rather than at an
+arbitrary radius."""
+
+seed = 8008
+duration = 900
+
+# Pas de [origine] : la position du porteur en tient lieu. Tout ce qui suit
+# est posé en latitude/longitude et convertit dans le plan tangent local.
+[ownship]
+lat = 35.95
+lon = -6.50
+course = 80
+speed_kt = 12
+mast_m = 30
+
+# --- alliés ------------------------------------------------------------
+[[contact]]
+id = "FFG-ESCORTE"
+name = "Frégate alliée"
+kind = "surf"
+lat = 35.99
+lon = -6.42
+course = 80
+speed_kt = 12
+rcs = 4000
+iff = true
+emitters = ["nav"]
+
+[[contact]]
+id = "PB-GARDE"
+name = "Patrouilleur allié"
+kind = "surf"
+lat = 35.90
+lon = -6.44
+course = 80
+speed_kt = 12
+rcs = 900
+iff = true
+
+# --- neutres : trafic marchand, identité par AIS -----------------------
+[[contact]]
+id = "MV-ALGECIRAS"
+name = "MV ALGECIRAS STAR"
+kind = "surf"
+lat = 36.03
+lon = -6.30
+course = 95
+speed_kt = 13
+rcs = 9000
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 224512000, callSign = "EAGS", imo = 9411223, type = 70, navStat = 0, refA = 140, refB = 30, refC = 14, refD = 12, draught = 80, destination = "ALGECIRAS" }
+
+[[contact]]
+id = "MT-ATLAS"
+name = "MT ATLAS SPIRIT"
+kind = "surf"
+lat = 35.82
+lon = -6.20
+course = 265
+speed_kt = 11
+rcs = 15000
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 636092000, callSign = "A8AS", imo = 9478815, type = 80, navStat = 0, refA = 190, refB = 40, refC = 20, refD = 18, draught = 115, destination = "ROTTERDAM" }
+
+[[contact]]
+id = "MS-TANGER"
+name = "MS TANGER EXPRESS"
+kind = "surf"
+lat = 35.88
+lon = -6.72
+course = 15
+speed_kt = 20
+rcs = 12000
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 242118000, callSign = "CNTE", imo = 9345601, type = 60, navStat = 0, refA = 150, refB = 30, refC = 13, refD = 13, draught = 60, destination = "TARIFA" }
+
+# --- inconnus ----------------------------------------------------------
+[[contact]]
+id = "UNK-1"
+name = "Contact non coopératif"
+kind = "surf"
+lat = 36.20
+lon = -6.70
+course = 200
+speed_kt = 8
+rcs = 150
+
+[[contact]]
+id = "UNK-2"
+name = "Contact non coopératif"
+kind = "surf"
+lat = 35.70
+lon = -6.75
+course = 40
+speed_kt = 10
+rcs = 900
+emitters = ["nav"]
+
+# --- hostiles ----------------------------------------------------------
+[[contact]]
+id = "HST-1"
+name = "Vedette lance-missiles"
+kind = "surf"
+lat = 35.98
+lon = -6.05
+course = 260
+speed_kt = 28
+rcs = 400
+emitters = ["fc"]
+intent = "hostile"
+
+[[contact]]
+id = "HST-2"
+name = "Corvette hostile"
+kind = "surf"
+lat = 36.06
+lon = -6.15
+course = 265
+speed_kt = 22
+rcs = 2500
+emitters = ["search"]
+intent = "hostile"
+
+[[contact]]
+id = "HST-3"
+name = "Bâtiment hostile"
+kind = "surf"
+lat = 35.86
+lon = -6.22
+course = 300
+speed_kt = 18
+rcs = 1800
+emitters = ["search"]
+intent = "hostile"
+
+[[event]]
+at = 300
+type = "emitter"
+from = "HST-2"
+emitters = ["fc"]
+
+[[event]]
+at = 720
+type = "launch"
+from = "HST-1"
+weapon = "asm"
+count = 2

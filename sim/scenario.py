@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .ais import decode as decode_ais
 from .entities import Contact
-from .geo import FT, KT, NM, to_xy
+from .geo import FT, KT, NM, Projection, to_xy
 
 WEAPONS = {
     # missile antinavire rasant : c'est lui qui définit le tempo du domaine
@@ -45,8 +45,24 @@ def load(path):
         "events": sorted(data.get("event", []), key=lambda e: e.get("at", 0)),
         "contacts": [],
     }
+    # Un contact se pose soit par gisement/distance depuis le porteur, soit
+    # par sa vraie latitude/longitude — au choix, contact par contact. La
+    # seconde forme suppose un point de référence : celui de [origine], ou à
+    # défaut la position du porteur lui-même. C'est ce qui permet de poser un
+    # scénario n'importe où sur la carte sans calculer de gisements à la main.
+    og = sc["origine"]
+    own = sc["ownship"]
+    if not og and "lat" in own and "lon" in own:
+        og = sc["origine"] = {"lat": own["lat"], "lon": own["lon"]}
+    proj = Projection(og["lat"], og["lon"]) if "lat" in og and "lon" in og else None
     for c in data.get("contact", []):
-        x, y = to_xy(float(c["brg"]), float(c["rng_nm"]) * NM)
+        if "lat" in c and "lon" in c:
+            if proj is None:
+                raise ValueError("contact %s : lat/lon sans [origine] ni position du porteur"
+                                 % c.get("id", "?"))
+            x, y = proj.to_xy(float(c["lat"]), float(c["lon"]))
+        else:
+            x, y = to_xy(float(c["brg"]), float(c["rng_nm"]) * NM)
         sc["contacts"].append(Contact(
             uid=c["id"], name=c.get("name", c["id"]), kind=c.get("kind", "surf"),
             x=x, y=y, alt=float(c.get("alt_ft", 0)) * FT,

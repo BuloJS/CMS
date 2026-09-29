@@ -534,6 +534,11 @@ class Engine:
             "t": round(self.t, 2),
             "scenario": self.sc["name"],
             "sweep": round(self.radar.sweep, 1),
+            # Ce que le radar est réellement : sa portée instrumentée et son
+            # horizon sur une coque de surface (10 m au-dessus de l'eau).
+            # La console dessine ces deux rayons plutôt qu'un chiffre en dur.
+            "radar": {"max_nm": round(self.radar.max_range / NM, 1),
+                      "horizon_nm": round(radar_horizon(self.own.mast_height, 10.0) / NM, 1)},
             "geo": geo,
             "own": own,
             "tracks": tks,

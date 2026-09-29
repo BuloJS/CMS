@@ -4,26 +4,22 @@ Pas planifié, pas dans le code : de quoi ne pas les perdre.
 
 ## Poser le porteur n'importe où sur une carte du monde
 
-Ce qui existe déjà : la physique est en plan tangent local autour de
-`[origine]` (`sim/geo.py` `Projection`), donc un scénario peut être posé à
-n'importe quelle latitude/longitude sans toucher au cœur. Le simulateur n'a
-pas besoin d'AIS pour tourner — les scénarios scriptés suffisent.
+**Fait** (scénario `08-monde-gibraltar`) : contacts en lat/lon, fond de carte
+monde 50 m découpé autour du porteur, radar dessiné à sa vraie portée et à son
+horizon. Voir le README, section carte.
 
-Ce qui manque :
+Reste à faire :
 
-1. **Fond de carte.** `web/coastline.json` est découpé à 300 NM autour du golfe
-   de Finlande (`tools/coastline.py`). Ailleurs, la mer serait vide (et la vue
-   passerelle sans côte). Options : générer un fichier par région
-   (`tools/coastline.py --lat .. --lon ..`), ou embarquer Natural Earth 50 m
-   monde entier (~quelques Mo) et découper côté serveur à la volée
-   (`/coastline.json?lat=..&lon=..`).
-2. **Sélecteur.** Une carte du monde dans la console (cliquer un point = origine),
+1. **Sélecteur.** Une carte du monde dans la console (cliquer un point = origine)
    qui recharge le scénario courant avec cette origine ; les contacts restent
-   relatifs (`brg`/`rng_nm`), ils suivent.
-3. **Contrôle des eaux.** `tools/eaux.py` fait déjà le test terre/eaux libres ;
-   le brancher sur le clic pour refuser (ou avertir sur) une origine à terre.
-4. **Trafic** : sans AIS réel hors Finlande (digitraffic ne couvre que ses
+   relatifs (`brg`/`rng_nm`), ils suivent. Le contrôle `tools/eaux.py` refuserait
+   (ou avertirait sur) une origine à terre.
+2. **Fond de carte plus fin.** Le 50 m est grossier près des ports et des
+   archipels. Le 10 m mondial (20 Mo) demanderait un découpage en tuiles servies
+   à la demande.
+3. **Trafic** : sans AIS réel hors Finlande (digitraffic ne couvre que ses
    eaux), un générateur de trafic synthétique (densité par zone, routes de
    rail) donnerait de la vie à n'importe quel océan.
-
-Effort : (1)+(2) restent modestes ; (4) est le vrai chantier.
+4. **Longues traversées.** Le plan tangent local se dégrade au-delà de ~150 NM
+   de l'origine ; un porteur qui fait route plusieurs heures devrait
+   ré-ancrer sa projection en cours de route.

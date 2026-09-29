@@ -270,7 +270,42 @@ lat = 59.85
 lon = 24.85
 ```
 
-Le fond de carte est du Natural Earth 10 m découpé pour la zone
+Les contacts se posent au choix par gisement/distance (`brg`, `rng_nm`) ou par
+leur vraie latitude/longitude (`lat`, `lon`), contact par contact. Sans bloc
+`[origine]`, la position du porteur (`[ownship] lat/lon`) sert de référence :
+un scénario peut donc se poser n'importe où sur la carte sans calculer un seul
+gisement. Voir `scenarios/08-monde-gibraltar.toml`.
+
+```toml
+[ownship]
+lat = 35.95
+lon = -6.50
+
+[[contact]]
+id = "HST-1"
+lat = 35.98
+lon = -6.05
+```
+
+**Fond de carte.** Deux sources, choisies par la console selon l'origine :
+le découpage fin ci-dessous s'il couvre l'origine et sa portée radar, sinon
+`web/monde.json` — le monde entier en Natural Earth 50 m (1,8 Mo,
+`tools/monde.py`), découpé côté navigateur autour du porteur. À 110 NM le
+littoral y reste lisible ; on perd les îlots et les détails de port.
+
+```bash
+curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_coastline.geojson
+curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_land.geojson
+python3 tools/monde.py ne_50m_coastline.geojson ne_50m_land.geojson -o web/monde.json
+```
+
+**Radar.** La console ne suppose plus de portée : elle dessine ce que le
+simulateur annonce (`radar.max_nm`, portée instrumentée, 110 NM) et l'**horizon
+radio sur une coque de surface** (`radar.horizon_nm`, ~19 NM pour un mât de
+30 m) — au-delà, la courbure de la Terre cache un navire quel que soit le
+radar. Les deux rayons sont fixes en NM : zoomer n'y change rien.
+
+Le fond de carte fin est du Natural Earth 10 m découpé pour la zone
 d'opérations, en deux couches : le trait de côte pour le dessin, et les
 polygones de terre pour le remplissage. Les deux sont nécessaires — un trait
 seul ne dit pas de quel côté est la mer, et sur un scope dense c'est
@@ -304,7 +339,11 @@ trois milles et demi. `--capture` inspecte un instantané AIS et dit lesquels
 de ses navires la carte place à terre, en distinguant ceux que le pont écarte
 de ceux qui resteraient affichés.
 
-Limite connue : Natural Earth 10 m ne porte pas les petits îlots. Le contrôle
+`tools/eaux.py` choisit lui aussi la carte comme la console (fine si elle
+couvre l'origine, sinon le monde découpé autour d'elle).
+
+Limite connue : Natural Earth 10 m ne porte pas les petits îlots (le 50 m
+encore moins). Le contrôle
 attrape la faute grossière, pas la subtile.
 
 ### Trafic maritime réel
@@ -426,6 +465,7 @@ Voir [`plc/modbus-map.md`](plc/modbus-map.md).
 | `03-avarie-refroidissement` | Même attaque, pompe arrêtée à 60 s | Détection tardive, décrochage de pistes — la bonne réaction est côté IPMS autant que côté CMS |
 | `04-veille-trafic-reel` | Aucun contact scripté : le trafic AIS, au milieu du golfe de Finlande | Les grands navires sortent à l'horizon, les petits mobiles de près. La corrélation AIS renseigne les coopératifs |
 | `05-identite-douteuse` | Rail marchand dense, quatre contacts atypiques : un muet, une extinction, une position falsifiée, un MMSI inexistant | Chacun détecté pour ce qu'il est, aucun classé hostile, le trafic honnête indemne |
+| `08-monde-gibraltar` | Même mise en scène que 07, ailleurs : approches de Gibraltar, tous les bâtiments posés en lat/lon sur la carte du monde | Mêmes classements que 07 ; côtes d'Espagne et du Maroc au bon endroit, radar borné par son horizon |
 | `06-plc-armement` | Atelier vide, sans piste ni événement — pour développer et tester le séquencement du lanceur sur un vrai automate | Pas de solution attendue : vérifier que l'automate fait ce qu'il doit, voir `plc/modbus-map.md` |
 | `07-flotte-mixte` | Dix bâtiments sur le rail Helsinki–Tallinn : 2 alliés (IFF), 3 marchands (AIS), 2 silencieux, 3 hostiles dont un qui passe en conduite de tir à 300 s et tire à 720 s | Alliés AMI, marchands NEUTRE, silencieux INCONNU ; hostiles classés par doctrine sauf celui qui n'émet qu'en veille |
 

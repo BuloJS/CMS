@@ -33,7 +33,31 @@ from sim.geo import KT, NM, Projection, vel   # noqa: E402
 from sim.scenario import load as charger      # noqa: E402
 
 CARTE = ROOT / "web" / "coastline.json"
+MONDE = ROOT / "web" / "monde.json"
 MARGE_NM = 8.0      # en deçà, on est en eaux resserrées
+PORTEE_NM = 130.0   # ce que la console veut voir autour du porteur
+
+
+def dans_la_zone(doc, lat, lon, marge_nm=PORTEE_NM):
+    """L'origine et sa portée radar tiennent-elles dans le découpage fin ?
+    Même critère que la console (choisirCarte dans web/index.html)."""
+    ref_lat, ref_lon = doc["ref"]
+    dy = (lat - ref_lat) * 60.0
+    dx = (lon - ref_lon) * 60.0 * math.cos(math.radians(lat))
+    return math.hypot(dx, dy) + marge_nm <= doc["rayon_nm"]
+
+
+def carte_pour(lat, lon, fine=None):
+    """La carte que la console afficherait pour cette origine : le
+    découpage fin de la zone d'opérations s'il la couvre, sinon le monde
+    (Natural Earth 50 m) découpé autour du point."""
+    if fine is None:
+        fine = json.loads(CARTE.read_text(encoding="utf-8"))
+    if dans_la_zone(fine, lat, lon):
+        return fine
+    from tools.monde import decouper
+    monde = json.loads(MONDE.read_text(encoding="utf-8"))
+    return decouper(monde, lat, lon, 300.0)
 
 
 def _anneaux(doc):
@@ -214,15 +238,17 @@ def main():
 
     mauvais = 0
     for p in sorted((ROOT / "scenarios").glob("*.toml")):
-        o = tomllib.loads(p.read_text(encoding="utf-8")).get("origine")
+        o = charger(p)["origine"]
         if not o:
             print("%-30s pas d'ancrage géographique" % p.stem)
             continue
-        v, d = juger(o["lat"], o["lon"], doc, a.marge)
-        print("%-30s %-17s %6.2f NM de la côte" % (p.stem, ETIQ[v], d))
+        carte = carte_pour(o["lat"], o["lon"], doc)
+        v, d = juger(o["lat"], o["lon"], carte, a.marge)
+        print("%-30s %-17s %6.2f NM de la côte%s"
+              % (p.stem, ETIQ[v], d, "" if carte is doc else "  (carte monde)"))
         if v != "large":
             mauvais += 1
-        for c in contacts_du_scenario(charger(p), doc):
+        for c in contacts_du_scenario(charger(p), carte):
             if c["verdict"] == "ok":
                 continue
             mauvais += 1
