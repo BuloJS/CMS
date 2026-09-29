@@ -932,7 +932,11 @@ function drawScope(){
   // ce qui limite le cas où le porteur se retrouve écrasé contre un bord
   // pendant le suivi. Le fond (dégradé mer) couvre tout le panneau pour
   // la même raison — sans lui, les coins resteraient noirs sous la carte.
-  const grd = g.createRadialGradient(cx,cy,R*0.05,cx,cy,R*1.6);
+  // Dégradé de mer ancré sur le porteur et calé sur la portée radar : il
+  // s'assombrit vers le bord de couverture, et suit donc le zoom comme le
+  // reste au lieu de rester un halo fixe autour du centre de l'écran.
+  const rG = RADAR_NM/range*R;
+  const grd = g.createRadialGradient(op.x,op.y,rG*0.02,op.x,op.y,rG*1.25);
   grd.addColorStop(0,"#14488c"); grd.addColorStop(.55,"#0d3062"); grd.addColorStop(1,"#071c39");
   g.fillStyle=grd; g.fillRect(0,0,W,H);
 
@@ -988,24 +992,48 @@ function drawScope(){
       }
     }
   }
-  // Bord de couverture du radar, fixe lui aussi.
+  /* Le cercle du radar, avec sa graduation en gisement, est un objet de la
+     carte au même titre que les anneaux : rayon RADAR_NM, il grandit et
+     rétrécit avec le zoom au lieu de rester collé au cadre. Zoomé, il sort
+     de l'écran — c'est normal, on regarde l'intérieur. Pour ne pas perdre la
+     lecture du gisement pour autant, des rayons tous les 30° traversent la
+     fenêtre et portent leur valeur là où ils en sortent. */
   const rc = RADAR_NM/range*R;
-  if(rc <= rMaxPx){
-    g.save(); g.setLineDash([8,6]); g.strokeStyle="rgba(140,205,255,.55)"; g.lineWidth=1.4;
-    g.beginPath(); g.arc(op.x,op.y,rc,0,7); g.stroke(); g.restore();
-    for(const a of [40,320,140,220]){
-      const ax=op.x+Math.sin(a*Math.PI/180)*rc, ay=op.y-Math.cos(a*Math.PI/180)*rc;
-      if(ax>40 && ax<W-40 && ay>10 && ay<H-10){
-        g.fillStyle="rgba(190,235,255,.85)"; g.fillText("RADAR "+RADAR_NM+" NM", ax, ay-8); break;
-      }
+  const dansCadre = op.x>0 && op.x<W && op.y>0 && op.y<H;
+  // Distance (px) du porteur au bord du cadre (marge 14 px), direction (dx,dy) écran.
+  const sortie = (dx,dy) => {
+    const tx = dx>1e-9 ? (W-14-op.x)/dx : dx<-1e-9 ? (14-op.x)/dx : Infinity;
+    const ty = dy>1e-9 ? (H-14-op.y)/dy : dy<-1e-9 ? (14-op.y)/dy : Infinity;
+    return Math.min(tx, ty);
+  };
+  g.font='10px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
+  for(let a=0;a<360;a+=30){
+    const s=Math.sin(a*Math.PI/180), c=Math.cos(a*Math.PI/180);
+    const L = Math.min(rc, rMaxPx);
+    g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+s*L,op.y-c*L);
+    g.strokeStyle="rgba(110,175,235,.13)"; g.lineWidth=1; g.stroke();
+    if(dansCadre){
+      const r = Math.min(rc+13, sortie(s,-c));
+      g.fillStyle="rgba(160,210,250,.62)";
+      g.fillText(String(a).padStart(3,"0"), op.x+s*r, op.y-c*r);
     }
   }
-  g.font='10px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
-  for(let a=0;a<360;a+=5){
-    const long=a%30===0, len=long?11:5, s=Math.sin(a*Math.PI/180), c=Math.cos(a*Math.PI/180);
-    g.beginPath(); g.moveTo(op.x+s*R,op.y-c*R); g.lineTo(op.x+s*(R-len),op.y-c*(R-len));
-    g.strokeStyle=long?"rgba(140,205,255,.55)":"rgba(110,175,235,.28)"; g.stroke();
-    if(long){ g.fillStyle="rgba(160,210,250,.62)"; g.fillText(String(a).padStart(3,"0"),op.x+s*(R+13),op.y-c*(R+13)); }
+  if(rc <= rMaxPx){
+    g.strokeStyle="rgba(140,205,255,.6)"; g.lineWidth=1.4;
+    g.beginPath(); g.arc(op.x,op.y,rc,0,7); g.stroke();
+    for(let a=0;a<360;a+=5){
+      const long=a%30===0, len=long?11:5, s=Math.sin(a*Math.PI/180), c=Math.cos(a*Math.PI/180);
+      g.beginPath(); g.moveTo(op.x+s*rc,op.y-c*rc); g.lineTo(op.x+s*(rc-len),op.y-c*(rc-len));
+      g.strokeStyle=long?"rgba(140,205,255,.55)":"rgba(110,175,235,.28)"; g.lineWidth=1; g.stroke();
+    }
+    g.textAlign="center"; g.textBaseline="middle";
+    for(const a of [165,195,135,225]){
+      const ax=op.x+Math.sin(a*Math.PI/180)*(rc-22), ay=op.y-Math.cos(a*Math.PI/180)*(rc-22);
+      if(ax>50 && ax<W-50 && ay>10 && ay<H-10){
+        g.font='9.5px "IBM Plex Mono", monospace';
+        g.fillStyle="rgba(190,235,255,.85)"; g.fillText("RADAR "+RADAR_NM+" NM", ax, ay); break;
+      }
+    }
   }
 
   const sweep = REDUCED ? 0 : (simT()*90)%360;
