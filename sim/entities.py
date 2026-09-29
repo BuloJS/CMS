@@ -40,10 +40,16 @@ class Contact:
     # tire `nb` missiles `delai_s` plus tard. Vide = ne tire jamais de
     # lui-même (les tirs restent alors à la charge des événements scriptés).
     attaque: dict = field(default_factory=dict)
+    # Site connu (renseignement) : installation fixe dont la position et la
+    # zone radar sont portées sur la carte dès le départ, hors du pistage. Le
+    # radar ne le « détecte » pas — c'est un repère, pas une piste — et les
+    # missiles qu'il tire sont suivis depuis son emplacement, de A à Z.
+    connu: bool = False
     alive: bool = True
     # missiles seulement
     target: str = ""
     launched_at: float = 0.0
+    tireur: str = ""          # uid du contact qui a tiré ce missile
     seduced: bool = False
 
     def step(self, dt, world):

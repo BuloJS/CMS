@@ -78,5 +78,6 @@ def load(path):
             ais_static=decode_ais(c.get("ais_data", {})) if c.get("ais_data") else {},
             emitters=list(c.get("emitters", [])),
             attaque=dict(c.get("attaque", {})),
+            connu=bool(c.get("connu", False)),
             intent=c.get("intent", "neutral")))
     return sc

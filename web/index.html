@@ -1324,6 +1324,51 @@ function drawScope(){
     g.restore();
   }
 
+  /* Sites connus (renseignement) : batteries, bâtiments à poste. Ce ne sont
+     pas des pistes radar mais des repères fixes, sans vecteur ni sillage,
+     avec la zone dans laquelle ils verrouillent. Rouge et fixe tant que le
+     porteur est dehors ; rouge plein et clignotant dès qu'il est verrouillé. */
+  if(F && F.sites) F.sites.forEach(si=>{
+    const P = px({x:si.x, y:si.y});
+    const verrou = si.etat === "verrou";
+    const rz = si.zone_nm/range*R;
+    if(si.zone_nm && rz <= rMaxPx){
+      g.save(); g.setLineDash([10,6]);
+      g.fillStyle = verrou ? "rgba(255,70,70,.14)" : "rgba(255,120,80,.07)";
+      g.strokeStyle = verrou ? "rgba(255,95,95,.9)" : "rgba(255,150,100,.75)"; g.lineWidth = 1.5;
+      g.beginPath(); g.arc(P.x,P.y,rz,0,7); g.fill(); g.stroke(); g.restore();
+      for(const a of [0,45,315,90,270,180]){
+        const ax=P.x+Math.sin(a*Math.PI/180)*rz, ay=P.y-Math.cos(a*Math.PI/180)*rz;
+        if(ax>70 && ax<W-70 && ay>18 && ay<H-18){
+          g.font='9.5px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
+          g.fillStyle = "rgba(255,190,160,.95)";
+          g.fillText(t("ZONE RADAR")+" "+si.zone_nm.toFixed(0)+" NM", ax, ay+(a>90&&a<270?-9:9)); break;
+        }
+      }
+    }
+    const dedans = P.x>=-10 && P.x<=W+10 && P.y>=-10 && P.y<=H+10;
+    if(dedans){
+      const pulse = verrou && !REDUCED && Math.floor(performance.now()/350)%2 === 0;
+      g.save(); g.translate(P.x,P.y);
+      g.fillStyle = pulse ? "#ff8a8a" : "#ff5a5a"; g.strokeStyle = "#ffd0d0"; g.lineWidth = 1.2;
+      // Site : carré plein surmonté d'une antenne — ni cercle ni losange, pour
+      // ne jamais se confondre avec une piste.
+      g.fillRect(-6,-6,12,12); g.strokeRect(-6,-6,12,12);
+      g.beginPath(); g.moveTo(0,-6); g.lineTo(0,-13); g.moveTo(-5,-13); g.lineTo(5,-13); g.stroke();
+      g.restore();
+      g.font='10.5px "IBM Plex Mono", monospace'; g.textAlign="left"; g.textBaseline="alphabetic";
+      g.fillStyle = "#ffb0a0"; g.fillText(si.nom, P.x+11, P.y+4);
+      if(si.tirs){ g.fillStyle = "#ff8a8a"; g.fillText("◆ "+si.tirs+" "+t("tir(s)"), P.x+11, P.y+16); }
+    }else{
+      // Hors fenêtre : un repère au bord, dans sa direction.
+      const dx = P.x-cx, dy = P.y-cy;
+      const k = Math.min((W/2-16)/Math.max(Math.abs(dx),1e-6), (H/2-16)/Math.max(Math.abs(dy),1e-6));
+      g.fillStyle = "#ff7a6a"; g.fillRect(cx+dx*k-4, cy+dy*k-4, 8, 8);
+      g.font='9px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
+      g.fillText(si.nom, cx+dx*k, cy+dy*k+(dy>0?-12:12));
+    }
+  });
+
   if(F) F.tracks.forEach(t=>{
     const q = dr(t), p = px(q);
     const rr = Math.hypot(q.x,q.y);
@@ -1351,7 +1396,8 @@ function drawScope(){
     const col = AFF[t.aff].c, isH = t.id===hooked;
     const s = t.spd>60?7:6;
 
-    if(showTrails && t.trail && t.trail.length>1){
+    const mobile = t.spd >= 3;      // en deçà, la vitesse est du bruit de pistage : ni sillage ni vecteur
+    if(showTrails && mobile && t.trail && t.trail.length>1){
       g.beginPath();
       t.trail.forEach((h,i)=>{ const P=px({x:h[0],y:h[1]}); i?g.lineTo(P.x,P.y):g.moveTo(P.x,P.y); });
       g.strokeStyle=col; g.globalAlpha=.20*al; g.lineWidth=1; g.stroke(); g.globalAlpha=1;
@@ -1382,10 +1428,12 @@ function drawScope(){
       g.restore();
     }
 
-    const d=t.spd/60*3/range*R;   // vecteur : 3 minutes de route
-    g.beginPath(); g.moveTo(p.x,p.y);
-    g.lineTo(p.x+Math.sin(t.crs*Math.PI/180)*d, p.y-Math.cos(t.crs*Math.PI/180)*d);
-    g.lineWidth=1; g.stroke();
+    if(mobile){
+      const d=t.spd/60*3/range*R;   // vecteur : 3 minutes de route
+      g.beginPath(); g.moveTo(p.x,p.y);
+      g.lineTo(p.x+Math.sin(t.crs*Math.PI/180)*d, p.y-Math.cos(t.crs*Math.PI/180)*d);
+      g.lineWidth=1; g.stroke();
+    }
     g.font='10.5px "IBM Plex Mono", monospace'; g.textAlign="left"; g.textBaseline="alphabetic";
     g.fillText(t.id, p.x+s+5, p.y+4);
     if(t.emitter==="fc"){ g.fillStyle="#ff5566"; g.fillText("◆FC", p.x+s+5, p.y+15); }

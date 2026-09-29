@@ -1,77 +1,82 @@
-name = "Batterie côtière — zone de verrouillage"
-brief = """Le porteur longe la côte marocaine, à l'ouest du détroit de Gibraltar.
-Une batterie de missiles antinavires ennemie, installée sur les hauteurs, tient
-sous son radar une zone de trente milles autour d'elle. Dès que le porteur y
-entre, elle le verrouille, laisse trente secondes de délai, puis lâche une
-salve de quatre missiles — et une seconde quatre minutes plus tard si le porteur
-est toujours dans la zone. Un marchand et une frégate alliée sont dans les
-parages."""
-attendu = """La batterie est fixe et à terre : on ne la « détruit » pas, on sort de sa
-zone. Alerte « conduite de tir ennemie » à l'entrée (avec le relèvement), puis
-« départ missile » et une salve de quatre à traiter — plusieurs missiles à la
-fois, donc la console cadre la zone. Leurres et SAM contre la première salve,
-demi-tour pour ne pas subir la seconde. Le CIWS ne tire pas seul."""
+name = "Batterie côtière — détroit d'Ormuz"
+brief = """Le porteur fait route vers le détroit d'Ormuz par le golfe d'Oman. Sur la
+côte de la presqu'île de Musandam, une batterie de missiles antinavires ennemie
+est signalée par le renseignement : c'est une installation fixe, à terre, dont
+la position et la portée radar — trente milles — sont portées sur la carte. Dès
+que le porteur entre dans cette zone, elle le verrouille, laisse trente
+secondes, puis tire un missile toutes les deux minutes tant qu'il y reste. Un
+pétrolier et une frégate alliée sont dans les parages."""
+attendu = """La batterie ne bouge pas et ne se « détruit » pas : on lit sa zone sur la
+carte et on l'évite, ou on y entre en connaissance de cause. Alerte « conduite
+de tir ennemie » à l'entrée (avec le relèvement), puis « départ missile ». Les
+missiles sont suivis dès leur départ de la batterie, de A à Z : un seul à la
+fois, donc la console le suit. Leurres et SAM sur le missile en vol, demi-tour
+hors de la zone pour couper les tirs suivants. Le CIWS ne tire pas seul."""
 
-name_en = "Coastal battery — lock-on zone"
-brief_en = """Own ship follows the Moroccan coast, west of the Strait of Gibraltar. An
-enemy anti-ship missile battery on the heights holds a thirty-mile zone under
-its radar. As soon as own ship enters it, it locks on, waits thirty seconds,
-then fires a salvo of four missiles — and a second one four minutes later if
-own ship is still in the zone. A merchant and an allied frigate are around."""
-attendu_en = """The battery is fixed and ashore: you do not "destroy" it, you leave
-its zone. "Enemy fire control" alert on entry (with a bearing), then "missile
-launch" and a salvo of four to deal with — several missiles at once, so the
-console frames the area. Decoys and SAM against the first salvo, a U-turn to
-avoid the second. CIWS does not fire on its own."""
+name_en = "Coastal battery — Strait of Hormuz"
+brief_en = """Own ship heads for the Strait of Hormuz through the Gulf of Oman. On the
+coast of the Musandam peninsula, an enemy anti-ship missile battery is reported
+by intelligence: a fixed shore installation whose position and radar range —
+thirty miles — are plotted on the chart. As soon as own ship enters this zone
+it locks on, waits thirty seconds, then fires one missile every two minutes for
+as long as own ship stays in. A tanker and an allied frigate are around."""
+attendu_en = """The battery does not move and cannot be "destroyed": read its zone on
+the chart and avoid it, or enter knowingly. "Enemy fire control" alert on entry
+(with a bearing), then "missile launch". Missiles are tracked from the moment
+they leave the battery, from A to Z: one at a time, so the console follows it.
+Decoys and SAM on the missile in flight, a U-turn out of the zone to stop
+further shots. CIWS does not fire on its own."""
 
 seed = 1010
-duration = 1200
+duration = 1500
 
 [doctrine]
 auto_ciws = false
 
 [ownship]
-lat = 35.90
-lon = -6.53
-course = 90
+lat = 25.83
+lon = 56.74
+course = 320
 speed_kt = 22
 mast_m = 30
 leurres = 20
 
-# La batterie : à terre (kind = "land"), immobile, antenne en hauteur pour que
-# son horizon radio couvre sa zone.
+# La batterie : à terre (kind = "land"), fixe, connue du renseignement. Elle
+# n'est pas une piste radar : c'est un repère avec sa zone, sans vecteur ni
+# sillage. Antenne en hauteur : sa zone de trente milles est couverte.
 [[contact]]
 id = "BAT-1"
 name = "Batterie côtière"
 kind = "land"
-lat = 35.76
-lon = -5.90
+connu = true
+lat = 26.25
+lon = 56.35
 alt_ft = 260
 rcs = 300
 emitters = ["search"]
 intent = "hostile"
-attaque = { arme = "asm", nb = 4, portee_nm = 30, delai_s = 30, cadence_s = 240, tirs_max = 2 }
+attaque = { arme = "asm", nb = 1, portee_nm = 30, delai_s = 30, cadence_s = 120 }
 
 [[contact]]
-id = "MV-ALGECIRAS"
-name = "MV ALGECIRAS STAR"
+id = "MT-GULF-STAR"
+name = "MT GULF STAR"
 kind = "surf"
-lat = 36.03
-lon = -6.30
-course = 95
-speed_kt = 13
-rcs = 9000
+lat = 25.70
+lon = 56.95
+course = 320
+speed_kt = 12
+rcs = 15000
 ais = true
 emitters = ["nav"]
-ais_data = { mmsi = 224512000, callSign = "EAGS", imo = 9411223, type = 70, navStat = 0, refA = 140, refB = 30, refC = 14, refD = 12, draught = 80, destination = "ALGECIRAS" }
+ais_data = { mmsi = 538005432, callSign = "V7GS", imo = 9478815, type = 80, navStat = 0, refA = 200, refB = 40, refC = 21, refD = 19, draught = 120, destination = "KUWAIT" }
 
 [[contact]]
 id = "FFG-ESCORTE"
 name = "Frégate alliée"
 kind = "surf"
-lat = 35.99
-lon = -6.44
-course = 90
+lat = 25.78
+lon = 56.62
+course = 320
 speed_kt = 22
 rcs = 4000
 iff = true

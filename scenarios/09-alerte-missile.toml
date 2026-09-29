@@ -1,5 +1,5 @@
 name = "Alerte missile — barrage de deux bâtiments"
-brief = """Deux bâtiments ennemis tiennent la mer à l'ancre, l'un au nord, l'autre
+brief = """Deux bâtiments ennemis, signalés par le renseignement, tiennent la mer à l'ancre, l'un au nord, l'autre
 au sud de la route du porteur, à une dizaine de milles l'un de l'autre. Chacun
 surveille une zone de vingt-quatre milles autour de lui : dès que le porteur y
 entre, il l'illumine (conduite de tir), laisse un délai de verrouillage, puis
@@ -84,6 +84,7 @@ rng_nm = 25
 course = 0
 speed_kt = 0
 rcs = 2500
+connu = true
 emitters = ["search"]
 intent = "hostile"
 attaque = { arme = "asm", nb = 1, portee_nm = 24, delai_s = 25, cadence_s = 120 }
@@ -97,6 +98,7 @@ rng_nm = 25.5
 course = 0
 speed_kt = 0
 rcs = 2500
+connu = true
 emitters = ["search"]
 intent = "hostile"
 attaque = { arme = "asm", nb = 1, portee_nm = 24, delai_s = 50, cadence_s = 120 }

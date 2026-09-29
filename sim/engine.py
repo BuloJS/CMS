@@ -215,14 +215,15 @@ class Engine:
             # ne correspond à aucune doctrine de tir réelle.
             from math import radians, cos, sin
             a = radians(brg)
-            back, side = i * 4.0 * spec["speed"], (i - 0.5) * 600.0
+            n = int(e.get("count", 1))
+            back, side = i * 4.0 * spec["speed"], (i - (n - 1) / 2.0) * 600.0
             sx = src.x - back * sin(a) + side * cos(a)
             sy = src.y - back * cos(a) - side * sin(a)
             self.world[uid] = Contact(
                 uid=uid, name=spec["name"], kind="missile",
                 x=sx, y=sy, alt=spec["alt"], course=brg,
                 speed=spec["speed"], rcs=spec["rcs"], intent="hostile",
-                target="OWN", launched_at=self.t)
+                target="OWN", launched_at=self.t, tireur=src.uid)
         self.log("crit", "Départ missile détecté par ESM — origine %s" % src.name,
                  code="depart_missile", src=src.name)
 
@@ -283,11 +284,20 @@ class Engine:
         scan_done = self.radar.sweep < prev
         plots = []
         for c in list(self.world.values()):
-            if not c.alive:
+            if not c.alive or c.connu:
                 continue
             b = bearing(c.x - self.own.x, c.y - self.own.y)
             if self.radar.crossed(prev, b):
                 p = self.radar.detect(self.own, c, self.rand)
+                if not p and self._pistage_precoce(c):
+                    # Missile tiré depuis un site connu : il est suivi dès son
+                    # départ, pas seulement à l'horizon radio. La position du
+                    # site est sur la carte, le vol se suit de A à Z — le
+                    # radar ne fait ici que rendre sa mesure bruitée.
+                    r = rng(c.x - self.own.x, c.y - self.own.y)
+                    if r <= self.radar.max_range:
+                        p = (r + self.rand.gauss(0, self.radar.sigma_r),
+                             (b + self.rand.gauss(0, self.radar.sigma_b)) % 360.0, 99.0)
                 if p:
                     plots.append((p[0], p[1], self.radar.sigma_r, self.radar.sigma_b))
         self.tracker.step(dt, self.own, plots, self.t, scan_done)
@@ -313,9 +323,33 @@ class Engine:
         self._assess()
         return scan_done
 
+    def _sites(self):
+        """Installations connues (renseignement), avec leur zone radar et
+        leur état : « veille » tant que le porteur est dehors, « verrou »
+        dès qu'il est dans la zone et illuminé."""
+        out = []
+        for c in self.world.values():
+            if not c.connu or not c.alive:
+                continue
+            st = self._attaques.get(c.uid, {})
+            out.append({"id": c.uid, "nom": c.name, "kind": c.kind,
+                        "x": round((c.x - self.own.x) / NM, 4),
+                        "y": round((c.y - self.own.y) / NM, 4),
+                        "zone_nm": float(c.attaque.get("portee_nm", 0.0)) if c.attaque else 0.0,
+                        "etat": "verrou" if st.get("acquis") is not None else "veille",
+                        "tirs": st.get("tirs", 0)})
+        return out
+
+    def _pistage_precoce(self, c):
+        """Un missile tiré par un site connu se suit dès le départ."""
+        if c.kind != "missile" or not c.tireur:
+            return False
+        src = self.world.get(c.tireur)
+        return bool(src and src.connu)
+
     def _passive(self):
         for c in self.world.values():
-            if not c.alive:
+            if not c.alive or c.connu:
                 continue
             d = self.esm.detect(self.own, c, self.rand)
             if d:
@@ -634,6 +668,7 @@ class Engine:
             # horizon sur une coque de surface (10 m au-dessus de l'eau).
             # La console dessine ces deux rayons plutôt qu'un chiffre en dur.
             "crash": self.crash,
+            "sites": self._sites(),
             "radar": {"max_nm": round(self.radar.max_range / NM, 1),
                       "horizon_nm": round(radar_horizon(self.own.mast_height, 10.0) / NM, 1)},
             "geo": geo,
