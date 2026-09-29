@@ -18,11 +18,48 @@ class TestMachine(unittest.TestCase):
         self.assertEqual(m.source, "SIMULÉ")
         self.assertIsNone(m.rpm)
         self.assertIsNone(m.barre)
-        self.assertIsNone(m.gen_progres)
-        self.assertIsNone(m.propulsion_dispo)
+        # Modèle logiciel : tout en ligne tant que rien n'est coupé.
+        self.assertEqual(m.gen_progres, 100)
+        self.assertTrue(m.propulsion_dispo)
+        self.assertTrue(m.cmd_batterie)
+        self.assertTrue(m.cmd_generateur)
+        self.assertTrue(m.cmd_disjoncteur)
+
+    def test_modele_logiciel_couper_la_batterie_coupe_la_propulsion(self):
+        m = Machine()
+        m.cmd_batterie = False
+        m.step(0.05)
+        self.assertFalse(m.batterie)
+        self.assertEqual(m.gen_progres, 0)
+        self.assertFalse(m.generateur_pret)
+        self.assertFalse(m.disjoncteur)
+        self.assertFalse(m.propulsion_dispo)
+
+    def test_modele_logiciel_sequence_de_demarrage(self):
+        m = Machine()
+        m.cmd_batterie = m.cmd_generateur = m.cmd_disjoncteur = False
+        m.step(0.05)
+        m.cmd_batterie = True
+        m.cmd_generateur = True
+        m.cmd_disjoncteur = True
+        for _ in range(100):               # 5 s : générateur pas prêt
+            m.step(0.05)
+        self.assertGreater(m.gen_progres, 0)
+        self.assertFalse(m.generateur_pret)
+        self.assertFalse(m.disjoncteur)    # l'interlock refuse de fermer
+        for _ in range(200):               # 15 s au total : prêt
+            m.step(0.05)
+        self.assertTrue(m.generateur_pret)
+        self.assertTrue(m.disjoncteur)
+        self.assertTrue(m.propulsion_dispo)
+
+    def test_premier_contact_automate_repart_a_froid(self):
+        m = Machine()
+        m.ingest([0, 0, 0], COILS_HORS_TENSION)
         self.assertFalse(m.cmd_batterie)
-        self.assertFalse(m.cmd_generateur)
         self.assertFalse(m.cmd_disjoncteur)
+        m.step(0.05)                       # sans effet en MODBUS
+        self.assertFalse(m.batterie)
 
     def test_ingest_bascule_en_modbus(self):
         m = Machine()
@@ -66,10 +103,8 @@ class TestMachine(unittest.TestCase):
 
     def test_commandes_operateur_par_defaut_puis_modifiables(self):
         m = Machine()
-        m.cmd_batterie = True
-        m.cmd_generateur = True
+        m.cmd_disjoncteur = False
         self.assertTrue(m.cmd_batterie)
-        self.assertTrue(m.cmd_generateur)
         self.assertFalse(m.cmd_disjoncteur)
 
 

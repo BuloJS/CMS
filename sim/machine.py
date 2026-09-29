@@ -14,7 +14,17 @@ l'automate a décidé, comme `armement.pret` pour un tir.
 `ingest()` : ce que l'opérateur demande, tenu ici entre deux sondages du
 pont Modbus pour que `PlcBridge` ait quelque chose à écrire à chaque
 passage (voir `services/server.py`).
+
+Sans automate (stack Docker par défaut), le tableau électrique n'est pas
+masqué pour autant : `step()` en tient un modèle logiciel qui reproduit la
+même chaîne que `PROGRAM machine` (batterie → générateur ~12 s → disjoncteur
+→ propulsion). Il démarre « tout en ligne » pour que le comportement du
+porteur ne change pas tant que l'opérateur n'a rien coupé — l'automate, lui,
+part à froid.
 """
+
+# Même durée de démarrage que PAS_GEN dans plc/program.st (0 → 100 % en 12 s).
+GEN_DEMARRAGE_S = 12.0
 
 
 class Machine:
@@ -22,18 +32,35 @@ class Machine:
         self.source = "SIMULÉ"
         self.rpm = None
         self.barre = None
-        self.gen_progres = None
-        self.batterie = None
-        self.generateur_pret = None
-        self.disjoncteur = None
-        self.propulsion_dispo = None
+        # Modèle logiciel du tableau (SIMULÉ) : tout en ligne au départ.
+        self.gen_progres = 100
+        self.batterie = True
+        self.generateur_pret = True
+        self.disjoncteur = True
+        self.propulsion_dispo = True
+        self._gen = 100.0
 
         # Commandes opérateur pour le tableau électrique, écrites par le
         # CMS. Persistantes (pas des impulsions) : PlcBridge les réécrit
         # à chaque sondage, comme le cap/la vitesse ordonnés.
-        self.cmd_batterie = False
-        self.cmd_generateur = False
-        self.cmd_disjoncteur = False
+        self.cmd_batterie = True
+        self.cmd_generateur = True
+        self.cmd_disjoncteur = True
+
+    def step(self, dt):
+        """Modèle logiciel du tableau électrique — sans effet une fois un
+        automate branché, c'est alors lui qui décide (voir `ingest`)."""
+        if self.source == "MODBUS":
+            return
+        self.batterie = self.cmd_batterie
+        if self.batterie and self.cmd_generateur:
+            self._gen = min(100.0, self._gen + 100.0 * dt / GEN_DEMARRAGE_S)
+        else:
+            self._gen = 0.0
+        self.gen_progres = int(self._gen)
+        self.generateur_pret = self._gen >= 100.0
+        self.disjoncteur = self.cmd_disjoncteur and self.generateur_pret
+        self.propulsion_dispo = self.disjoncteur
 
     def ingest(self, regs, coils):
         """regs : 3 registres de maintien, %QW20 (RPM), %QW21 (angle de
@@ -43,6 +70,10 @@ class Machine:
 
         coils : 4 bobines à partir de %QX3.0 — batterie en ligne,
         générateur prêt, disjoncteur fermé, propulsion disponible."""
+        if self.source != "MODBUS":
+            # Premier contact avec l'automate : il démarre à froid, ce qui
+            # a été demandé au modèle logiciel ne le concerne pas.
+            self.cmd_batterie = self.cmd_generateur = self.cmd_disjoncteur = False
         self.source = "MODBUS"
         self.rpm = regs[0]
         brute = regs[1]

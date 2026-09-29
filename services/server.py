@@ -155,8 +155,8 @@ class Sim:
             elif k == "elec":
                 # Ce que l'opérateur demande pour le tableau électrique —
                 # PROGRAM machine décide seul si c'est accordé (générateur
-                # stable avant de fermer le disjoncteur). Pas d'effet en
-                # mode SIMULÉ : sans automate, il n'y a rien à démarrer.
+                # stable avant de fermer le disjoncteur). Sans automate,
+                # Machine.step() applique la même chaîne en logiciel.
                 if "batterie" in c:
                     e.machine.cmd_batterie = bool(c["batterie"])
                 if "generateur" in c:

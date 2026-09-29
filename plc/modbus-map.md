@@ -271,8 +271,15 @@ machine de la console affiche le vrai RPM/angle de barre/état électrique
 dès que la source passe en MODBUS, à la place de l'estimation
 cosmétique.
 
-Cette autorité électrique déborde sur la vérité physique : quand la
-source est MODBUS et que `propulsion_dispo` est faux, `Engine.step()`
+**Sans automate (stack Docker par défaut), le tableau électrique reste
+affiché** : `Machine.step()` en tient un modèle logiciel qui rejoue la même
+chaîne (batterie → générateur 12 s → disjoncteur → propulsion), source
+« SIMULÉ ». Il démarre tout en ligne, donc rien ne change pour le porteur
+tant que l'opérateur ne coupe rien ; au premier contact avec l'automate,
+les ordres repartent à froid comme le fait `PROGRAM machine`.
+
+Cette autorité électrique déborde sur la vérité physique : quand
+`propulsion_dispo` est faux (automate ou modèle logiciel), `Engine.step()`
 (`sim/engine.py`) fait chuter la vitesse réelle du porteur vers 0 —
 sinon couper la batterie ralentirait le RPM affiché sans jamais
 ralentir le bateau. L'ordre de vitesse affiché à l'opérateur (`ordered_speed`)

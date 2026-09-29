@@ -34,14 +34,25 @@ def _engine():
 
 class TestPropulsionElectrique(unittest.TestCase):
     def test_simule_ignore_le_tableau_electrique(self):
-        """Sans automate branché (source SIMULÉ), rien à couper : le
-        porteur avance normalement vers son ordre de vitesse."""
+        """Sans automate branché (source SIMULÉ), le tableau démarre tout en
+        ligne : le porteur avance normalement vers son ordre de vitesse."""
         e = _engine()
         self.assertEqual(e.machine.source, "SIMULÉ")
         e.own.ordered_speed = 15 * KT
         for _ in range(40):
             e.step()
         self.assertGreater(e.own.speed, 0.0)
+
+    def test_simule_couper_la_batterie_ralentit_le_porteur(self):
+        """Même chaîne sans automate : le modèle logiciel de Machine coupe
+        la propulsion, le porteur ralentit pour de vrai."""
+        e = _engine()
+        e.own.speed = 18 * KT
+        e.own.ordered_speed = 18 * KT
+        e.machine.cmd_batterie = False
+        for _ in range(6000):
+            e.step()
+        self.assertAlmostEqual(e.own.speed, 0.0, delta=0.1)
 
     def test_propulsion_indisponible_ramene_la_vitesse_a_zero(self):
         e = _engine()

@@ -1541,7 +1541,10 @@ function renderMachine(){
   // fixe tourne à quelques centaines de tours/min à pleine vitesse.
   const mach = F.machine;
   const rpmReel = mach.source === "MODBUS" && mach.rpm !== null;
-  const rpmVal = rpmReel ? mach.rpm : Math.round(o.ord_spd/MAXKT*MAXRPM);
+  // Estimation : suit la vitesse réelle si la propulsion est coupée
+  // (batterie/générateur/disjoncteur), l'ordre sinon.
+  const vitEstim = mach.propulsion_dispo === false ? o.spd : o.ord_spd;
+  const rpmVal = rpmReel ? mach.rpm : Math.round(vitEstim/MAXKT*MAXRPM);
   $("m-rpm").firstChild.textContent = rpmVal + " ";
   $("m-rpm-lbl").textContent = t(rpmReel ? "RPM ARBRE" : "RPM ARBRE (estimé)");
   orienterAiguille(svgRpm, "m-needle-rpm", rpmVal);
@@ -1556,9 +1559,10 @@ function renderMachine(){
   $("m-barre-row").hidden = !barreOk;
   if(barreOk) $("m-barre-real").innerHTML = pad(mach.barre,2,0)+"<small>°</small>";
 
-  // Tableau électrique : n'existe que dès qu'un automate est réellement
-  // branché — en SIMULÉ il n'y a rien à démarrer (voir sim/machine.py).
-  const elecOk = mach.source === "MODBUS";
+  // Tableau électrique : toujours présent. Sans automate, sim/machine.py
+  // en tient un modèle logiciel (même chaîne que PROGRAM machine) et le
+  // bandeau source affiche SIMULÉ ; brancher l'automate le rend MODBUS.
+  const elecOk = mach.propulsion_dispo !== undefined && mach.propulsion_dispo !== null;
   $("electrical-pane").hidden = !elecOk;
   if(elecOk){
     $("m-src-elec").textContent = t(mach.source);
