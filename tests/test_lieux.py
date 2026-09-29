@@ -57,5 +57,29 @@ class TestLieux(unittest.TestCase):
         self.assertEqual(trouves[0], "Gulf of Finland")
 
 
+PAYS = json.loads((ROOT / "web" / "pays.json").read_text(encoding="utf-8"))
+
+
+class TestPays(unittest.TestCase):
+    def test_pays_et_noms_francais(self):
+        par_nom = {c[0]: c for c in PAYS["pays"]}
+        self.assertGreaterEqual(len(par_nom), 200)
+        self.assertEqual(par_nom["Germany"][1], "Allemagne")
+        # le point d'étiquette de la France est en France (métropole)
+        _, _, lat, lon, *_ = par_nom["France"]
+        self.assertTrue(41 < lat < 51.5 and -5.5 < lon < 9.6, (lat, lon))
+
+    def test_frontieres_presentes_et_bien_formees(self):
+        self.assertGreater(len(PAYS["frontieres"]), 5000)
+        for ln in PAYS["frontieres"][:200]:
+            self.assertGreaterEqual(len(ln), 2)
+            for lon, lat in ln:
+                self.assertTrue(-180 <= lon <= 180 and -90 <= lat <= 90)
+
+    def test_villes_plus_nombreuses_pour_le_zoom_progressif(self):
+        self.assertGreater(len(DOC["villes"]), 2500)
+        self.assertTrue(any(v[4] < 400000 and not v[5] for v in DOC["villes"]))
+
+
 if __name__ == "__main__":
     unittest.main()

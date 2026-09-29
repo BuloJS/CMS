@@ -4,7 +4,7 @@
 Deux fichiers Natural Earth (domaine public), un seul JSON compact en sortie :
 
   * `ne_10m_populated_places` — on garde les capitales d'État et toute ville
-    de plus de 400 000 habitants (~1 200 lieux, une centaine de kilo-octets) ;
+    de plus de 100 000 habitants (~3 100 lieux, environ 250 ko) ;
   * `ne_10m_geography_marine_polys` — océans, mers, golfes, détroits, canaux…
     avec leur contour, pour répondre à « dans quelle mer suis-je ? », et un
     point d'étiquette pour les écrire sur la carte.
@@ -25,7 +25,7 @@ import argparse
 import json
 from pathlib import Path
 
-POP_MIN = 400000
+POP_MIN = 100000
 
 
 def _nom(props, cle_en="NAME_EN", cle="NAME"):

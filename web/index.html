@@ -1016,6 +1016,19 @@ fetch("lieux.json").then(r => r.ok ? r.json() : null).then(d => {
     return [a,b,c,e];
   }));
 }).catch(() => {});
+/* Frontières et noms de pays (web/pays.json, tools/pays.py). Même règle :
+   son absence n'est pas une erreur. */
+let PAYS = null, pays_bb = null;
+fetch("pays.json").then(r => r.ok ? r.json() : null).then(d => {
+  if(!d) return;
+  PAYS = d;
+  pays_bb = d.frontieres.map(ln => {
+    let a=1e9,b=1e9,c=-1e9,e=-1e9;
+    for(const p of ln){ if(p[0]<a)a=p[0]; if(p[0]>c)c=p[0]; if(p[1]<b)b=p[1]; if(p[1]>e)e=p[1]; }
+    return [a,b,c,e];
+  });
+}).catch(() => {});
+const nomPays = c => (LANG === "fr" && c[1]) ? c[1] : c[0];
 const nomVille = v => (LANG === "fr" && v[1]) ? v[1] : v[0];
 const nomMer = m => (LANG === "fr" && m.f) ? m.f : m.n;
 /* Plus petite étendue d'eau nommée qui contient le point (les mers sont
@@ -1176,25 +1189,60 @@ function drawScope(){
     });
   }
 
-  // Villes et capitales dans la fenêtre : repère + nom, sous les pistes.
-  // Le radar voit à travers la terre (documenté), ces repères ne sont que de
-  // la géographie de fond — comme le trait de côte.
-  if(LIEUX && geoOk()){
-    const dl = range/60*1.2, dL = dl/Math.max(Math.cos(F.own.lat*Math.PI/180), .2);
+  // Frontières, noms de pays, villes : géographie de fond, sous les pistes.
+  // Centrés sur ce que la fenêtre montre réellement (porteur + décalage de
+  // vue), pas sur le porteur : un glissé ou un suivi déplace la fenêtre.
+  if((LIEUX || PAYS) && geoOk()){
+    const cLL = toLatLon(followOffset.x, followOffset.y);
+    const dl = range*1.6/60, dL = dl/Math.max(Math.cos(cLL[0]*Math.PI/180), .2);
+    const la0 = cLL[0]-dl, la1 = cLL[0]+dl, lo0 = cLL[1]-dL, lo1 = cLL[1]+dL;
     const pris = [];
-    g.font='9.5px "IBM Plex Mono", monospace'; g.textAlign="left"; g.textBaseline="middle";
-    for(const v of LIEUX.villes){
-      if(Math.abs(v[2]-F.own.lat) > dl || Math.abs(v[3]-F.own.lon) > dL) continue;
-      const P = px(toLocal(v[3], v[2]));
-      if(P.x<6||P.x>W-6||P.y<6||P.y>H-6) continue;
-      g.fillStyle = v[5] ? "#ffe9a8" : "rgba(225,235,205,.85)";
-      if(v[5]){ g.strokeStyle="#ffe9a8"; g.lineWidth=1.2; g.strokeRect(P.x-3.5,P.y-3.5,7,7); }
-      else { g.beginPath(); g.arc(P.x,P.y,2.4,0,7); g.fill(); }
-      const nom = nomVille(v), w = g.measureText(nom).width + 4;
-      const r = [P.x+6, P.y-7, P.x+6+w, P.y+7];
-      if(pris.some(q => r[0]<q[2] && r[2]>q[0] && r[1]<q[3] && r[3]>q[1])) continue;
-      pris.push(r);
-      g.fillText(nom, P.x+7, P.y);
+    const libre = r => !pris.some(q => r[0]<q[2] && r[2]>q[0] && r[1]<q[3] && r[3]>q[1]);
+    if(PAYS){
+      g.save(); g.setLineDash([6,3]); g.strokeStyle="rgba(235,205,140,.5)"; g.lineWidth=1;
+      for(let i=0;i<PAYS.frontieres.length;i++){
+        const bb = pays_bb[i];
+        if(bb[2]<lo0||bb[0]>lo1||bb[3]<la0||bb[1]>la1) continue;
+        const ln = PAYS.frontieres[i];
+        g.beginPath();
+        for(let k=0;k<ln.length;k++){
+          const P = px(toLocal(ln[k][0], ln[k][1]));
+          k ? g.lineTo(P.x,P.y) : g.moveTo(P.x,P.y);
+        }
+        g.stroke();
+      }
+      g.restore();
+      // Noms de pays : seulement là où le point d'étiquette est à l'écran.
+      g.font='11px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
+      for(const c of PAYS.pays){
+        if(c[3]<lo0||c[3]>lo1||c[2]<la0||c[2]>la1) continue;
+        const P = px(toLocal(c[3], c[2]));
+        if(P.x<40||P.x>W-40||P.y<10||P.y>H-10) continue;
+        const nom = nomPays(c).toUpperCase(), w = g.measureText(nom).width;
+        const r = [P.x-w/2-2,P.y-8,P.x+w/2+2,P.y+8];
+        if(!libre(r)) continue;
+        pris.push(r);
+        g.fillStyle = "rgba(245,220,150,.62)"; g.fillText(nom, P.x, P.y);
+      }
+    }
+    if(LIEUX){
+      // Plus on zoome, plus il y a de villes : seuil de population décroissant.
+      const seuil = range>=100 ? 1e6 : range>=50 ? 5e5 : range>=25 ? 2.5e5 : 0;
+      g.font='9.5px "IBM Plex Mono", monospace'; g.textAlign="left"; g.textBaseline="middle";
+      for(const v of LIEUX.villes){
+        if(!v[5] && v[4] < seuil) continue;
+        if(v[2]<la0||v[2]>la1||v[3]<lo0||v[3]>lo1) continue;
+        const P = px(toLocal(v[3], v[2]));
+        if(P.x<6||P.x>W-6||P.y<6||P.y>H-6) continue;
+        g.fillStyle = v[5] ? "#ffe9a8" : "rgba(225,235,205,.85)";
+        if(v[5]){ g.strokeStyle="#ffe9a8"; g.lineWidth=1.2; g.strokeRect(P.x-3.5,P.y-3.5,7,7); }
+        else { g.beginPath(); g.arc(P.x,P.y,2.4,0,7); g.fill(); }
+        const nom = nomVille(v), w = g.measureText(nom).width + 4;
+        const r = [P.x+6, P.y-7, P.x+6+w, P.y+7];
+        if(!libre(r)) continue;
+        pris.push(r);
+        g.fillText(nom, P.x+7, P.y);
+      }
     }
   }
 
@@ -1980,6 +2028,25 @@ function mvDraw(){
       mg.fill("evenodd"); mg.stroke();
     });
   }
+  if(PAYS){
+    mg.save(); mg.setLineDash([5,3]); mg.strokeStyle = "rgba(235,205,140,.55)"; mg.lineWidth = .8;
+    for(const sh of [-360,0,360]){
+      if(mvX(180+sh) < 0 || mvX(-180+sh) > mvW) continue;
+      for(let i=0;i<PAYS.frontieres.length;i++){
+        const bb = pays_bb[i];
+        const x0 = mvX(bb[0]+sh), x1 = mvX(bb[2]+sh), y0 = mvY(bb[3]), y1 = mvY(bb[1]);
+        if(x1<0||x0>mvW||y1<0||y0>mvH) continue;
+        const ln = PAYS.frontieres[i];
+        mg.beginPath();
+        for(let k=0;k<ln.length;k++){
+          const x = mvX(ln[k][0]+sh), y = mvY(ln[k][1]);
+          k ? mg.lineTo(x,y) : mg.moveTo(x,y);
+        }
+        mg.stroke();
+      }
+    }
+    mg.restore();
+  }
   mvNoms();
   // Zones prédéfinies : petits losanges, nom à partir d'un zoom lisible.
   mg.font = '10.5px "IBM Plex Mono", monospace'; mg.textAlign = "left"; mg.textBaseline = "middle";
@@ -2031,24 +2098,45 @@ function mvNoms(){
       mg.fillText(nom, x, y);
     }
   }
-  mg.font = '10.5px "IBM Plex Mono", monospace'; mg.textAlign = "left";
-  for(const v of LIEUX.villes){
-    // Seuils de population selon le zoom ; les capitales dès qu'on s'approche.
-    const seuil = niveau<2 ? 1e9 : niveau<3 ? 5e6 : niveau<4 ? 1.5e6 : 4e5;
-    if(!v[5] && v[4] < seuil) continue;
-    for(const sh of [-360,0,360]){
-      const x = mvX(v[3]+sh), y = mvY(v[2]);
-      if(x<0||x>mvW||y<0||y>mvH) continue;
-      mg.fillStyle = v[5] ? "#ffe9a8" : "rgba(225,235,205,.9)";
-      if(v[5]){ mg.strokeStyle = "#ffe9a8"; mg.lineWidth = 1.2; mg.strokeRect(x-3,y-3,6,6); }
-      else { mg.beginPath(); mg.arc(x,y,2.2,0,7); mg.fill(); }
-      const nom = nomVille(v), w = mg.measureText(nom).width;
-      const r = [x+5,y-7,x+8+w,y+7];
-      if(!libre(r)) continue;
-      pris.push(r);
-      mg.fillText(nom, x+7, y);
+  const villes = capitales => {
+    mg.font = '10.5px "IBM Plex Mono", monospace'; mg.textAlign = "left";
+    for(const v of LIEUX.villes){
+      if(!!v[5] !== capitales) continue;
+      // De mieux en mieux : le seuil de population baisse à chaque cran de zoom.
+      const seuil = niveau<2 ? 1e9 : niveau<2.6 ? 5e6 : niveau<3.2 ? 2e6 : niveau<3.8 ? 1e6
+                  : niveau<4.5 ? 5e5 : niveau<5.5 ? 2.5e5 : 1e5;
+      if(!v[5] && v[4] < seuil) continue;
+      for(const sh of [-360,0,360]){
+        const x = mvX(v[3]+sh), y = mvY(v[2]);
+        if(x<0||x>mvW||y<0||y>mvH) continue;
+        mg.fillStyle = v[5] ? "#ffe9a8" : "rgba(225,235,205,.9)";
+        if(v[5]){ mg.strokeStyle = "#ffe9a8"; mg.lineWidth = 1.2; mg.strokeRect(x-3,y-3,6,6); }
+        else { mg.beginPath(); mg.arc(x,y,2.2,0,7); mg.fill(); }
+        const nom = nomVille(v), w = mg.measureText(nom).width;
+        const r = [x+5,y-7,x+8+w,y+7];
+        if(!libre(r)) continue;
+        pris.push(r);
+        mg.fillText(nom, x+7, y);
+      }
+    }
+  };
+  villes(true);                       // capitales d'abord : leur nom prime
+  if(PAYS){
+    mg.font = '10.5px "IBM Plex Mono", monospace'; mg.textAlign = "center";
+    for(const c of PAYS.pays){
+      if(c[4] > niveau+.3 || niveau > c[4]+5.5) continue;
+      const nom = nomPays(c).toUpperCase(), w = mg.measureText(nom).width;
+      for(const sh of [-360,0,360]){
+        const x = mvX(c[3]+sh), y = mvY(c[2]);
+        if(x<w/2||x>mvW-w/2||y<12||y>mvH-12) continue;
+        const r = [x-w/2-2,y-8,x+w/2+2,y+8];
+        if(!libre(r)) continue;
+        pris.push(r);
+        mg.fillStyle = "rgba(245,220,150,.7)"; mg.fillText(nom, x, y);
+      }
     }
   }
+  villes(false);
 }
 function mvRecherche(q){
   const norm = x => (x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();

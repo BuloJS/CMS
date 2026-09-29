@@ -311,8 +311,8 @@ lequel. *PLACER ICI* recharge alors le scénario ancré là (commande `relocate`
 les contacts suivent le porteur. *REJOUER* garde la position choisie ; changer
 de scénario la remet à zéro. La projection s'arrête à ±85° de latitude.
 
-**Lieux.** `web/lieux.json` (629 ko, `tools/lieux.py`, Natural Earth) porte les
-215 capitales, ~1 250 villes de plus de 400 000 habitants et 300 étendues d'eau
+**Lieux.** `web/lieux.json` (~720 ko, `tools/lieux.py`, Natural Earth) porte les
+215 capitales, ~3 100 villes de plus de 100 000 habitants et 300 étendues d'eau
 nommées (océans, mers, golfes, détroits, canaux) avec leur contour, en français
 et en anglais. Sur le scope, les villes visibles s'affichent avec leur nom
 (carré pour une capitale), et une ligne « où suis-je » donne l'étendue d'eau
@@ -326,6 +326,19 @@ saute à une ville ou une mer.
 curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_populated_places.geojson
 curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_geography_marine_polys.geojson
 python3 tools/lieux.py ne_10m_populated_places.geojson ne_10m_geography_marine_polys.geojson -o web/lieux.json
+```
+
+**Pays.** `web/pays.json` (~1 Mo, `tools/pays.py`) : 7 800 tronçons de frontières
+terrestres (Natural Earth 10 m, au km près) et le nom de chaque pays avec son
+point d'étiquette. Frontières en pointillés sur le scope et la carte, noms en
+capitales. Les villes apparaissent **progressivement** au zoom, comme sur une
+carte routière : capitales d'abord, puis les plus grandes villes, puis de plus
+en plus petites (seuil de population décroissant). Sur la carte du monde la
+priorité d'étiquette est mers, capitales, pays, autres villes ; un nom qui en
+chevaucherait un plus prioritaire est simplement omis.
+
+```bash
+python3 tools/pays.py ne_10m_admin_0_boundary_lines_land.geojson ne_50m_admin_0_countries.geojson -o web/pays.json
 ```
 
 Limites : les contours de mers sont arrondis (0,1° ; 0,01° pour les petits),
