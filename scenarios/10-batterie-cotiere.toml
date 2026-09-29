@@ -1,0 +1,78 @@
+name = "Batterie côtière — zone de verrouillage"
+brief = """Le porteur longe la côte marocaine, à l'ouest du détroit de Gibraltar.
+Une batterie de missiles antinavires ennemie, installée sur les hauteurs, tient
+sous son radar une zone de trente milles autour d'elle. Dès que le porteur y
+entre, elle le verrouille, laisse trente secondes de délai, puis lâche une
+salve de quatre missiles — et une seconde quatre minutes plus tard si le porteur
+est toujours dans la zone. Un marchand et une frégate alliée sont dans les
+parages."""
+attendu = """La batterie est fixe et à terre : on ne la « détruit » pas, on sort de sa
+zone. Alerte « conduite de tir ennemie » à l'entrée (avec le relèvement), puis
+« départ missile » et une salve de quatre à traiter — plusieurs missiles à la
+fois, donc la console cadre la zone. Leurres et SAM contre la première salve,
+demi-tour pour ne pas subir la seconde. Le CIWS ne tire pas seul."""
+
+name_en = "Coastal battery — lock-on zone"
+brief_en = """Own ship follows the Moroccan coast, west of the Strait of Gibraltar. An
+enemy anti-ship missile battery on the heights holds a thirty-mile zone under
+its radar. As soon as own ship enters it, it locks on, waits thirty seconds,
+then fires a salvo of four missiles — and a second one four minutes later if
+own ship is still in the zone. A merchant and an allied frigate are around."""
+attendu_en = """The battery is fixed and ashore: you do not "destroy" it, you leave
+its zone. "Enemy fire control" alert on entry (with a bearing), then "missile
+launch" and a salvo of four to deal with — several missiles at once, so the
+console frames the area. Decoys and SAM against the first salvo, a U-turn to
+avoid the second. CIWS does not fire on its own."""
+
+seed = 1010
+duration = 1200
+
+[doctrine]
+auto_ciws = false
+
+[ownship]
+lat = 35.90
+lon = -6.53
+course = 90
+speed_kt = 22
+mast_m = 30
+leurres = 20
+
+# La batterie : à terre (kind = "land"), immobile, antenne en hauteur pour que
+# son horizon radio couvre sa zone.
+[[contact]]
+id = "BAT-1"
+name = "Batterie côtière"
+kind = "land"
+lat = 35.76
+lon = -5.90
+alt_ft = 260
+rcs = 300
+emitters = ["search"]
+intent = "hostile"
+attaque = { arme = "asm", nb = 4, portee_nm = 30, delai_s = 30, cadence_s = 240, tirs_max = 2 }
+
+[[contact]]
+id = "MV-ALGECIRAS"
+name = "MV ALGECIRAS STAR"
+kind = "surf"
+lat = 36.03
+lon = -6.30
+course = 95
+speed_kt = 13
+rcs = 9000
+ais = true
+emitters = ["nav"]
+ais_data = { mmsi = 224512000, callSign = "EAGS", imo = 9411223, type = 70, navStat = 0, refA = 140, refB = 30, refC = 14, refD = 12, draught = 80, destination = "ALGECIRAS" }
+
+[[contact]]
+id = "FFG-ESCORTE"
+name = "Frégate alliée"
+kind = "surf"
+lat = 35.99
+lon = -6.44
+course = 90
+speed_kt = 22
+rcs = 4000
+iff = true
+emitters = ["nav"]

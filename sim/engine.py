@@ -71,7 +71,8 @@ class Engine:
         self.terre = None
         self.crash = None
         self._tic_terre = 0
-        self._attaques = {}       # uid -> {"acquis": t ou None, "fait": bool}
+        self._attaques = {}       # uid -> état de verrouillage (voir _attaquer)
+        self._tirs = {}           # uid tireur -> nombre de missiles déjà tirés
         # Un impact met fin à la simulation. Le Monte-Carlo (tools/montecarlo.py)
         # le désactive : il compte les impacts d'une salve entière, pas le premier.
         self.fin_sur_impact = True
@@ -154,30 +155,48 @@ class Engine:
     def _attaquer(self):
         """Les contacts à comportement offensif (`attaque`) : à portée du
         porteur, ils l'illuminent — l'ESM l'entend et le journal alerte —
-        puis tirent leur salve après le délai de verrouillage. Rien n'est
-        scripté à l'instant près : la chronologie dépend de la route du
-        porteur, ce qui laisse à l'opérateur le temps d'agir… ou pas."""
+        puis tirent après le délai de verrouillage. Rien n'est scripté à
+        l'instant près : la chronologie dépend de la route du porteur, ce qui
+        laisse à l'opérateur le temps d'agir… ou pas.
+
+        Réglages de `attaque` : arme, nb (missiles par tir), portee_nm (la
+        zone dans laquelle il verrouille), delai_s (verrouillage), et pour
+        tirer plusieurs fois cadence_s (intervalle entre deux tirs tant que le
+        porteur reste dans la zone) et tirs_max (par défaut 1 sans cadence,
+        illimité avec). Sortir de la zone fait perdre le verrouillage : il
+        faudra en refaire un — c'est ce qui rend une zone d'interdiction
+        franchissable."""
         for c in list(self.world.values()):      # _launch() ajoute des missiles
             if not c.attaque or not c.alive:
                 continue
-            st = self._attaques.setdefault(c.uid, {"acquis": None, "fait": False})
-            if st["fait"]:
+            a = c.attaque
+            st = self._attaques.setdefault(
+                c.uid, {"acquis": None, "prochain": None, "tirs": 0,
+                        "emetteurs": list(c.emitters)})
+            cadence = float(a.get("cadence_s", 0.0))
+            tirs_max = int(a.get("tirs_max", 999 if cadence > 0 else 1))
+            if st["tirs"] >= tirs_max:
                 continue
             d = rng(c.x - self.own.x, c.y - self.own.y)
-            if d > float(c.attaque.get("portee_nm", 25.0)) * NM:
+            if d > float(a.get("portee_nm", 25.0)) * NM:
+                if st["acquis"] is not None:          # sorti de la zone : plus de verrou
+                    st["acquis"], st["prochain"] = None, None
+                    c.emitters = list(st["emetteurs"])
                 continue
             if st["acquis"] is None:
                 st["acquis"] = self.t
+                st["prochain"] = self.t + float(a.get("delai_s", 20.0))
                 c.emitters = ["fc"]
                 # Le relèvement seulement : ce que l'ESM donne, pas le nom du
                 # navire qui nous illumine.
                 brg = bearing(c.x - self.own.x, c.y - self.own.y)
                 self.log("crit", "ALERTE — conduite de tir ennemie sur nous, relèvement %03d°" % round(brg),
                          code="verrouillage", brg=round(brg))
-            elif self.t - st["acquis"] >= float(c.attaque.get("delai_s", 20.0)):
-                st["fait"] = True
-                self._launch({"from": c.uid, "weapon": c.attaque.get("arme", "asm"),
-                              "count": int(c.attaque.get("nb", 1))})
+            elif st["prochain"] is not None and self.t >= st["prochain"]:
+                st["tirs"] += 1
+                st["prochain"] = self.t + cadence if cadence > 0 else None
+                self._launch({"from": c.uid, "weapon": a.get("arme", "asm"),
+                              "count": int(a.get("nb", 1))})
 
     def _launch(self, e):
         src = self.world.get(e.get("from"))
@@ -185,7 +204,10 @@ class Engine:
             return
         spec = WEAPONS.get(e.get("weapon", "asm"), WEAPONS["asm"])
         for i in range(int(e.get("count", 1))):
-            uid = "%s-M%d" % (src.uid, i + 1)
+            # Numéro cumulé par tireur : un même navire qui tire toutes les
+            # deux minutes ne doit pas écraser son missile précédent.
+            self._tirs[src.uid] = self._tirs.get(src.uid, 0) + 1
+            uid = "%s-M%d" % (src.uid, self._tirs[src.uid])
             brg = bearing(self.own.x - src.x, self.own.y - src.y)
             # Dispersion de salve. Deux munitions tirées au même instant depuis
             # le même point volent en formation parfaite et ne forment qu'une

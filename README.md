@@ -346,16 +346,26 @@ donc la frontière entre deux étendues est à quelques milles près ; les ville
 sont des points, pas des emprises.
 
 **Attaque autonome et impact.** Un contact peut porter un comportement offensif :
-`attaque = { arme = "asm", nb = 2, portee_nm = 28, delai_s = 20 }`. Dès que le
-porteur est à portée il l'illumine (alerte « conduite de tir ennemie » avec le
-relèvement), puis tire sa salve `delai_s` plus tard (« départ missile ») — la
-chronologie dépend donc de la route du porteur. Un scénario peut aussi
+`attaque = { arme = "asm", nb = 2, portee_nm = 28, delai_s = 20 }`. `portee_nm`
+est sa **zone** : dès que le porteur y entre il l'illumine (alerte « conduite de
+tir ennemie » avec le relèvement), puis tire `nb` missiles `delai_s` plus tard
+(« départ missile »). `cadence_s` le fait retirer à intervalle régulier tant que
+le porteur reste dans la zone (`tirs_max` limite le nombre de tirs) ; en sortir
+lui fait **perdre le verrou**, à refaire en rentrant. Un contact `kind = "land"`
+est une installation fixe à terre (batterie) : elle ne peut pas être déplacée
+en mer par le sélecteur de carte. La chronologie dépend de la route du porteur. Un scénario peut aussi
 surcharger la doctrine (`[doctrine] auto_ciws = false`) et le stock de leurres
 (`[ownship] leurres = 20`). **Un missile qui arrive au but fige la simulation**
 (bandeau « TOUCHÉ », comme l'échouement) ; `tools/montecarlo.py` désactive ça
 (`fin_sur_impact = False`) pour compter tous les impacts d'une salve. Côté console,
-une piste rapide (> 400 nœuds) qui fonce sur le porteur est accrochée et suivie
-automatiquement, avec une barre « MISSILE EN APPROCHE — impact dans N s » ;
+une piste rapide (> 400 nœuds) qui fonce sur le porteur déclenche une barre
+« MISSILE EN APPROCHE — impact dans N s ». **Un seul missile** : la console
+l'accroche et le suit. **Une salve** : suivre l'un d'eux ferait sauter la vue de
+l'un à l'autre, la console **cadre donc la zone** qui les contient tous
+(échelle qui s'élargit tout de suite, ne se resserre que si tous sont très à
+l'aise, au plus une fois toutes les 3 s), centrée sur le porteur, et accroche le
+plus pressant (impact le plus proche) pour le panneau ; repasser au suivi exige
+d'être seul depuis 3 s. Toucher à l'échelle donne la main à l'opérateur 10 s ;
 les leurres (5 NM, 45 % de séduction par largage) et le SAM restent manuels.
 
 **Échouement.** `sim/terre.py` teste le porteur contre les contours de terre
@@ -531,7 +541,8 @@ Voir [`plc/modbus-map.md`](plc/modbus-map.md).
 | `03-avarie-refroidissement` | Même attaque, pompe arrêtée à 60 s | Détection tardive, décrochage de pistes — la bonne réaction est côté IPMS autant que côté CMS |
 | `04-veille-trafic-reel` | Aucun contact scripté : le trafic AIS, au milieu du golfe de Finlande | Les grands navires sortent à l'horizon, les petits mobiles de près. La corrélation AIS renseigne les coopératifs |
 | `05-identite-douteuse` | Rail marchand dense, quatre contacts atypiques : un muet, une extinction, une position falsifiée, un MMSI inexistant | Chacun détecté pour ce qu'il est, aucun classé hostile, le trafic honnête indemne |
-| `09-alerte-missile` | Trois attaquants (deux vedettes, un avion) qui décident seuls : illuminent à portée, verrouillent, tirent — CIWS en manuel, 20 leurres | Alerte conduite de tir puis départ missile, suivi automatique de la menace, leurres dans les cinq derniers milles ou SAM ; touché = simulation arrêtée |
+| `09-alerte-missile` | Barrage : deux bâtiments à poste, zone de 24 NM chacun ; à l'entrée ils verrouillent puis tirent un missile toutes les 2 min tant que le porteur reste dans la zone — CIWS en manuel, 20 leurres | Alerte conduite de tir puis départ missile ; leurres, SAM ou demi-tour hors de la zone (le verrou est perdu en sortant) ; touché = simulation arrêtée |
+| `10-batterie-cotiere` | Une batterie de missiles à terre (Maroc, lat/lon) avec un radar de 30 NM : verrouille à l'entrée de la zone, salve de 4, seconde salve 4 min plus tard si le porteur y est encore | Salve à traiter (la console cadre la zone), demi-tour pour éviter la seconde ; la batterie ne peut pas être détruite, on sort de sa zone |
 | `08-monde-gibraltar` | Même mise en scène que 07, ailleurs : approches de Gibraltar, tous les bâtiments posés en lat/lon sur la carte du monde | Mêmes classements que 07 ; côtes d'Espagne et du Maroc au bon endroit, radar borné par son horizon |
 | `06-plc-armement` | Atelier vide, sans piste ni événement — pour développer et tester le séquencement du lanceur sur un vrai automate | Pas de solution attendue : vérifier que l'automate fait ce qu'il doit, voir `plc/modbus-map.md` |
 | `07-flotte-mixte` | Dix bâtiments sur le rail Helsinki–Tallinn : 2 alliés (IFF), 3 marchands (AIS), 2 silencieux, 3 hostiles dont un qui passe en conduite de tir à 300 s et tire à 720 s | Alliés AMI, marchands NEUTRE, silencieux INCONNU ; hostiles classés par doctrine sauf celui qui n'émet qu'en veille |

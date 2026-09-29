@@ -252,6 +252,11 @@ def verifier_placement(chemin, lat, lon, fine=None):
                 out.append({"code": "porteur_echoue", "id": "", "t": int(t)})
                 break
             t += 30.0
+    # Une installation à terre (batterie côtière) doit rester à terre : un
+    # déplacement du scénario qui la jetterait à la mer n'a pas de sens.
+    for c in sc["contacts"]:
+        if c.kind == "land" and not terre.a_terre(c.x, c.y):
+            out.append({"code": "batterie_en_mer", "id": c.uid, "t": 0})
     return out + problemes_de_route(terre, sc["contacts"], duree)
 
 

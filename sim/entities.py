@@ -14,7 +14,7 @@ class Contact:
     """Une plateforme réelle : navire, aéronef, missile."""
     uid: str
     name: str
-    kind: str                 # air | surf | missile
+    kind: str                 # air | surf | missile | land (installation fixe à terre)
     x: float
     y: float
     alt: float = 0.0          # m
@@ -63,7 +63,7 @@ class Contact:
         """Hauteur vue par l'horizon radio. Un navire n'est pas un point au
         niveau de la mer : c'est sa superstructure qu'on voit dépasser, une
         quinzaine de mètres. Lui donner une hauteur nulle le rend invisible."""
-        return max(self.alt, 15.0) if self.kind == "surf" else self.alt
+        return max(self.alt, 15.0) if self.kind in ("surf", "land") else self.alt
 
     @property
     def vxy(self):

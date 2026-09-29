@@ -658,6 +658,7 @@ const EN = {
   "La route du porteur s'échoue à t+{t} s":"Own ship's route runs aground at t+{t} s",
   "{id} serait posé à terre":"{id} would be placed on land",
   "{id} s'échoue à t+{t} s":"{id} runs aground at t+{t} s",
+  "{id} est une installation à terre : elle ne peut pas être à la mer":"{id} is a shore installation: it cannot be at sea",
   "Choisissez plutôt une zone prédéfinie":"Pick a preset zone instead",
   "ANNEAUX":"RINGS", "ROTATION 15 tr/min":"15 rpm SWEEP", "OUVR.":"OPENING",
   "SAM courte portée":"Short-range SAM", "Artillerie 76 mm":"76 mm gun",
@@ -1118,6 +1119,7 @@ const px = p => ({x: cx + (p.x-followOffset.x)/range*R, y: cy - (p.y-followOffse
    « rétrécit » pas, et un contact n'est jamais hors radar parce qu'on a
    zoomé. */
 let zone_sec = -1;
+let zone_manuel = 0, zone_dernier = 0;     // cadrage automatique d'une salve (voir majAlertes)
 let RADAR_NM = 110;   // remplacé par F.radar.max_nm dès la première trame
 
 function drawScope(){
@@ -1484,10 +1486,29 @@ function drawScope(){
    l'opérateur — et une barre affiche le temps avant impact. Les leurres et le
    SAM restent à faire à la main : la console ne décide pas du tir. */
 let alerte_n = null, alerte_t = 0, alerte_fin = 0;
-const menace_vues = new Set();
+let menace_mode = "", menace_id = "", menace_seul_t = 0;
+/* Cadre une salve : la plus petite échelle qui garde tous les missiles à
+   l'écran (à 80 % du rayon). On élargit tout de suite quand l'un sort du
+   cadre, on ne resserre que lorsqu'ils sont très à l'aise (< 35 %), et jamais
+   plus d'un changement toutes les 3 s — une vue qui saute à chaque tour
+   d'antenne est pire que pas de vue. L'opérateur a la main pendant 10 s dès
+   qu'il touche à l'échelle. */
+function cadrerZone(entrants){
+  const now = performance.now();
+  if(now - zone_manuel < 10000 || now - zone_dernier < 3000) return;
+  const maxr = Math.max(...entrants.map(x => x.rng));
+  const besoin = ECHELLES.find(v => maxr <= v*0.8) || ECHELLES[ECHELLES.length-1];
+  let cible = range;
+  if(maxr > range*0.9) cible = besoin;
+  else if(maxr < range*0.35) cible = besoin;
+  if(cible !== range){
+    range = cible; zone_dernier = now;
+    document.querySelectorAll(".rangepad button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.r === cible)));
+  }
+}
 function majAlertes(){
   const evs = F.events || [];
-  if(F.t < alerte_t){ alerte_n = null; menace_vues.clear(); }      // rejouer / nouveau scénario
+  if(F.t < alerte_t){ alerte_n = null; menace_mode = ""; menace_id = ""; menace_seul_t = 0; }      // rejouer / nouveau scénario
   alerte_t = F.t;
   if(alerte_n === null) alerte_n = evs.length ? evs[0].n : 0;      // pas d'historique à la connexion
   for(const e of [...evs].reverse()){
@@ -1502,14 +1523,39 @@ function majAlertes(){
 
   const entrants = F.tracks.filter(x => x.spd > 400 && x.tcpa > 0 && x.cpa < 3)
                            .sort((a,b) => a.tcpa - b.tcpa);
-  const nouveaux = entrants.filter(x => !menace_vues.has(x.id));
-  if(nouveaux.length){
-    nouveaux.forEach(x => menace_vues.add(x.id));
-    hooked = nouveaux[0].id;                       // la plus pressante d'abord
-    suivi = true;
-    $("sk-suivi").setAttribute("aria-pressed", "true");
-    $("sk-suivi").disabled = false;
-    zoomSur(nouveaux[0]);
+  // Un seul missile : on l'accroche et on le suit. Une salve : suivre l'un
+  // d'eux ferait sauter la vue de l'un à l'autre — on cadre donc la zone qui
+  // les contient tous, centrée sur le porteur, en accrochant le plus pressant
+  // (le plus proche d'impact) pour le panneau. Repasser de la zone au suivi
+  // exige d'être seul depuis 3 s : les pistes de missiles clignotent, et un
+  // « il n'en reste qu'un » d'une seconde ne doit pas faire changer la vue.
+  const now = performance.now();
+  const suivre = x => {
+    menace_mode = "suivi"; menace_id = x.id; menace_seul_t = 0;
+    hooked = x.id; suivi = true;
+    $("sk-suivi").setAttribute("aria-pressed", "true"); $("sk-suivi").disabled = false;
+    zoomSur(x);
+  };
+  if(!entrants.length){
+    menace_mode = ""; menace_id = ""; menace_seul_t = 0;
+  }else if(entrants.length === 1){
+    if(menace_mode !== "zone"){
+      if(menace_id !== entrants[0].id) suivre(entrants[0]);
+    }else if(!menace_seul_t){
+      menace_seul_t = now;
+    }else if(now - menace_seul_t > 3000){
+      suivre(entrants[0]);
+    }
+  }else{
+    menace_seul_t = 0;
+    if(menace_mode !== "zone"){
+      menace_mode = "zone";
+      suivi = false; $("sk-suivi").setAttribute("aria-pressed", "false");
+      panOffset = {x:0, y:0};
+      zone_dernier = 0;                       // premier cadrage sans attendre
+    }
+    hooked = entrants[0].id;
+    cadrerZone(entrants);
   }
   const m = $("menace");
   if(!entrants.length || F.crash){ m.hidden = true; return; }
@@ -2258,7 +2304,8 @@ function libProbleme(p){
                porteur_cote:"Trop près de la côte : 3 NM d'eau libre requis",
                porteur_echoue:"La route du porteur s'échoue à t+{t} s",
                contact_terre:"{id} serait posé à terre",
-               contact_echoue:"{id} s'échoue à t+{t} s"}[p.code] || p.code;
+               contact_echoue:"{id} s'échoue à t+{t} s",
+               batterie_en_mer:"{id} est une installation à terre : elle ne peut pas être à la mer"}[p.code] || p.code;
   return t(cle).replace("{id}", p.id).replace("{t}", p.t);
 }
 async function mvOuvrir(){
@@ -2697,6 +2744,7 @@ cv.addEventListener("wheel", e=>{
   // pouvoir dézoomer jusqu'à voir tout le bord de couverture. Le fond de
   // carte réellement chargé (web/coastline.json) est découpé à 300 NM.
   range = clamp(range * (e.deltaY > 0 ? 1.15 : 1/1.15), 1, 130);
+  zone_manuel = performance.now();
   document.querySelectorAll(".rangepad button").forEach(b=>b.setAttribute("aria-pressed","false"));
 }, {passive:false});
 
@@ -2743,7 +2791,7 @@ $("hook-body").addEventListener("click", e=>{
 });
 document.querySelectorAll(".rangepad button").forEach(b=>{
   b.onclick=()=>{ document.querySelectorAll(".rangepad button").forEach(o=>o.setAttribute("aria-pressed","false"));
-    b.setAttribute("aria-pressed","true"); range=+b.dataset.r; };
+    b.setAttribute("aria-pressed","true"); range=+b.dataset.r; zone_manuel = performance.now(); };
 });
 const tgl=(id,fn)=>{ $(id).onclick=e=>{ const on=e.currentTarget.getAttribute("aria-pressed")!=="true";
   e.currentTarget.setAttribute("aria-pressed",String(on)); fn(on); }; };

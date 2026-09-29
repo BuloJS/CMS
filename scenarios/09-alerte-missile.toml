@@ -1,35 +1,37 @@
-name = "Alerte missile — verrouillage et salve"
-brief = """Veille dans le golfe de Finlande, trafic marchand autour. Trois bâtiments
-ennemis convergent sur le porteur : deux vedettes qui se sont tenues sous
-l'horizon radio, et un avion de patrouille maritime. Personne ne tire à une
-heure fixée : chacun illumine dès qu'il est à portée de tir, laisse un délai
-de verrouillage, puis tire sa salve. La chronologie dépend de la route du
-porteur."""
-attendu = """L'alerte arrive en deux temps : d'abord « conduite de tir ennemie »
-(l'ESM entend l'illumination, avec le relèvement), puis « départ missile ». Les
-missiles rasants ne sont pistés qu'à l'horizon radio, environ deux minutes
-avant l'impact, et les leurres n'agissent que dans les cinq derniers milles :
-il faut suivre la menace (SUIVI), attendre la fenêtre et larguer, plusieurs fois
-si besoin — chaque largage n'en séduit que 45 %. Trop tôt, il ne se passe rien ;
-trop tard, le porteur est touché et la simulation s'arrête. Le SAM et le CIWS
-sont l'autre réponse."""
+name = "Alerte missile — barrage de deux bâtiments"
+brief = """Deux bâtiments ennemis tiennent la mer à l'ancre, l'un au nord, l'autre
+au sud de la route du porteur, à une dizaine de milles l'un de l'autre. Chacun
+surveille une zone de vingt-quatre milles autour de lui : dès que le porteur y
+entre, il l'illumine (conduite de tir), laisse un délai de verrouillage, puis
+tire un missile toutes les deux minutes tant que le porteur reste dans sa zone.
+Sortir de la zone leur fait perdre le verrouillage — il faudra qu'ils le
+refassent. Du trafic marchand passe alentour."""
+attendu = """Deux alertes se succèdent : d'abord « conduite de tir ennemie » (avec le
+relèvement), puis « départ missile ». Les missiles rasants ne sont pistés qu'à
+l'horizon radio, environ deux minutes avant l'impact, et les leurres n'agissent
+que dans les cinq derniers milles. Plusieurs missiles à la fois : la console
+cadre la zone au lieu de suivre un seul missile, et accroche le plus pressant.
+Un seul missile : elle le suit. Leurres, SAM, ou demi-tour hors de la zone —
+le CIWS ne tire pas seul ici. Trop tard, le porteur est touché et la
+simulation s'arrête."""
 
-name_en = "Missile alert — lock-on and salvo"
-brief_en = """Watch in the Gulf of Finland, merchant traffic around. Three enemy
-units converge on own ship: two fast boats that stayed under the radio horizon,
-and a maritime patrol aircraft. Nobody fires at a set time: each illuminates as
-soon as it is within firing range, waits a lock-on delay, then fires its salvo.
-The timeline depends on own ship's course."""
-attendu_en = """The alert comes in two steps: first "enemy fire control on us" (ESM
-hears the illumination, with a bearing), then "missile launch". Sea-skimming
-missiles are only tracked at the radio horizon, about two minutes before
-impact, and decoys only work in the last five miles: follow the threat
-(FOLLOW), wait for the window and deploy, several times if needed — each
-deployment seduces only 45% of them. Too early, nothing happens; too late, own
-ship is hit and the simulation stops. SAM and CIWS are the other answer."""
+name_en = "Missile alert — two-ship barrier"
+brief_en = """Two enemy vessels hold station at sea, one north and one south of own
+ship's route, about ten miles apart. Each watches a twenty-four mile zone
+around itself: as soon as own ship enters it, it illuminates (fire control),
+waits a lock-on delay, then fires one missile every two minutes for as long as
+own ship stays in its zone. Leaving the zone makes them lose the lock — they
+have to re-acquire. Merchant traffic passes around."""
+attendu_en = """Two alerts in sequence: first "enemy fire control" (with a bearing),
+then "missile launch". Sea-skimming missiles are only tracked at the radio
+horizon, about two minutes before impact, and decoys only work in the last
+five miles. Several missiles at once: the console frames the area instead of
+following a single one, and hooks the most pressing. A single missile: it
+follows it. Decoys, SAM, or a U-turn out of the zone — CIWS does not fire on its
+own here. Too late, and own ship is hit and the simulation stops."""
 
 seed = 909
-duration = 900
+duration = 1500
 
 # Le CIWS ne tire pas seul : ce scénario est celui des leurres et du SAM.
 [doctrine]
@@ -72,43 +74,29 @@ ais = true
 emitters = ["nav"]
 ais_data = { mmsi = 275339000, callSign = "YLBS", imo = 9478815, type = 80, navStat = 0, refA = 190, refB = 40, refC = 20, refD = 18, draught = 115, destination = "PORVOO" }
 
-# --- les attaquants : chacun décide seul ---------------------------------
+# --- le barrage : deux bâtiments à poste, un tir toutes les deux minutes -----
 [[contact]]
 id = "HST-1"
-name = "Vedette lance-missiles"
+name = "Bâtiment de barrage nord"
 kind = "surf"
-brg = 85
-rng_nm = 31
-course = 270
-speed_kt = 32
-rcs = 400
-emitters = ["search"]
-intent = "hostile"
-attaque = { arme = "asm", nb = 2, portee_nm = 28, delai_s = 20 }
-
-[[contact]]
-id = "HST-2"
-name = "Corvette hostile"
-kind = "surf"
-brg = 100
-rng_nm = 31
-course = 280
-speed_kt = 26
+brg = 78
+rng_nm = 25
+course = 0
+speed_kt = 0
 rcs = 2500
 emitters = ["search"]
 intent = "hostile"
-attaque = { arme = "asm", nb = 1, portee_nm = 27, delai_s = 90 }
+attaque = { arme = "asm", nb = 1, portee_nm = 24, delai_s = 25, cadence_s = 120 }
 
 [[contact]]
-id = "AIR-1"
-name = "Avion de patrouille"
-kind = "air"
-brg = 20
-rng_nm = 62
-course = 200
-speed_kt = 300
-alt_ft = 15000
-rcs = 8
+id = "HST-2"
+name = "Bâtiment de barrage sud"
+kind = "surf"
+brg = 102
+rng_nm = 25.5
+course = 0
+speed_kt = 0
+rcs = 2500
 emitters = ["search"]
 intent = "hostile"
-attaque = { arme = "asm", nb = 1, portee_nm = 45, delai_s = 30 }
+attaque = { arme = "asm", nb = 1, portee_nm = 24, delai_s = 50, cadence_s = 120 }
