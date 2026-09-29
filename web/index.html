@@ -882,6 +882,17 @@ function resize(){
 }
 new ResizeObserver(resize).observe(cv.parentElement);
 const px = p => ({x: cx + (p.x-followOffset.x)/range*R, y: cy - (p.y-followOffset.y)/range*R});
+/* Le radar est un objet du monde, pas du cadre : sa portée (sim/sensors.py
+   Radar.max_range = 110 NM) et ses anneaux de distance sont fixes en NM.
+   Zoomer ne fait que changer la fenêtre qu'on ouvre dessus — les anneaux ne
+   se redéfinissent pas, le bord de couverture ne « rétrécit » pas, et un
+   contact n'est jamais hors radar parce qu'on a zoomé. */
+const RADAR_NM = 110;
+const PAS_ANNEAUX = [1,2,5,10,20,25,50];
+// Plus petit pas « rond » qui garde les anneaux à ≥ 70 px les uns des autres.
+function pasAnneaux(){
+  return PAS_ANNEAUX.find(v => v/range*R >= 70) || PAS_ANNEAUX[PAS_ANNEAUX.length-1];
+}
 
 function drawScope(){
   g.clearRect(0,0,W,H);
@@ -959,8 +970,36 @@ function drawScope(){
     });
   }
 
-  g.strokeStyle="rgba(96,168,240,.30)"; g.lineWidth=1;
-  for(let i=1;i<=4;i++){ g.beginPath(); g.arc(op.x,op.y,R*i/4,0,7); g.stroke(); }
+  // Anneaux de distance fixes en NM, ancrés sur le porteur. Un anneau
+  // trop grand pour être visible (rayon > 3 cadres) n'apporte rien et
+  // coûte un arc énorme : on saute.
+  const pas = pasAnneaux(), rMaxPx = 3*Math.max(W,H);
+  g.font='9.5px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
+  for(let d=pas; d<RADAR_NM; d+=pas){
+    const rp = d/range*R;
+    if(rp > rMaxPx) break;
+    g.strokeStyle="rgba(96,168,240,.30)"; g.lineWidth=1;
+    g.beginPath(); g.arc(op.x,op.y,rp,0,7); g.stroke();
+    // Étiquette au premier gisement où l'anneau est à l'écran.
+    for(const a of [40,320,140,220,90,270]){
+      const ax=op.x+Math.sin(a*Math.PI/180)*rp, ay=op.y-Math.cos(a*Math.PI/180)*rp;
+      if(ax>18 && ax<W-18 && ay>10 && ay<H-10){
+        g.fillStyle="rgba(150,200,245,.7)"; g.fillText(d+" NM", ax, ay-8); break;
+      }
+    }
+  }
+  // Bord de couverture du radar, fixe lui aussi.
+  const rc = RADAR_NM/range*R;
+  if(rc <= rMaxPx){
+    g.save(); g.setLineDash([8,6]); g.strokeStyle="rgba(140,205,255,.55)"; g.lineWidth=1.4;
+    g.beginPath(); g.arc(op.x,op.y,rc,0,7); g.stroke(); g.restore();
+    for(const a of [40,320,140,220]){
+      const ax=op.x+Math.sin(a*Math.PI/180)*rc, ay=op.y-Math.cos(a*Math.PI/180)*rc;
+      if(ax>40 && ax<W-40 && ay>10 && ay<H-10){
+        g.fillStyle="rgba(190,235,255,.85)"; g.fillText("RADAR "+RADAR_NM+" NM", ax, ay-8); break;
+      }
+    }
+  }
   g.font='10px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
   for(let a=0;a<360;a+=5){
     const long=a%30===0, len=long?11:5, s=Math.sin(a*Math.PI/180), c=Math.cos(a*Math.PI/180);
@@ -971,14 +1010,14 @@ function drawScope(){
 
   const sweep = REDUCED ? 0 : (simT()*90)%360;
   if(!REDUCED){
-    const a0=sweep*Math.PI/180;
+    const a0=sweep*Math.PI/180, RB = Math.min(RADAR_NM/range*R, rMaxPx);
     g.save(); g.globalCompositeOperation="lighter";
     for(let i=0;i<26;i++){
       const a=a0-i*0.028;
-      g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(a)*R,op.y-Math.cos(a)*R);
+      g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(a)*RB,op.y-Math.cos(a)*RB);
       g.strokeStyle="rgba(150,225,255,"+(0.16*(1-i/26))+")"; g.lineWidth=2.4; g.stroke();
     }
-    g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(a0)*R,op.y-Math.cos(a0)*R);
+    g.beginPath(); g.moveTo(op.x,op.y); g.lineTo(op.x+Math.sin(a0)*RB,op.y-Math.cos(a0)*RB);
     g.strokeStyle="rgba(190,240,255,.85)"; g.lineWidth=1.4; g.stroke();
     g.restore();
   }
@@ -987,20 +1026,22 @@ function drawScope(){
     const q = dr(t), p = px(q);
     const rr = Math.hypot(q.x,q.y);
     const brg = (Math.atan2(q.x,q.y)*180/Math.PI+360)%360;
-    if(rr > range*1.03){
+    if(p.x < -6 || p.x > W+6 || p.y < -6 || p.y > H+6){
       // Piste toujours détectée (elle reste dans THREATS, cliquable pour
-      // recentrer via zoomSur) mais hors du cercle à l'échelle actuelle —
-      // sans repère, ça se lit comme "plus vue du tout" en zoomant. Un
-      // chevron en bordure, dans le bon gisement, suffit à le corriger
-      // sans réafficher la piste elle-même (trace/vecteur n'auraient pas
-      // de sens hors cadre).
-      const ang = brg*Math.PI/180, ex = op.x+Math.sin(ang)*(R-15), ey = op.y-Math.cos(ang)*(R-15);
+      // recentrer via zoomSur) mais hors de la fenêtre à l'échelle
+      // actuelle — sans repère, ça se lit comme "plus vue du tout" en
+      // zoomant. Un chevron au bord de l'écran, dans la direction de la
+      // piste, suffit à le corriger sans réafficher la piste elle-même
+      // (trace/vecteur n'auraient pas de sens hors cadre).
+      const dx = p.x-cx, dy = p.y-cy;
+      const k = Math.min((W/2-16)/Math.max(Math.abs(dx),1e-6), (H/2-16)/Math.max(Math.abs(dy),1e-6));
+      const ex = cx+dx*k, ey = cy+dy*k, ang = Math.atan2(dx,-dy), n = Math.hypot(dx,dy)||1;
       const col = AFF[t.aff].c;
       g.save(); g.translate(ex,ey); g.rotate(ang);
       g.beginPath(); g.moveTo(0,-7); g.lineTo(5,4); g.lineTo(-5,4); g.closePath();
       g.fillStyle=col; g.globalAlpha=.85; g.fill(); g.restore(); g.globalAlpha=1;
       g.font='9px "IBM Plex Mono", monospace'; g.textAlign="center"; g.textBaseline="middle";
-      g.fillStyle=col; g.fillText(t.id, op.x+Math.sin(ang)*(R-30), op.y-Math.cos(ang)*(R-30));
+      g.fillStyle=col; g.fillText(t.id+" "+rr.toFixed(0), ex-dx/n*16, ey-dy/n*16);
       return;
     }
     const a = REDUCED?0:(sweep-brg+360)%360/360;
@@ -1069,8 +1110,8 @@ function drawScope(){
      là où le radar devrait voir quelque chose, l'opérateur doit pouvoir le
      remarquer. */
   if(F && F.ais_orphelins) F.ais_orphelins.forEach(o=>{
-    if(Math.hypot(o.x,o.y) > range*1.03) return;
     const p = px(o), s2 = 5;
+    if(p.x < -6 || p.x > W+6 || p.y < -6 || p.y > H+6) return;
     g.strokeStyle = "rgba(255,210,77,.55)"; g.lineWidth = 1;
     g.setLineDash([2,2]);
     g.beginPath(); g.arc(p.x, p.y, s2, 0, 7); g.stroke();
@@ -1843,7 +1884,7 @@ function renderTop(){
     $("brief").innerHTML = "<b>"+(m.name || F.meta.scenario)+"</b>"+
                            (m.brief || F.meta.brief).replace(/\n/g," ");
   }
-  $("ring-lbl").textContent = t2("ANNEAUX") + " " + (range/4).toFixed(2) + " NM";
+  $("ring-lbl").textContent = t2("ANNEAUX") + " " + pasAnneaux() + " NM";
   renderVide();
   renderCapture();
   if(F.meta && F.meta.fichier && $("sel-sc").options.length > 1
@@ -1943,12 +1984,10 @@ cv.addEventListener("dblclick", ()=>{ panOffset = {x: 0, y: 0}; });
 cv.addEventListener("wheel", e=>{
   e.preventDefault();
   if(suivi){ suivi = false; $("sk-suivi").setAttribute("aria-pressed","false"); }
-  // 100 NM : même plafond que les boutons d'échelle (ECHELLES) et que le
-  // suivi automatique (zoomSur) — pas la portée du capteur, mais la limite
-  // du fond de carte réellement chargé (web/coastline.json, découpé à
-  // 300 NM autour de la zone d'opérations). Au-delà, le dégradé de fond
-  // n'a plus de trait de côte à afficher.
-  range = clamp(range * (e.deltaY > 0 ? 1.15 : 1/1.15), 1, 100);
+  // 130 NM : un peu au-delà de la portée radar (RADAR_NM = 110), pour
+  // pouvoir dézoomer jusqu'à voir tout le bord de couverture. Le fond de
+  // carte réellement chargé (web/coastline.json) est découpé à 300 NM.
+  range = clamp(range * (e.deltaY > 0 ? 1.15 : 1/1.15), 1, 130);
   document.querySelectorAll(".rangepad button").forEach(b=>b.setAttribute("aria-pressed","false"));
 }, {passive:false});
 
@@ -1969,7 +2008,7 @@ cv.addEventListener("mousemove", e=>{
   const op = px({x: 0, y: 0});
   const dx=(e.clientX-r.left-op.x)/R*range, dy=(op.y-(e.clientY-r.top))/R*range;
   const b=(Math.atan2(dx,dy)*180/Math.PI+360)%360, d=Math.hypot(dx,dy);
-  if(d>range){ $("cursor-ro").textContent = t("GIS")+" —— · "+t("DIST")+" ——"; return; }
+  if(d>RADAR_NM){ $("cursor-ro").textContent = t("GIS")+" —— · "+t("DIST")+" ——"; return; }
   let ro = t("GIS")+" "+pad(b,3,0)+"° · "+t("DIST")+" "+d.toFixed(1)+" NM";
   if(geoOk()){ const g2 = toLatLon(dx, dy); ro += " · " + fmtLatLon(g2[0], g2[1]); }
   $("cursor-ro").textContent = ro;
